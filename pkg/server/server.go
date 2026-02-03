@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"os/signal"
-	"syscall"
 
 	sdkmcp "github.com/modelcontextprotocol/go-sdk/mcp"
 
@@ -79,7 +77,7 @@ func Run(ctx context.Context, opts Options) error {
 	}
 
 	reloadCh := make(chan os.Signal, 1)
-	signal.Notify(reloadCh, syscall.SIGHUP)
+	notifyReload(reloadCh)
 	go func() {
 		for range reloadCh {
 			cfg, err := config.Load(configPath, "", overrides)

@@ -76,6 +76,14 @@ Or build a local binary:
 go build -o rootcause ./cmd/rootcause
 ```
 
+Supported OS: macOS, Linux, and Windows.
+
+Windows build example:
+
+```
+go build -o rootcause.exe ./cmd/rootcause
+```
+
 ---
 
 ## Usage
@@ -250,6 +258,7 @@ The MCP server runs over stdio using the MCP Go SDK and is designed for local ku
 ### Config Reload
 
 Send SIGHUP to reload config and rebuild the tool registry.
+On Windows, SIGHUP is not supported; restart the process to reload config.
 
 ---
 
@@ -273,7 +282,7 @@ We welcome collaborators, reviewers, and plugin authors. If you want to add tool
 
 ## Development
 
-- Config example: `config.example.toml`
+- Config example: `config.toml`
 - Plugin SDK guide: `PLUGINS.md`
 
 Run unit tests:
