@@ -1,4 +1,4 @@
-toolsets = ["k8s", "linkerd", "karpenter", "istio"]
+toolsets = ["k8s", "linkerd", "karpenter", "istio", "helm"]
 read_only = false
 disable_destructive = true
 log_level = "info"

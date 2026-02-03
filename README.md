@@ -177,6 +177,7 @@ Enabled by default:
 - `linkerd`
 - `karpenter`
 - `istio`
+- `helm`
 
 Optional toolchains return “not detected” when the control plane is absent. Additional toolchains can be registered via the plugin SDK; see `PLUGINS.md`.
 
@@ -203,6 +204,12 @@ Optional toolchains return “not detected” when the control plane is absent. 
 ### 🚀 Karpenter (`karpenter.*`)
 - `karpenter.status`, `karpenter.node_provisioning_debug`
 
+### ⎈ Helm (`helm.*`)
+- `helm.repo_add`, `helm.repo_list`, `helm.repo_update`
+- `helm.list`, `helm.status`
+- `helm.install`, `helm.upgrade`, `helm.uninstall`
+- `helm.template_apply`, `helm.template_uninstall`
+
 ### Kubectl-style aliases
 The `k8s.*` tools also expose aliases like `kubectl_get`, `kubectl_describe`, `kubectl_apply`, `kubectl_delete`, `kubectl_logs`, `kubectl_patch`, `kubectl_scale`, `kubectl_rollout`, `kubectl_context`, `kubectl_generic`, `explain_resource`, `list_api_resources`, and `ping`.
 
@@ -218,7 +225,7 @@ The `k8s.*` tools also expose aliases like `kubectl_get`, `kubectl_describe`, `k
 ## Config and Flags
 
 ```
-rootcause --config config.example.toml --toolsets k8s,linkerd,istio,karpenter
+rootcause --config config.example.toml --toolsets k8s,linkerd,istio,karpenter,helm
 ```
 
 ### Flags

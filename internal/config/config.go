@@ -42,7 +42,7 @@ type Overrides struct {
 func DefaultConfig() Config {
 	return Config{
 		Kubeconfig: "",
-		Toolsets:   []string{"k8s", "linkerd", "karpenter", "istio"},
+		Toolsets:   []string{"k8s", "linkerd", "karpenter", "istio", "helm"},
 		LogLevel:   "info",
 	}
 }

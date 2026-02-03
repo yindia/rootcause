@@ -9,6 +9,7 @@ import (
 
 	"rootcause/pkg/server"
 
+	_ "rootcause/toolsets/helm"
 	_ "rootcause/toolsets/istio"
 	_ "rootcause/toolsets/k8s"
 	_ "rootcause/toolsets/karpenter"
