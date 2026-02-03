@@ -1,0 +1,11 @@
+toolsets = ["k8s", "linkerd", "karpenter", "istio"]
+read_only = false
+disable_destructive = true
+log_level = "info"
+
+[safety]
+allow_destructive_tools = ["k8s.delete"]
+
+[exec_readonly]
+enabled = false
+allowed_commands = ["cat", "ls", "env", "printenv", "curl", "kubectl"]
