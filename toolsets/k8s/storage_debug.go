@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"sort"
-	"strings"
 
 	corev1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
@@ -61,7 +60,7 @@ func (t *Toolset) handleStorageDebug(ctx context.Context, req mcp.ToolRequest) (
 	}
 
 	for _, name := range pvcNames {
-		if err := t.analyzePVC(ctx, req.User, analysis, namespace, name, includeEvents); err != nil {
+		if err := t.analyzePVC(ctx, req.User, &analysis, namespace, name, includeEvents); err != nil {
 			return errorResult(err), err
 		}
 	}

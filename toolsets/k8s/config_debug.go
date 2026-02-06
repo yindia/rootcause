@@ -84,9 +84,9 @@ func (t *Toolset) handleConfigDebug(ctx context.Context, req mcp.ToolRequest) (m
 					msg = fmt.Sprintf("%s/%s", issue.Namespace, issue.Name)
 				}
 				if issue.Missing {
-					analysis.AddCause("Config missing", fmt.Sprintf("%s %s missing", strings.Title(issue.Kind), msg), "high")
+					analysis.AddCause("Config missing", fmt.Sprintf("%s %s missing", titleKind(issue.Kind), msg), "high")
 				} else {
-					analysis.AddCause("Missing keys", fmt.Sprintf("%s %s missing keys: %s", strings.Title(issue.Kind), msg, strings.Join(issue.MissingKeys, ", ")), "medium")
+					analysis.AddCause("Missing keys", fmt.Sprintf("%s %s missing keys: %s", titleKind(issue.Kind), msg, strings.Join(issue.MissingKeys, ", ")), "medium")
 				}
 			}
 		}
@@ -245,4 +245,11 @@ func optionalRef(optional *bool) bool {
 		return false
 	}
 	return *optional
+}
+
+func titleKind(kind string) string {
+	if kind == "" {
+		return ""
+	}
+	return strings.ToUpper(kind[:1]) + kind[1:]
 }

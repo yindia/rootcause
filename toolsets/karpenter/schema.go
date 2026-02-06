@@ -32,3 +32,37 @@ func schemaCRStatus() map[string]any {
 		},
 	}
 }
+
+func schemaNodePoolDebug() map[string]any {
+	return map[string]any{
+		"type": "object",
+		"properties": map[string]any{
+			"namespace":     map[string]any{"type": "string"},
+			"name":          map[string]any{"type": "string"},
+			"labelSelector": map[string]any{"type": "string"},
+		},
+	}
+}
+
+func schemaNodeClassDebug() map[string]any {
+	return map[string]any{
+		"type": "object",
+		"properties": map[string]any{
+			"namespace":     map[string]any{"type": "string"},
+			"name":          map[string]any{"type": "string"},
+			"kind":          map[string]any{"type": "string"},
+			"labelSelector": map[string]any{"type": "string"},
+		},
+	}
+}
+
+func schemaInterruptionDebug() map[string]any {
+	return map[string]any{
+		"type": "object",
+		"properties": map[string]any{
+			"namespace":     map[string]any{"type": "string"},
+			"name":          map[string]any{"type": "string"},
+			"labelSelector": map[string]any{"type": "string"},
+		},
+	}
+}

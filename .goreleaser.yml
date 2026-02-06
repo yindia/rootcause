@@ -1,0 +1,55 @@
+version: 2
+project_name: rootcause
+
+builds:
+  - id: rootcause
+    main: ./cmd/rootcause/main.go
+    binary: rootcause
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - "-s -w"
+
+archives:
+  - id: rootcause
+    builds: [rootcause]
+    format_overrides:
+      - goos: windows
+        format: zip
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+
+checksum:
+  name_template: "checksums.txt"
+
+brews:
+  - ids: [rootcause]
+    homepage: "https://github.com/yindia/rootcause"
+    description: "RootCause is a local-first MCP server that helps operators manage Kubernetes resources and identify the real root cause of failures through interoperable toolsets."
+    license: "MIT"
+    directory: Formula
+    repository:
+      owner: "yindia"
+      name: "homebrew-yindia"
+    test: |
+      system "#{bin}/rootcause", "--help"
+    install: |
+      bin.install "rootcause"
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+
+release:
+  github:
+    owner: "yindia"
+    name: "rootcause"
+  draft: true

@@ -63,6 +63,30 @@ func (t *Toolset) Register(reg mcp.Registry) error {
 			Safety:      mcp.SafetyReadOnly,
 			Handler:     t.handleNodeProvisioningDebug,
 		},
+		{
+			Name:        "karpenter.nodepool_debug",
+			Description: "Inspect Karpenter NodePools or Provisioners.",
+			ToolsetID:   t.ID(),
+			InputSchema: schemaNodePoolDebug(),
+			Safety:      mcp.SafetyReadOnly,
+			Handler:     t.handleNodePoolDebug,
+		},
+		{
+			Name:        "karpenter.nodeclass_debug",
+			Description: "Inspect Karpenter NodeClass resources.",
+			ToolsetID:   t.ID(),
+			InputSchema: schemaNodeClassDebug(),
+			Safety:      mcp.SafetyReadOnly,
+			Handler:     t.handleNodeClassDebug,
+		},
+		{
+			Name:        "karpenter.interruption_debug",
+			Description: "Inspect Karpenter NodeClaims and interruption signals.",
+			ToolsetID:   t.ID(),
+			InputSchema: schemaInterruptionDebug(),
+			Safety:      mcp.SafetyReadOnly,
+			Handler:     t.handleInterruptionDebug,
+		},
 	}
 	for _, tool := range tools {
 		if err := reg.Add(tool); err != nil {

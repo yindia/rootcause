@@ -190,7 +190,7 @@ Optional toolchains return “not detected” when the control plane is absent. 
 - **Ops + observability**: `k8s.logs`, `k8s.events`, `k8s.context`, `k8s.explain_resource`, `k8s.ping`
 - **Workload operations**: `k8s.scale`, `k8s.rollout`
 - **Execution and access**: `k8s.exec`, `k8s.exec_readonly` (allowlisted), `k8s.port_forward`
-- **Debugging**: `k8s.overview`, `k8s.crashloop_debug`, `k8s.scheduling_debug`, `k8s.hpa_debug`, `k8s.vpa_debug`, `k8s.network_debug`, `k8s.private_link_debug`
+- **Debugging**: `k8s.overview`, `k8s.crashloop_debug`, `k8s.scheduling_debug`, `k8s.hpa_debug`, `k8s.vpa_debug`, `k8s.storage_debug`, `k8s.config_debug`, `k8s.network_debug`, `k8s.private_link_debug`
 - **Maintenance**: `k8s.cleanup_pods`, `k8s.node_management`
 - **Graph and topology**: `k8s.graph` (Ingress/Service/Endpoints/Workloads + mesh + NetworkPolicy)
 - **Metrics**: `k8s.resource_usage` (metrics-server)
@@ -207,6 +207,7 @@ Optional toolchains return “not detected” when the control plane is absent. 
 
 ### 🚀 Karpenter (`karpenter.*`)
 - `karpenter.status`, `karpenter.node_provisioning_debug`
+- `karpenter.nodepool_debug`, `karpenter.nodeclass_debug`, `karpenter.interruption_debug`
 
 ### ⎈ Helm (`helm.*`)
 - `helm.repo_add`, `helm.repo_list`, `helm.repo_update`
