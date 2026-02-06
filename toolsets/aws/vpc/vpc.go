@@ -283,6 +283,7 @@ func (s *Service) handleListSubnets(ctx context.Context, req mcp.ToolRequest) (m
 	region := toString(req.Arguments["region"])
 	vpcID := toString(req.Arguments["vpcId"])
 	ids := toStringSlice(req.Arguments["subnetIds"])
+	tagFilters := tagFiltersFromArgs(req.Arguments["tagFilters"])
 	limit := toInt(req.Arguments["limit"], 100)
 	client, usedRegion, err := s.ec2Client(ctx, region)
 	if err != nil {
@@ -297,6 +298,9 @@ func (s *Service) handleListSubnets(ctx context.Context, req mcp.ToolRequest) (m
 			Name:   aws.String("vpc-id"),
 			Values: []string{vpcID},
 		})
+	}
+	if len(tagFilters) > 0 {
+		input.Filters = append(input.Filters, tagFilters...)
 	}
 	var subnets []map[string]any
 	for {
@@ -520,6 +524,7 @@ func (s *Service) handleListSecurityGroups(ctx context.Context, req mcp.ToolRequ
 	region := toString(req.Arguments["region"])
 	vpcID := toString(req.Arguments["vpcId"])
 	ids := toStringSlice(req.Arguments["groupIds"])
+	tagFilters := tagFiltersFromArgs(req.Arguments["tagFilters"])
 	limit := toInt(req.Arguments["limit"], 100)
 	client, usedRegion, err := s.ec2Client(ctx, region)
 	if err != nil {
@@ -534,6 +539,9 @@ func (s *Service) handleListSecurityGroups(ctx context.Context, req mcp.ToolRequ
 			Name:   aws.String("vpc-id"),
 			Values: []string{vpcID},
 		})
+	}
+	if len(tagFilters) > 0 {
+		input.Filters = append(input.Filters, tagFilters...)
 	}
 	var groups []map[string]any
 	for {
@@ -1434,6 +1442,28 @@ func toStringSlice(value any) []string {
 	default:
 		return nil
 	}
+}
+
+func tagFiltersFromArgs(value any) []ec2types.Filter {
+	tagMap, ok := value.(map[string]any)
+	if !ok {
+		return nil
+	}
+	filters := make([]ec2types.Filter, 0, len(tagMap))
+	for key, raw := range tagMap {
+		if strings.TrimSpace(key) == "" {
+			continue
+		}
+		values := toStringSlice(raw)
+		if len(values) == 0 {
+			continue
+		}
+		filters = append(filters, ec2types.Filter{
+			Name:   aws.String("tag:" + key),
+			Values: values,
+		})
+	}
+	return filters
 }
 
 func toInt(value any, fallback int) int {

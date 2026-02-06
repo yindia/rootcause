@@ -23,6 +23,17 @@ func schemaIAMGetRole() map[string]any {
 	}
 }
 
+func schemaIAMGetInstanceProfile() map[string]any {
+	return map[string]any{
+		"type": "object",
+		"properties": map[string]any{
+			"instanceProfileName": map[string]any{"type": "string"},
+			"region":              map[string]any{"type": "string"},
+		},
+		"required": []string{"instanceProfileName"},
+	}
+}
+
 func schemaIAMUpdateRole() map[string]any {
 	return map[string]any{
 		"type": "object",

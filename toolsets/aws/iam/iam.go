@@ -43,6 +43,14 @@ func ToolSpecs(ctx mcp.ToolsetContext, toolsetID string, iamClient func(context.
 			Handler:     svc.handleIAMGetRole,
 		},
 		{
+			Name:        "aws.iam.get_instance_profile",
+			Description: "Get an IAM instance profile and its roles.",
+			ToolsetID:   toolsetID,
+			InputSchema: schemaIAMGetInstanceProfile(),
+			Safety:      mcp.SafetyReadOnly,
+			Handler:     svc.handleIAMGetInstanceProfile,
+		},
+		{
 			Name:        "aws.iam.update_role",
 			Description: "Update IAM role description or assume-role policy (confirm required).",
 			ToolsetID:   toolsetID,
@@ -175,6 +183,32 @@ func (s *Service) handleIAMGetRole(ctx context.Context, req mcp.ToolRequest) (mc
 		Data: s.ctx.Redactor.RedactValue(result),
 		Metadata: mcp.ToolMetadata{
 			Resources: []string{fmt.Sprintf("iam/role/%s", roleName)},
+		},
+	}, nil
+}
+
+func (s *Service) handleIAMGetInstanceProfile(ctx context.Context, req mcp.ToolRequest) (mcp.ToolResult, error) {
+	region := toString(req.Arguments["region"])
+	profileName := toString(req.Arguments["instanceProfileName"])
+	if profileName == "" {
+		return errorResult(errors.New("instanceProfileName is required")), errors.New("instanceProfileName is required")
+	}
+	client, usedRegion, err := s.iamClient(ctx, region)
+	if err != nil {
+		return errorResult(err), err
+	}
+	out, err := client.GetInstanceProfile(ctx, &iam.GetInstanceProfileInput{InstanceProfileName: aws.String(profileName)})
+	if err != nil {
+		return errorResult(err), err
+	}
+	result := map[string]any{
+		"region":          regionOrDefault(usedRegion),
+		"instanceProfile": summarizeInstanceProfile(out.InstanceProfile),
+	}
+	return mcp.ToolResult{
+		Data: s.ctx.Redactor.RedactValue(result),
+		Metadata: mcp.ToolMetadata{
+			Resources: []string{fmt.Sprintf("iam/instance-profile/%s", profileName)},
 		},
 	}, nil
 }
@@ -645,6 +679,27 @@ func summarizeRole(role iamtypes.Role) map[string]any {
 		"description": aws.ToString(role.Description),
 		"createDate":  role.CreateDate,
 		"maxSession":  role.MaxSessionDuration,
+	}
+}
+
+func summarizeInstanceProfile(profile *iamtypes.InstanceProfile) map[string]any {
+	if profile == nil {
+		return map[string]any{"status": "not found"}
+	}
+	var roles []map[string]any
+	for _, role := range profile.Roles {
+		roles = append(roles, map[string]any{
+			"name": aws.ToString(role.RoleName),
+			"arn":  aws.ToString(role.Arn),
+			"path": aws.ToString(role.Path),
+		})
+	}
+	return map[string]any{
+		"name":    aws.ToString(profile.InstanceProfileName),
+		"arn":     aws.ToString(profile.Arn),
+		"path":    aws.ToString(profile.Path),
+		"roles":   roles,
+		"created": profile.CreateDate,
 	}
 }
 

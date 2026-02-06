@@ -34,6 +34,10 @@ func schemaVPCListSubnets() map[string]any {
 				"type":  "array",
 				"items": map[string]any{"type": "string"},
 			},
+			"tagFilters": map[string]any{
+				"type":                 "object",
+				"additionalProperties": map[string]any{"type": "string"},
+			},
 			"limit":  map[string]any{"type": "number"},
 			"region": map[string]any{"type": "string"},
 		},
@@ -114,6 +118,10 @@ func schemaVPCListSecurityGroups() map[string]any {
 			"groupIds": map[string]any{
 				"type":  "array",
 				"items": map[string]any{"type": "string"},
+			},
+			"tagFilters": map[string]any{
+				"type":                 "object",
+				"additionalProperties": map[string]any{"type": "string"},
 			},
 			"limit":  map[string]any{"type": "number"},
 			"region": map[string]any{"type": "string"},

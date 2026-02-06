@@ -182,6 +182,7 @@ func (t *Toolset) handleNodeClassDebug(ctx context.Context, req mcp.ToolRequest)
 				"spec":       t.ctx.Redactor.RedactMap(spec),
 				"conditions": conditions,
 			})
+			t.addAWSNodeClassEvidence(ctx, req, &analysis, match, obj)
 			for _, cond := range conditions {
 				if isConditionFalse(cond, []string{"Ready"}) {
 					analysis.AddCause("NodeClass not ready", fmt.Sprintf("%s %s condition %s false", match.Kind, obj.GetName(), cond["type"]), "high")

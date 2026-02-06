@@ -51,7 +51,7 @@ Use `k8s.debug_flow` to run a guided flow that builds `k8s.graph` and walks the 
 - `helm.template_apply`, `helm.template_uninstall`
 
 ### AWS IAM (`aws.iam.*`)
-- `aws.iam.list_roles`, `aws.iam.get_role`
+- `aws.iam.list_roles`, `aws.iam.get_role`, `aws.iam.get_instance_profile`
 - `aws.iam.update_role`, `aws.iam.delete_role` (confirm required)
 - `aws.iam.list_policies`, `aws.iam.get_policy`
 - `aws.iam.update_policy`, `aws.iam.delete_policy` (confirm required)
@@ -99,6 +99,25 @@ Use `k8s.debug_flow` to run a guided flow that builds `k8s.graph` and walks the 
 - `aws.eks.list_identity_provider_configs`, `aws.eks.get_identity_provider_config`
 - `aws.eks.list_updates`, `aws.eks.get_update`
 - `aws.eks.list_nodes`
+
+---
+
+## Safety Allowlist (allow_destructive_tools)
+
+When `disable_destructive = true`, RootCause removes destructive/risky tools from discovery. Use `allow_destructive_tools` to re-enable specific tools.
+
+Example:
+```toml
+[safety]
+allow_destructive_tools = [
+  "k8s.apply",
+  "k8s.patch",
+  "k8s.delete",
+  "helm.install",
+  "helm.upgrade",
+  "helm.uninstall"
+]
+```
 
 ---
 
