@@ -28,6 +28,11 @@ type resourceMatch struct {
 	ShortNames []string
 }
 
+type nodeClassIndex struct {
+	byKind map[string]map[string]struct{}
+	byName map[string][]string
+}
+
 func (t *Toolset) handleNodePoolDebug(ctx context.Context, req mcp.ToolRequest) (mcp.ToolResult, error) {
 	analysis := render.NewAnalysis()
 	detected, _, groups, err := t.detectKarpenter(ctx)
@@ -47,6 +52,18 @@ func (t *Toolset) handleNodePoolDebug(ctx context.Context, req mcp.ToolRequest) 
 	namespace := toString(req.Arguments["namespace"])
 	name := toString(req.Arguments["name"])
 	selector := toString(req.Arguments["labelSelector"])
+
+	var classIndex *nodeClassIndex
+	if req.User.Role == policy.RoleCluster {
+		index, err := t.buildNodeClassIndex(ctx, req.User)
+		if err != nil {
+			analysis.AddEvidence("nodeClassLookupError", err.Error())
+		} else {
+			classIndex = index
+		}
+	} else {
+		analysis.AddEvidence("nodeClassLookup", "requires cluster role")
+	}
 
 	matches, err := t.findResourcesByKind(func(kind string) bool {
 		return strings.EqualFold(kind, "NodePool") || strings.EqualFold(kind, "Provisioner")
@@ -75,6 +92,8 @@ func (t *Toolset) handleNodePoolDebug(ctx context.Context, req mcp.ToolRequest) 
 			obj := &objects[i]
 			ref := t.ctx.Evidence.ResourceRef(match.GVR, obj.GetNamespace(), obj.GetName())
 			analysis.AddResource(ref)
+			nodeClassRef := selectNodeClassRef(obj)
+			nodeClassResolution := t.resolveNodeClassRef(nodeClassRef, classIndex)
 			conditions := extractConditions(obj)
 			analysis.AddEvidence(fmt.Sprintf("%s %s", match.Kind, obj.GetName()), map[string]any{
 				"requirements":  extractRequirements(obj),
@@ -82,7 +101,8 @@ func (t *Toolset) handleNodePoolDebug(ctx context.Context, req mcp.ToolRequest) 
 				"limits":        extractLimits(obj),
 				"disruption":    extractDisruption(obj),
 				"weight":        nestedInt(obj, "spec", "weight"),
-				"nodeClassRef":  extractNodeClassRef(obj),
+				"nodeClassRef":  nodeClassRef,
+				"nodeClass":     nodeClassResolution,
 				"providerRef":   extractProviderRef(obj),
 				"conditions":    conditions,
 				"templateClass": extractNodeClassRefFromTemplate(obj),
@@ -90,6 +110,12 @@ func (t *Toolset) handleNodePoolDebug(ctx context.Context, req mcp.ToolRequest) 
 			for _, cond := range conditions {
 				if isConditionFalse(cond, []string{"Ready"}) {
 					analysis.AddCause("NodePool not ready", fmt.Sprintf("%s %s condition %s false", match.Kind, obj.GetName(), cond["type"]), "high")
+				}
+			}
+			if nodeClassResolution != nil {
+				if found, ok := nodeClassResolution["found"].(bool); ok && !found {
+					target := fmt.Sprintf("%v", nodeClassResolution["name"])
+					analysis.AddCause("NodeClass missing", fmt.Sprintf("%s %s references missing NodeClass %s", match.Kind, obj.GetName(), target), "high")
 				}
 			}
 		}
@@ -285,6 +311,74 @@ func (t *Toolset) findResourcesByKind(kindMatch func(string) bool, groupMatch fu
 		}
 	}
 	return resources, nil
+}
+
+func (t *Toolset) buildNodeClassIndex(ctx context.Context, user policy.User) (*nodeClassIndex, error) {
+	matches, err := t.findResourcesByKind(func(kind string) bool {
+		return strings.HasSuffix(kind, "NodeClass")
+	}, func(group string) bool {
+		return strings.Contains(group, "karpenter")
+	})
+	if err != nil {
+		return nil, err
+	}
+	if len(matches) == 0 {
+		return nil, nil
+	}
+	index := &nodeClassIndex{byKind: map[string]map[string]struct{}{}, byName: map[string][]string{}}
+	for _, match := range matches {
+		items, _, err := t.listResourceObjects(ctx, user, match, "", "", "")
+		if err != nil {
+			return nil, err
+		}
+		for i := range items {
+			obj := &items[i]
+			kindKey := strings.ToLower(match.Kind)
+			if _, ok := index.byKind[kindKey]; !ok {
+				index.byKind[kindKey] = map[string]struct{}{}
+			}
+			index.byKind[kindKey][obj.GetName()] = struct{}{}
+			index.byName[obj.GetName()] = append(index.byName[obj.GetName()], match.Kind)
+		}
+	}
+	for name := range index.byName {
+		sort.Strings(index.byName[name])
+	}
+	return index, nil
+}
+
+func selectNodeClassRef(obj *unstructured.Unstructured) map[string]any {
+	if ref := extractNodeClassRef(obj); len(ref) > 0 {
+		return ref
+	}
+	if ref := extractNodeClassRefFromTemplate(obj); len(ref) > 0 {
+		return ref
+	}
+	return nil
+}
+
+func (t *Toolset) resolveNodeClassRef(ref map[string]any, index *nodeClassIndex) map[string]any {
+	if ref == nil || index == nil {
+		return nil
+	}
+	name := toString(ref["name"])
+	if name == "" {
+		return map[string]any{"found": false, "reason": "missing name"}
+	}
+	kind := toString(ref["kind"])
+	if kind != "" {
+		kindKey := strings.ToLower(kind)
+		if names, ok := index.byKind[kindKey]; ok {
+			if _, exists := names[name]; exists {
+				return map[string]any{"found": true, "name": name, "kind": kind}
+			}
+		}
+		return map[string]any{"found": false, "name": name, "kind": kind}
+	}
+	if kinds, ok := index.byName[name]; ok && len(kinds) > 0 {
+		return map[string]any{"found": true, "name": name, "kinds": kinds}
+	}
+	return map[string]any{"found": false, "name": name}
 }
 
 func (t *Toolset) listResourceObjects(ctx context.Context, user policy.User, match resourceMatch, namespace, name, selector string) ([]unstructured.Unstructured, []string, error) {
