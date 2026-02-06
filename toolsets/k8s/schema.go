@@ -381,6 +381,23 @@ func schemaConfigDebug() map[string]any {
 	}
 }
 
+func schemaDebugFlow() map[string]any {
+	return map[string]any{
+		"type": "object",
+		"properties": map[string]any{
+			"namespace": map[string]any{"type": "string"},
+			"kind":      map[string]any{"type": "string"},
+			"name":      map[string]any{"type": "string"},
+			"scenario": map[string]any{
+				"type": "string",
+				"enum": []string{"traffic", "pending", "crashloop", "autoscaling", "networkpolicy", "mesh"},
+			},
+			"maxSteps": map[string]any{"type": "number"},
+		},
+		"required": []string{"namespace", "kind", "name", "scenario"},
+	}
+}
+
 func schemaNetworkDebug() map[string]any {
 	return map[string]any{
 		"type": "object",

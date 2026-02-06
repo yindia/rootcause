@@ -41,7 +41,7 @@ func (t *Toolset) Register(reg mcp.Registry) error {
 	tools := []mcp.ToolSpec{
 		{
 			Name:        "karpenter.status",
-			Description: "Check Karpenter control-plane status.",
+			Description: "Check Karpenter control-plane health and deployments.",
 			ToolsetID:   t.ID(),
 			InputSchema: schemaStatus(),
 			Safety:      mcp.SafetyReadOnly,
@@ -49,7 +49,7 @@ func (t *Toolset) Register(reg mcp.Registry) error {
 		},
 		{
 			Name:        "karpenter.cr_status",
-			Description: "Fetch Karpenter CR status for debugging (best-effort).",
+			Description: "Fetch Karpenter CR status (NodePool, NodeClaim, NodeClass).",
 			ToolsetID:   t.ID(),
 			InputSchema: schemaCRStatus(),
 			Safety:      mcp.SafetyReadOnly,
@@ -57,7 +57,7 @@ func (t *Toolset) Register(reg mcp.Registry) error {
 		},
 		{
 			Name:        "karpenter.node_provisioning_debug",
-			Description: "Diagnose pending pods and Karpenter provisioning.",
+			Description: "Diagnose pending pods and Karpenter provisioning constraints.",
 			ToolsetID:   t.ID(),
 			InputSchema: schemaNodeProvisioningDebug(),
 			Safety:      mcp.SafetyReadOnly,
@@ -65,7 +65,7 @@ func (t *Toolset) Register(reg mcp.Registry) error {
 		},
 		{
 			Name:        "karpenter.nodepool_debug",
-			Description: "Inspect Karpenter NodePools or Provisioners.",
+			Description: "Inspect NodePools/Provisioners, requirements, taints, and NodeClass refs.",
 			ToolsetID:   t.ID(),
 			InputSchema: schemaNodePoolDebug(),
 			Safety:      mcp.SafetyReadOnly,
@@ -73,7 +73,7 @@ func (t *Toolset) Register(reg mcp.Registry) error {
 		},
 		{
 			Name:        "karpenter.nodeclass_debug",
-			Description: "Inspect Karpenter NodeClass resources.",
+			Description: "Inspect NodeClass resources, spec fields, and conditions.",
 			ToolsetID:   t.ID(),
 			InputSchema: schemaNodeClassDebug(),
 			Safety:      mcp.SafetyReadOnly,
@@ -81,7 +81,7 @@ func (t *Toolset) Register(reg mcp.Registry) error {
 		},
 		{
 			Name:        "karpenter.interruption_debug",
-			Description: "Inspect Karpenter NodeClaims and interruption signals.",
+			Description: "Inspect NodeClaims and interruption/drift signals.",
 			ToolsetID:   t.ID(),
 			InputSchema: schemaInterruptionDebug(),
 			Safety:      mcp.SafetyReadOnly,

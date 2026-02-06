@@ -1,6 +1,6 @@
 # RootCause 🧭
 
-[![Go](https://img.shields.io/badge/go-1.22%2B-00ADD8?logo=go&logoColor=white)](https://go.dev/)
+[![Go](https://img.shields.io/badge/go-1.23%2B-00ADD8?logo=go&logoColor=white)](https://go.dev/)
 [![MCP](https://img.shields.io/badge/MCP-stdio-4A90E2)](https://modelcontextprotocol.io/)
 
 RootCause is a local-first MCP server that helps operators manage Kubernetes resources and identify the real root cause of failures through interoperable toolsets.
@@ -24,6 +24,7 @@ Inspired by:
 - [MCP Client Example (stdio)](#mcp-client-example-stdio)
 - [MCP Client Setup](#mcp-client-setup)
 - [Toolchains](#toolchains)
+- [Quick Tool Picker](#quick-tool-picker-)
 - [Tools and Features](#tools-and-features)
 - [Safety Modes](#safety-modes)
 - [Config and Flags](#config-and-flags)
@@ -44,6 +45,7 @@ Inspired by:
 - **Competitive by design**: Go binary speed and distribution with parity vs npx-based MCP servers.
 - **Debugging built-in**: Structured reasoning with likely root causes, evidence, and next checks.
 - **Plugin-ready**: Clean SDK to add toolchains without duplicating K8s logic.
+- **⭐ Like it?** Star the repo to help us grow and keep shipping.
 
 ## Quick Start 🚀
 
@@ -197,6 +199,17 @@ Optional toolchains return “not detected” when the control plane is absent. 
 
 ---
 
+## Quick Tool Picker 🧰
+
+- **Traffic errors (5xx/timeout)**: `k8s.debug_flow` scenario `traffic`, then `k8s.network_debug`, `istio.*` or `linkerd.*` as needed.
+- **Pending pods**: `k8s.debug_flow` scenario `pending`, or `k8s.scheduling_debug` + `k8s.storage_debug`.
+- **CrashLoopBackOff**: `k8s.debug_flow` scenario `crashloop`, or `k8s.crashloop_debug` + `k8s.config_debug`.
+- **Autoscaling issues**: `k8s.hpa_debug` / `k8s.vpa_debug` + `k8s.resource_usage`.
+- **Volume/PVC failures**: `k8s.storage_debug`.
+- **Missing config keys**: `k8s.config_debug`.
+
+---
+
 ## Tools and Features
 
 ### ✅ Core Kubernetes (`k8s.*` + kubectl-style aliases)
@@ -204,10 +217,15 @@ Optional toolchains return “not detected” when the control plane is absent. 
 - **Ops + observability**: `k8s.logs`, `k8s.events`, `k8s.context`, `k8s.explain_resource`, `k8s.ping`
 - **Workload operations**: `k8s.scale`, `k8s.rollout`
 - **Execution and access**: `k8s.exec`, `k8s.exec_readonly` (allowlisted), `k8s.port_forward`
-- **Debugging**: `k8s.overview`, `k8s.crashloop_debug`, `k8s.scheduling_debug`, `k8s.hpa_debug`, `k8s.vpa_debug`, `k8s.storage_debug`, `k8s.config_debug`, `k8s.network_debug`, `k8s.private_link_debug`
+- **Debugging**: `k8s.overview`, `k8s.crashloop_debug`, `k8s.scheduling_debug`, `k8s.hpa_debug`, `k8s.vpa_debug`, `k8s.storage_debug`, `k8s.config_debug`, `k8s.network_debug`, `k8s.private_link_debug`, `k8s.debug_flow`
 - **Maintenance**: `k8s.cleanup_pods`, `k8s.node_management`
 - **Graph and topology**: `k8s.graph` (Ingress/Service/Endpoints/Workloads + mesh + NetworkPolicy)
 - **Metrics**: `k8s.resource_usage` (metrics-server)
+
+### Graph-first Debugging (Recommended)
+
+RootCause can walk the graph node-by-node for common failures. Use `k8s.debug_flow` to run a guided flow that builds `k8s.graph`, then inspects each hop in order.
+
 
 ### 🕸️ Linkerd (`linkerd.*`)
 - `linkerd.health`, `linkerd.proxy_status`, `linkerd.identity_issues`, `linkerd.policy_debug`, `linkerd.cr_status`
@@ -218,6 +236,7 @@ Optional toolchains return “not detected” when the control plane is absent. 
 - `istio.service_mesh_hosts`, `istio.discover_namespaces`, `istio.pods_by_service`, `istio.external_dependency_check`
 - `istio.proxy_clusters`, `istio.proxy_listeners`, `istio.proxy_routes`, `istio.proxy_endpoints`, `istio.proxy_bootstrap`, `istio.proxy_config_dump`
 - `istio.cr_status`, `istio.virtualservice_status`, `istio.destinationrule_status`, `istio.gateway_status`, `istio.httproute_status`
+
 
 ### 🚀 Karpenter (`karpenter.*`)
 - `karpenter.status`, `karpenter.node_provisioning_debug`

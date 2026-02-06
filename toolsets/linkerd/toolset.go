@@ -41,7 +41,7 @@ func (t *Toolset) Register(reg mcp.Registry) error {
 	tools := []mcp.ToolSpec{
 		{
 			Name:        "linkerd.health",
-			Description: "Check Linkerd control-plane health.",
+			Description: "Check Linkerd control-plane health and deployment readiness.",
 			ToolsetID:   t.ID(),
 			InputSchema: schemaHealth(),
 			Safety:      mcp.SafetyReadOnly,
@@ -49,7 +49,7 @@ func (t *Toolset) Register(reg mcp.Registry) error {
 		},
 		{
 			Name:        "linkerd.proxy_status",
-			Description: "Check Linkerd proxy sidecar status.",
+			Description: "Check Linkerd proxy sidecar readiness across pods.",
 			ToolsetID:   t.ID(),
 			InputSchema: schemaProxyStatus(),
 			Safety:      mcp.SafetyReadOnly,
@@ -57,7 +57,7 @@ func (t *Toolset) Register(reg mcp.Registry) error {
 		},
 		{
 			Name:        "linkerd.identity_issues",
-			Description: "Check Linkerd identity service issues.",
+			Description: "Diagnose Linkerd identity service readiness and errors.",
 			ToolsetID:   t.ID(),
 			InputSchema: schemaIdentityIssues(),
 			Safety:      mcp.SafetyReadOnly,
@@ -65,7 +65,7 @@ func (t *Toolset) Register(reg mcp.Registry) error {
 		},
 		{
 			Name:        "linkerd.policy_debug",
-			Description: "Best-effort Linkerd policy diagnostics.",
+			Description: "Inspect Linkerd policy resources and CRD availability.",
 			ToolsetID:   t.ID(),
 			InputSchema: schemaPolicyDebug(),
 			Safety:      mcp.SafetyReadOnly,
@@ -73,7 +73,7 @@ func (t *Toolset) Register(reg mcp.Registry) error {
 		},
 		{
 			Name:        "linkerd.cr_status",
-			Description: "Fetch Linkerd CR status for debugging (best-effort).",
+			Description: "Fetch Linkerd CR status (ServiceProfile, policy, etc.).",
 			ToolsetID:   t.ID(),
 			InputSchema: schemaCRStatus(),
 			Safety:      mcp.SafetyReadOnly,
@@ -81,7 +81,7 @@ func (t *Toolset) Register(reg mcp.Registry) error {
 		},
 		{
 			Name:        "linkerd.httproute_status",
-			Description: "Fetch HTTPRoute status for debugging.",
+			Description: "Fetch HTTPRoute status (Gateway API).",
 			ToolsetID:   t.ID(),
 			InputSchema: schemaHTTPRouteStatus(),
 			Safety:      mcp.SafetyReadOnly,
@@ -89,7 +89,7 @@ func (t *Toolset) Register(reg mcp.Registry) error {
 		},
 		{
 			Name:        "linkerd.gateway_status",
-			Description: "Fetch Gateway status for debugging.",
+			Description: "Fetch Gateway status (Gateway API).",
 			ToolsetID:   t.ID(),
 			InputSchema: schemaGatewayStatus(),
 			Safety:      mcp.SafetyReadOnly,
@@ -97,7 +97,7 @@ func (t *Toolset) Register(reg mcp.Registry) error {
 		},
 		{
 			Name:        "linkerd.virtualservice_status",
-			Description: "Fetch VirtualService status for debugging.",
+			Description: "Fetch VirtualService status (mesh routing).",
 			ToolsetID:   t.ID(),
 			InputSchema: schemaVirtualServiceStatus(),
 			Safety:      mcp.SafetyReadOnly,
@@ -105,7 +105,7 @@ func (t *Toolset) Register(reg mcp.Registry) error {
 		},
 		{
 			Name:        "linkerd.destinationrule_status",
-			Description: "Fetch DestinationRule status for debugging.",
+			Description: "Fetch DestinationRule status (mesh routing).",
 			ToolsetID:   t.ID(),
 			InputSchema: schemaDestinationRuleStatus(),
 			Safety:      mcp.SafetyReadOnly,

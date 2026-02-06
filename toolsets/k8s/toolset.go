@@ -42,7 +42,7 @@ func (t *Toolset) Register(reg mcp.Registry) error {
 	tools := []mcp.ToolSpec{
 		{
 			Name:        "k8s.get",
-			Description: "Get a Kubernetes resource by kind or resource name.",
+			Description: "Fetch a single Kubernetes object by kind/resource/name (supports CRDs/CRs).",
 			ToolsetID:   t.ID(),
 			InputSchema: schemaGet(),
 			Safety:      mcp.SafetyReadOnly,
@@ -50,7 +50,7 @@ func (t *Toolset) Register(reg mcp.Registry) error {
 		},
 		{
 			Name:        "k8s.list",
-			Description: "List Kubernetes resources (multiple kinds supported).",
+			Description: "List Kubernetes objects by kind/resource (multi-kind + selectors supported).",
 			ToolsetID:   t.ID(),
 			InputSchema: schemaList(),
 			Safety:      mcp.SafetyReadOnly,
@@ -58,7 +58,7 @@ func (t *Toolset) Register(reg mcp.Registry) error {
 		},
 		{
 			Name:        "k8s.describe",
-			Description: "Describe a Kubernetes resource with events and related objects.",
+			Description: "Describe an object with status, events, owners, and related resources.",
 			ToolsetID:   t.ID(),
 			InputSchema: schemaDescribe(),
 			Safety:      mcp.SafetyReadOnly,
@@ -66,7 +66,7 @@ func (t *Toolset) Register(reg mcp.Registry) error {
 		},
 		{
 			Name:        "k8s.delete",
-			Description: "Delete a Kubernetes resource.",
+			Description: "Delete a Kubernetes object (destructive).",
 			ToolsetID:   t.ID(),
 			InputSchema: schemaDelete(),
 			Safety:      mcp.SafetyDestructive,
@@ -74,7 +74,7 @@ func (t *Toolset) Register(reg mcp.Registry) error {
 		},
 		{
 			Name:        "k8s.apply",
-			Description: "Server-side apply Kubernetes manifests.",
+			Description: "Server-side apply a YAML manifest (requires confirm=true).",
 			ToolsetID:   t.ID(),
 			InputSchema: schemaApply(),
 			Safety:      mcp.SafetyRiskyWrite,
@@ -82,7 +82,7 @@ func (t *Toolset) Register(reg mcp.Registry) error {
 		},
 		{
 			Name:        "k8s.patch",
-			Description: "Patch a Kubernetes resource.",
+			Description: "Patch a Kubernetes object (merge/json/strategic; requires confirm=true).",
 			ToolsetID:   t.ID(),
 			InputSchema: schemaPatch(),
 			Safety:      mcp.SafetyRiskyWrite,
@@ -90,7 +90,7 @@ func (t *Toolset) Register(reg mcp.Registry) error {
 		},
 		{
 			Name:        "k8s.logs",
-			Description: "Fetch pod logs.",
+			Description: "Read pod logs for troubleshooting.",
 			ToolsetID:   t.ID(),
 			InputSchema: schemaLogs(),
 			Safety:      mcp.SafetyReadOnly,
@@ -98,7 +98,7 @@ func (t *Toolset) Register(reg mcp.Registry) error {
 		},
 		{
 			Name:        "k8s.events",
-			Description: "List Kubernetes events.",
+			Description: "List events in a namespace or for an object.",
 			ToolsetID:   t.ID(),
 			InputSchema: schemaEvents(),
 			Safety:      mcp.SafetyReadOnly,
@@ -106,7 +106,7 @@ func (t *Toolset) Register(reg mcp.Registry) error {
 		},
 		{
 			Name:        "k8s.api_resources",
-			Description: "List API resources available in the cluster.",
+			Description: "Discover available API resources (including CRDs).",
 			ToolsetID:   t.ID(),
 			InputSchema: schemaAPIResources(),
 			Safety:      mcp.SafetyReadOnly,
@@ -114,7 +114,7 @@ func (t *Toolset) Register(reg mcp.Registry) error {
 		},
 		{
 			Name:        "k8s.resource_usage",
-			Description: "Fetch pod and node resource usage from metrics-server.",
+			Description: "Show pod/node CPU+memory usage from metrics-server (kubectl top).",
 			ToolsetID:   t.ID(),
 			InputSchema: schemaResourceUsage(),
 			Safety:      mcp.SafetyReadOnly,
@@ -122,7 +122,7 @@ func (t *Toolset) Register(reg mcp.Registry) error {
 		},
 		{
 			Name:        "k8s.graph",
-			Description: "Build a topology graph across ingress, service, endpoints, and workloads.",
+			Description: "Build a dependency graph for ingress/service/workload/pod traffic flow.",
 			ToolsetID:   t.ID(),
 			InputSchema: schemaGraph(),
 			Safety:      mcp.SafetyReadOnly,
@@ -130,7 +130,7 @@ func (t *Toolset) Register(reg mcp.Registry) error {
 		},
 		{
 			Name:        "k8s.crds",
-			Description: "List custom resource definitions (CRDs).",
+			Description: "List custom resource definitions (CRDs) installed in the cluster.",
 			ToolsetID:   t.ID(),
 			InputSchema: schemaCRDs(),
 			Safety:      mcp.SafetyReadOnly,
@@ -138,7 +138,7 @@ func (t *Toolset) Register(reg mcp.Registry) error {
 		},
 		{
 			Name:        "k8s.create",
-			Description: "Create Kubernetes resources from manifests.",
+			Description: "Create resources from YAML manifest (requires confirm=true).",
 			ToolsetID:   t.ID(),
 			InputSchema: schemaCreate(),
 			Safety:      mcp.SafetyWrite,
@@ -146,7 +146,7 @@ func (t *Toolset) Register(reg mcp.Registry) error {
 		},
 		{
 			Name:        "k8s.scale",
-			Description: "Scale a workload by updating spec.replicas.",
+			Description: "Scale a workload by setting replicas (requires confirm=true).",
 			ToolsetID:   t.ID(),
 			InputSchema: schemaScale(),
 			Safety:      mcp.SafetyWrite,
@@ -154,7 +154,7 @@ func (t *Toolset) Register(reg mcp.Registry) error {
 		},
 		{
 			Name:        "k8s.rollout",
-			Description: "Get rollout status or restart a deployment.",
+			Description: "Check rollout status or restart a deployment (requires confirm=true).",
 			ToolsetID:   t.ID(),
 			InputSchema: schemaRollout(),
 			Safety:      mcp.SafetyWrite,
@@ -162,7 +162,7 @@ func (t *Toolset) Register(reg mcp.Registry) error {
 		},
 		{
 			Name:        "k8s.context",
-			Description: "List kubeconfig contexts and current context.",
+			Description: "List, get current, or switch kubeconfig contexts.",
 			ToolsetID:   t.ID(),
 			InputSchema: schemaContext(),
 			Safety:      mcp.SafetyReadOnly,
@@ -170,7 +170,7 @@ func (t *Toolset) Register(reg mcp.Registry) error {
 		},
 		{
 			Name:        "k8s.explain_resource",
-			Description: "Explain a Kubernetes resource using discovery metadata (best-effort).",
+			Description: "Explain the API schema for a kind/resource (best-effort).",
 			ToolsetID:   t.ID(),
 			InputSchema: schemaExplain(),
 			Safety:      mcp.SafetyReadOnly,
@@ -178,7 +178,7 @@ func (t *Toolset) Register(reg mcp.Registry) error {
 		},
 		{
 			Name:        "k8s.generic",
-			Description: "Generic wrapper for kubectl-style verbs (best-effort).",
+			Description: "Dispatch a kubectl-style verb when you only know the verb.",
 			ToolsetID:   t.ID(),
 			InputSchema: schemaGeneric(),
 			Safety:      mcp.SafetyReadOnly,
@@ -186,7 +186,7 @@ func (t *Toolset) Register(reg mcp.Registry) error {
 		},
 		{
 			Name:        "k8s.ping",
-			Description: "Verify API server connectivity.",
+			Description: "Verify API server connectivity and version.",
 			ToolsetID:   t.ID(),
 			InputSchema: schemaPing(),
 			Safety:      mcp.SafetyReadOnly,
@@ -202,7 +202,7 @@ func (t *Toolset) Register(reg mcp.Registry) error {
 		},
 		{
 			Name:        "k8s.exec",
-			Description: "Execute a command in a pod container.",
+			Description: "Execute a command in a pod container (no shells unless allowShell).",
 			ToolsetID:   t.ID(),
 			InputSchema: schemaExec(),
 			Safety:      mcp.SafetyRiskyWrite,
@@ -210,7 +210,7 @@ func (t *Toolset) Register(reg mcp.Registry) error {
 		},
 		{
 			Name:        "k8s.cleanup_pods",
-			Description: "Delete pods in problematic states (evicted, crashloop, image pull backoff, etc).",
+			Description: "Delete pods in bad states (evicted, crashloop, image pull backoff).",
 			ToolsetID:   t.ID(),
 			InputSchema: schemaCleanupPods(),
 			Safety:      mcp.SafetyDestructive,
@@ -226,7 +226,7 @@ func (t *Toolset) Register(reg mcp.Registry) error {
 		},
 		{
 			Name:        "k8s.diagnose",
-			Description: "Guided troubleshooting for pods based on a keyword.",
+			Description: "Keyword-driven pod troubleshooting with evidence.",
 			ToolsetID:   t.ID(),
 			InputSchema: schemaDiagnose(),
 			Safety:      mcp.SafetyReadOnly,
@@ -234,7 +234,7 @@ func (t *Toolset) Register(reg mcp.Registry) error {
 		},
 		{
 			Name:        "k8s.overview",
-			Description: "High-level cluster or namespace overview.",
+			Description: "High-level overview of resources in a namespace or cluster.",
 			ToolsetID:   t.ID(),
 			InputSchema: schemaOverview(),
 			Safety:      mcp.SafetyReadOnly,
@@ -242,7 +242,7 @@ func (t *Toolset) Register(reg mcp.Registry) error {
 		},
 		{
 			Name:        "k8s.crashloop_debug",
-			Description: "Diagnose crash looping pods.",
+			Description: "Analyze CrashLoopBackOff pods with events and likely causes.",
 			ToolsetID:   t.ID(),
 			InputSchema: schemaCrashloopDebug(),
 			Safety:      mcp.SafetyReadOnly,
@@ -250,7 +250,7 @@ func (t *Toolset) Register(reg mcp.Registry) error {
 		},
 		{
 			Name:        "k8s.scheduling_debug",
-			Description: "Diagnose scheduling failures for pending pods.",
+			Description: "Analyze Pending pods, quotas, priorities, and scheduling blockers.",
 			ToolsetID:   t.ID(),
 			InputSchema: schemaSchedulingDebug(),
 			Safety:      mcp.SafetyReadOnly,
@@ -258,7 +258,7 @@ func (t *Toolset) Register(reg mcp.Registry) error {
 		},
 		{
 			Name:        "k8s.hpa_debug",
-			Description: "Diagnose HorizontalPodAutoscaler status.",
+			Description: "Analyze HPA conditions and replica decisions.",
 			ToolsetID:   t.ID(),
 			InputSchema: schemaHPADebug(),
 			Safety:      mcp.SafetyReadOnly,
@@ -266,7 +266,7 @@ func (t *Toolset) Register(reg mcp.Registry) error {
 		},
 		{
 			Name:        "k8s.vpa_debug",
-			Description: "Diagnose VerticalPodAutoscaler recommendations.",
+			Description: "Analyze VPA recommendations and target workload metrics.",
 			ToolsetID:   t.ID(),
 			InputSchema: schemaVPADebug(),
 			Safety:      mcp.SafetyReadOnly,
@@ -274,7 +274,7 @@ func (t *Toolset) Register(reg mcp.Registry) error {
 		},
 		{
 			Name:        "k8s.storage_debug",
-			Description: "Diagnose PVC binding and volume attachment issues.",
+			Description: "Analyze PVC binding, PV matching, and VolumeAttachment errors.",
 			ToolsetID:   t.ID(),
 			InputSchema: schemaStorageDebug(),
 			Safety:      mcp.SafetyReadOnly,
@@ -282,15 +282,23 @@ func (t *Toolset) Register(reg mcp.Registry) error {
 		},
 		{
 			Name:        "k8s.config_debug",
-			Description: "Diagnose ConfigMap/Secret references and missing keys.",
+			Description: "Check ConfigMap/Secret references and missing keys.",
 			ToolsetID:   t.ID(),
 			InputSchema: schemaConfigDebug(),
 			Safety:      mcp.SafetyReadOnly,
 			Handler:     t.handleConfigDebug,
 		},
 		{
+			Name:        "k8s.debug_flow",
+			Description: "Run a graph-driven debug flow (traffic/pending/crashloop/autoscaling/networkpolicy/mesh).",
+			ToolsetID:   t.ID(),
+			InputSchema: schemaDebugFlow(),
+			Safety:      mcp.SafetyReadOnly,
+			Handler:     t.handleDebugFlow,
+		},
+		{
 			Name:        "k8s.network_debug",
-			Description: "Diagnose service networking issues.",
+			Description: "Analyze Service to Pod networking, endpoints, and NetworkPolicy blocks.",
 			ToolsetID:   t.ID(),
 			InputSchema: schemaNetworkDebug(),
 			Safety:      mcp.SafetyReadOnly,
@@ -298,7 +306,7 @@ func (t *Toolset) Register(reg mcp.Registry) error {
 		},
 		{
 			Name:        "k8s.private_link_debug",
-			Description: "Diagnose private link connectivity for services.",
+			Description: "Analyze private link connectivity for a service.",
 			ToolsetID:   t.ID(),
 			InputSchema: schemaPrivateLinkDebug(),
 			Safety:      mcp.SafetyReadOnly,
@@ -314,7 +322,7 @@ func (t *Toolset) Register(reg mcp.Registry) error {
 		if len(allowed) > 0 {
 			tools = append(tools, mcp.ToolSpec{
 				Name:        "k8s.exec_readonly",
-				Description: "Execute allowlisted commands in a pod container.",
+				Description: "Execute allowlisted commands in a pod container (output redacted).",
 				ToolsetID:   t.ID(),
 				InputSchema: schemaExecReadonly(),
 				Safety:      mcp.SafetyRiskyWrite,
@@ -329,23 +337,23 @@ func (t *Toolset) Register(reg mcp.Registry) error {
 		}
 	}
 	aliases := []mcp.ToolSpec{
-		{Name: "kubectl_get", Description: "Get a Kubernetes resource.", ToolsetID: t.ID(), InputSchema: schemaGet(), Safety: mcp.SafetyReadOnly, Handler: t.handleGet},
-		{Name: "kubectl_list", Description: "List Kubernetes resources.", ToolsetID: t.ID(), InputSchema: schemaList(), Safety: mcp.SafetyReadOnly, Handler: t.handleList},
-		{Name: "kubectl_describe", Description: "Describe a Kubernetes resource.", ToolsetID: t.ID(), InputSchema: schemaDescribe(), Safety: mcp.SafetyReadOnly, Handler: t.handleDescribe},
-		{Name: "kubectl_create", Description: "Create Kubernetes resources from manifests.", ToolsetID: t.ID(), InputSchema: schemaCreate(), Safety: mcp.SafetyWrite, Handler: t.handleCreate},
-		{Name: "kubectl_apply", Description: "Server-side apply manifests.", ToolsetID: t.ID(), InputSchema: schemaApply(), Safety: mcp.SafetyRiskyWrite, Handler: t.handleApply},
-		{Name: "kubectl_delete", Description: "Delete a Kubernetes resource.", ToolsetID: t.ID(), InputSchema: schemaDelete(), Safety: mcp.SafetyDestructive, Handler: t.handleDelete},
-		{Name: "kubectl_logs", Description: "Fetch pod logs.", ToolsetID: t.ID(), InputSchema: schemaLogs(), Safety: mcp.SafetyReadOnly, Handler: t.handleLogs},
-		{Name: "kubectl_patch", Description: "Patch a Kubernetes resource.", ToolsetID: t.ID(), InputSchema: schemaPatch(), Safety: mcp.SafetyRiskyWrite, Handler: t.handlePatch},
-		{Name: "kubectl_scale", Description: "Scale a workload by updating spec.replicas.", ToolsetID: t.ID(), InputSchema: schemaScale(), Safety: mcp.SafetyWrite, Handler: t.handleScale},
-		{Name: "kubectl_rollout", Description: "Get rollout status or restart a deployment.", ToolsetID: t.ID(), InputSchema: schemaRollout(), Safety: mcp.SafetyWrite, Handler: t.handleRollout},
-		{Name: "kubectl_context", Description: "List kubeconfig contexts and current context.", ToolsetID: t.ID(), InputSchema: schemaContext(), Safety: mcp.SafetyReadOnly, Handler: t.handleContext},
-		{Name: "kubectl_generic", Description: "Generic wrapper for kubectl-style verbs (best-effort).", ToolsetID: t.ID(), InputSchema: schemaGeneric(), Safety: mcp.SafetyReadOnly, Handler: t.handleGeneric},
-		{Name: "explain_resource", Description: "Explain a Kubernetes resource using discovery metadata (best-effort).", ToolsetID: t.ID(), InputSchema: schemaExplain(), Safety: mcp.SafetyReadOnly, Handler: t.handleExplain},
-		{Name: "list_api_resources", Description: "List API resources available in the cluster.", ToolsetID: t.ID(), InputSchema: schemaAPIResources(), Safety: mcp.SafetyReadOnly, Handler: t.handleAPIResources},
-		{Name: "kubectl_top", Description: "Fetch resource usage from metrics-server.", ToolsetID: t.ID(), InputSchema: schemaResourceUsage(), Safety: mcp.SafetyReadOnly, Handler: t.handleResourceUsage},
-		{Name: "ping", Description: "Verify API server connectivity.", ToolsetID: t.ID(), InputSchema: schemaPing(), Safety: mcp.SafetyReadOnly, Handler: t.handlePing},
-		{Name: "port_forward", Description: "Port-forward to a pod or service for a limited duration.", ToolsetID: t.ID(), InputSchema: schemaPortForward(), Safety: mcp.SafetyReadOnly, Handler: t.handlePortForward},
+		{Name: "kubectl_get", Description: "Alias of k8s.get (kubectl get).", ToolsetID: t.ID(), InputSchema: schemaGet(), Safety: mcp.SafetyReadOnly, Handler: t.handleGet},
+		{Name: "kubectl_list", Description: "Alias of k8s.list (kubectl get -l/-A).", ToolsetID: t.ID(), InputSchema: schemaList(), Safety: mcp.SafetyReadOnly, Handler: t.handleList},
+		{Name: "kubectl_describe", Description: "Alias of k8s.describe (kubectl describe).", ToolsetID: t.ID(), InputSchema: schemaDescribe(), Safety: mcp.SafetyReadOnly, Handler: t.handleDescribe},
+		{Name: "kubectl_create", Description: "Alias of k8s.create (kubectl create).", ToolsetID: t.ID(), InputSchema: schemaCreate(), Safety: mcp.SafetyWrite, Handler: t.handleCreate},
+		{Name: "kubectl_apply", Description: "Alias of k8s.apply (kubectl apply).", ToolsetID: t.ID(), InputSchema: schemaApply(), Safety: mcp.SafetyRiskyWrite, Handler: t.handleApply},
+		{Name: "kubectl_delete", Description: "Alias of k8s.delete (kubectl delete).", ToolsetID: t.ID(), InputSchema: schemaDelete(), Safety: mcp.SafetyDestructive, Handler: t.handleDelete},
+		{Name: "kubectl_logs", Description: "Alias of k8s.logs (kubectl logs).", ToolsetID: t.ID(), InputSchema: schemaLogs(), Safety: mcp.SafetyReadOnly, Handler: t.handleLogs},
+		{Name: "kubectl_patch", Description: "Alias of k8s.patch (kubectl patch).", ToolsetID: t.ID(), InputSchema: schemaPatch(), Safety: mcp.SafetyRiskyWrite, Handler: t.handlePatch},
+		{Name: "kubectl_scale", Description: "Alias of k8s.scale (kubectl scale).", ToolsetID: t.ID(), InputSchema: schemaScale(), Safety: mcp.SafetyWrite, Handler: t.handleScale},
+		{Name: "kubectl_rollout", Description: "Alias of k8s.rollout (kubectl rollout).", ToolsetID: t.ID(), InputSchema: schemaRollout(), Safety: mcp.SafetyWrite, Handler: t.handleRollout},
+		{Name: "kubectl_context", Description: "Alias of k8s.context (kubectl config).", ToolsetID: t.ID(), InputSchema: schemaContext(), Safety: mcp.SafetyReadOnly, Handler: t.handleContext},
+		{Name: "kubectl_generic", Description: "Alias of k8s.generic for generic kubectl verbs.", ToolsetID: t.ID(), InputSchema: schemaGeneric(), Safety: mcp.SafetyReadOnly, Handler: t.handleGeneric},
+		{Name: "explain_resource", Description: "Alias of k8s.explain_resource.", ToolsetID: t.ID(), InputSchema: schemaExplain(), Safety: mcp.SafetyReadOnly, Handler: t.handleExplain},
+		{Name: "list_api_resources", Description: "Alias of k8s.api_resources.", ToolsetID: t.ID(), InputSchema: schemaAPIResources(), Safety: mcp.SafetyReadOnly, Handler: t.handleAPIResources},
+		{Name: "kubectl_top", Description: "Alias of k8s.resource_usage (kubectl top).", ToolsetID: t.ID(), InputSchema: schemaResourceUsage(), Safety: mcp.SafetyReadOnly, Handler: t.handleResourceUsage},
+		{Name: "ping", Description: "Alias of k8s.ping.", ToolsetID: t.ID(), InputSchema: schemaPing(), Safety: mcp.SafetyReadOnly, Handler: t.handlePing},
+		{Name: "port_forward", Description: "Alias of k8s.port_forward.", ToolsetID: t.ID(), InputSchema: schemaPortForward(), Safety: mcp.SafetyReadOnly, Handler: t.handlePortForward},
 	}
 	for _, tool := range aliases {
 		if err := reg.Add(tool); err != nil {

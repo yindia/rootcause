@@ -40,7 +40,7 @@ func (t *Toolset) Register(reg mcp.Registry) error {
 	tools := []mcp.ToolSpec{
 		{
 			Name:        "helm.repo_add",
-			Description: "Add or update a Helm repository.",
+			Description: "Add or update a Helm repository (use before install/upgrade).",
 			ToolsetID:   t.ID(),
 			InputSchema: schemaRepoAdd(),
 			Safety:      mcp.SafetyWrite,
@@ -64,7 +64,7 @@ func (t *Toolset) Register(reg mcp.Registry) error {
 		},
 		{
 			Name:        "helm.list",
-			Description: "List Helm releases.",
+			Description: "List Helm releases (optionally all namespaces).",
 			ToolsetID:   t.ID(),
 			InputSchema: schemaList(),
 			Safety:      mcp.SafetyReadOnly,
@@ -72,7 +72,7 @@ func (t *Toolset) Register(reg mcp.Registry) error {
 		},
 		{
 			Name:        "helm.status",
-			Description: "Get Helm release status.",
+			Description: "Get Helm release status and notes.",
 			ToolsetID:   t.ID(),
 			InputSchema: schemaStatus(),
 			Safety:      mcp.SafetyReadOnly,
@@ -80,7 +80,7 @@ func (t *Toolset) Register(reg mcp.Registry) error {
 		},
 		{
 			Name:        "helm.install",
-			Description: "Install a Helm chart.",
+			Description: "Install a Helm chart (requires confirm=true).",
 			ToolsetID:   t.ID(),
 			InputSchema: schemaInstall(),
 			Safety:      mcp.SafetyRiskyWrite,
@@ -88,7 +88,7 @@ func (t *Toolset) Register(reg mcp.Registry) error {
 		},
 		{
 			Name:        "helm.upgrade",
-			Description: "Upgrade a Helm release.",
+			Description: "Upgrade a Helm release (requires confirm=true).",
 			ToolsetID:   t.ID(),
 			InputSchema: schemaUpgrade(),
 			Safety:      mcp.SafetyRiskyWrite,
@@ -96,7 +96,7 @@ func (t *Toolset) Register(reg mcp.Registry) error {
 		},
 		{
 			Name:        "helm.uninstall",
-			Description: "Uninstall a Helm release.",
+			Description: "Uninstall a Helm release (requires confirm=true).",
 			ToolsetID:   t.ID(),
 			InputSchema: schemaUninstall(),
 			Safety:      mcp.SafetyDestructive,
@@ -104,7 +104,7 @@ func (t *Toolset) Register(reg mcp.Registry) error {
 		},
 		{
 			Name:        "helm.template_apply",
-			Description: "Render a chart and apply it with server-side apply.",
+			Description: "Render a chart and apply it (requires confirm=true).",
 			ToolsetID:   t.ID(),
 			InputSchema: schemaTemplateApply(),
 			Safety:      mcp.SafetyRiskyWrite,
@@ -112,7 +112,7 @@ func (t *Toolset) Register(reg mcp.Registry) error {
 		},
 		{
 			Name:        "helm.template_uninstall",
-			Description: "Render a chart and delete the rendered resources.",
+			Description: "Render a chart and delete rendered resources (requires confirm=true).",
 			ToolsetID:   t.ID(),
 			InputSchema: schemaTemplateUninstall(),
 			Safety:      mcp.SafetyDestructive,

@@ -41,7 +41,7 @@ func (t *Toolset) Register(reg mcp.Registry) error {
 	tools := []mcp.ToolSpec{
 		{
 			Name:        "istio.health",
-			Description: "Check Istio control-plane health.",
+			Description: "Check Istio control-plane health and deployment readiness.",
 			ToolsetID:   t.ID(),
 			InputSchema: schemaHealth(),
 			Safety:      mcp.SafetyReadOnly,
@@ -49,7 +49,7 @@ func (t *Toolset) Register(reg mcp.Registry) error {
 		},
 		{
 			Name:        "istio.config_summary",
-			Description: "Summarize Istio configuration resources.",
+			Description: "Summarize Istio configuration resources and counts.",
 			ToolsetID:   t.ID(),
 			InputSchema: schemaConfigSummary(),
 			Safety:      mcp.SafetyReadOnly,
@@ -57,7 +57,7 @@ func (t *Toolset) Register(reg mcp.Registry) error {
 		},
 		{
 			Name:        "istio.proxy_status",
-			Description: "Check Istio proxy sidecar status.",
+			Description: "Check Istio proxy sidecar readiness across pods.",
 			ToolsetID:   t.ID(),
 			InputSchema: schemaProxyStatus(),
 			Safety:      mcp.SafetyReadOnly,
@@ -65,7 +65,7 @@ func (t *Toolset) Register(reg mcp.Registry) error {
 		},
 		{
 			Name:        "istio.service_mesh_hosts",
-			Description: "List service mesh hosts referenced by Istio resources.",
+			Description: "List service mesh hosts referenced by Istio routing resources.",
 			ToolsetID:   t.ID(),
 			InputSchema: schemaServiceMeshHosts(),
 			Safety:      mcp.SafetyReadOnly,
@@ -81,7 +81,7 @@ func (t *Toolset) Register(reg mcp.Registry) error {
 		},
 		{
 			Name:        "istio.pods_by_service",
-			Description: "List pods backing a Kubernetes service.",
+			Description: "List pods backing a Kubernetes service (mesh validation).",
 			ToolsetID:   t.ID(),
 			InputSchema: schemaPodsByService(),
 			Safety:      mcp.SafetyReadOnly,
@@ -97,7 +97,7 @@ func (t *Toolset) Register(reg mcp.Registry) error {
 		},
 		{
 			Name:        "istio.proxy_clusters",
-			Description: "Fetch Envoy proxy cluster configuration.",
+			Description: "Fetch Envoy proxy cluster configuration (pods/proxy).",
 			ToolsetID:   t.ID(),
 			InputSchema: schemaProxyConfig(),
 			Safety:      mcp.SafetyReadOnly,
@@ -105,7 +105,7 @@ func (t *Toolset) Register(reg mcp.Registry) error {
 		},
 		{
 			Name:        "istio.proxy_listeners",
-			Description: "Fetch Envoy proxy listener configuration.",
+			Description: "Fetch Envoy proxy listener configuration (pods/proxy).",
 			ToolsetID:   t.ID(),
 			InputSchema: schemaProxyConfig(),
 			Safety:      mcp.SafetyReadOnly,
@@ -113,7 +113,7 @@ func (t *Toolset) Register(reg mcp.Registry) error {
 		},
 		{
 			Name:        "istio.proxy_routes",
-			Description: "Fetch Envoy proxy route configuration.",
+			Description: "Fetch Envoy proxy route configuration (pods/proxy).",
 			ToolsetID:   t.ID(),
 			InputSchema: schemaProxyConfig(),
 			Safety:      mcp.SafetyReadOnly,
@@ -121,7 +121,7 @@ func (t *Toolset) Register(reg mcp.Registry) error {
 		},
 		{
 			Name:        "istio.proxy_endpoints",
-			Description: "Fetch Envoy proxy endpoint configuration.",
+			Description: "Fetch Envoy proxy endpoint configuration (pods/proxy).",
 			ToolsetID:   t.ID(),
 			InputSchema: schemaProxyConfig(),
 			Safety:      mcp.SafetyReadOnly,
@@ -129,7 +129,7 @@ func (t *Toolset) Register(reg mcp.Registry) error {
 		},
 		{
 			Name:        "istio.proxy_bootstrap",
-			Description: "Fetch Envoy proxy bootstrap configuration.",
+			Description: "Fetch Envoy proxy bootstrap configuration (pods/proxy).",
 			ToolsetID:   t.ID(),
 			InputSchema: schemaProxyConfig(),
 			Safety:      mcp.SafetyReadOnly,
@@ -137,7 +137,7 @@ func (t *Toolset) Register(reg mcp.Registry) error {
 		},
 		{
 			Name:        "istio.proxy_config_dump",
-			Description: "Fetch full Envoy proxy config dump.",
+			Description: "Fetch full Envoy proxy config dump (pods/proxy).",
 			ToolsetID:   t.ID(),
 			InputSchema: schemaProxyConfig(),
 			Safety:      mcp.SafetyReadOnly,
@@ -145,7 +145,7 @@ func (t *Toolset) Register(reg mcp.Registry) error {
 		},
 		{
 			Name:        "istio.cr_status",
-			Description: "Fetch Istio CR status for debugging (best-effort).",
+			Description: "Fetch Istio CR status (VirtualService, DR, Gateway, etc.).",
 			ToolsetID:   t.ID(),
 			InputSchema: schemaCRStatus(),
 			Safety:      mcp.SafetyReadOnly,
@@ -153,7 +153,7 @@ func (t *Toolset) Register(reg mcp.Registry) error {
 		},
 		{
 			Name:        "istio.virtualservice_status",
-			Description: "Fetch VirtualService status for debugging.",
+			Description: "Fetch VirtualService status (mesh routing).",
 			ToolsetID:   t.ID(),
 			InputSchema: schemaVirtualServiceStatus(),
 			Safety:      mcp.SafetyReadOnly,
@@ -161,7 +161,7 @@ func (t *Toolset) Register(reg mcp.Registry) error {
 		},
 		{
 			Name:        "istio.destinationrule_status",
-			Description: "Fetch DestinationRule status for debugging.",
+			Description: "Fetch DestinationRule status (mesh routing).",
 			ToolsetID:   t.ID(),
 			InputSchema: schemaDestinationRuleStatus(),
 			Safety:      mcp.SafetyReadOnly,
@@ -169,7 +169,7 @@ func (t *Toolset) Register(reg mcp.Registry) error {
 		},
 		{
 			Name:        "istio.gateway_status",
-			Description: "Fetch Gateway status for debugging.",
+			Description: "Fetch Gateway status (Gateway API/istio).",
 			ToolsetID:   t.ID(),
 			InputSchema: schemaGatewayStatus(),
 			Safety:      mcp.SafetyReadOnly,
@@ -177,7 +177,7 @@ func (t *Toolset) Register(reg mcp.Registry) error {
 		},
 		{
 			Name:        "istio.httproute_status",
-			Description: "Fetch HTTPRoute status for debugging.",
+			Description: "Fetch HTTPRoute status (Gateway API).",
 			ToolsetID:   t.ID(),
 			InputSchema: schemaHTTPRouteStatus(),
 			Safety:      mcp.SafetyReadOnly,

@@ -4,6 +4,7 @@
 
 - Go 1.23+
 - kubeconfig available locally for integration tests
+- metrics-server recommended for `k8s.resource_usage`
 
 Run tests:
 
@@ -32,7 +33,8 @@ Register(reg Registry) error
    - `internal/render` for consistent analysis output (use `render.DescribeAnalysis`).
 5. Update the Go input schemas in the toolset `schema.go` files.
 6. Add unit tests for safety mode behavior or shared helper usage.
-7. For external toolsets, register via `pkg/sdk` and document how to build a custom binary (see `PLUGINS.md`).
+7. If your toolset should participate in graph-first flows, extend `k8s.debug_flow` with new nodes/steps.
+8. For external toolsets, register via `pkg/sdk` and document how to build a custom binary (see `PLUGINS.md`).
 
 ## Shared Libraries
 
@@ -51,3 +53,4 @@ Use kind or minikube to validate:
 3. Safety modes removing tools from discovery.
 4. Linkerd toolset (if installed) detects control-plane health.
 5. Karpenter toolset (if installed) diagnoses pending pods.
+6. `k8s.debug_flow` walks graph edges for traffic/pending/crashloop scenarios.
