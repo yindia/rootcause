@@ -66,6 +66,20 @@ RootCause is built for local development. No API keys are required in this versi
 
 ## Installation
 
+Homebrew:
+
+```
+brew install yindia/homebrew-yindia/rootcause
+```
+
+Curl install:
+
+```
+curl -fsSL https://raw.githubusercontent.com/yindia/rootcause/refs/heads/main/install.sh | sh
+```
+
+Go install:
+
 ```
 go install ./cmd/rootcause
 ```
