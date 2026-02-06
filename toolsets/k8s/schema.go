@@ -123,6 +123,19 @@ func schemaAPIResources() map[string]any {
 	}
 }
 
+func schemaResourceUsage() map[string]any {
+	return map[string]any{
+		"type": "object",
+		"properties": map[string]any{
+			"namespace":    map[string]any{"type": "string"},
+			"includePods":  map[string]any{"type": "boolean"},
+			"includeNodes": map[string]any{"type": "boolean"},
+			"sortBy":       map[string]any{"type": "string", "enum": []string{"cpu", "memory"}},
+			"limit":        map[string]any{"type": "number"},
+		},
+	}
+}
+
 func schemaCRDs() map[string]any {
 	return map[string]any{
 		"type": "object",
@@ -332,6 +345,37 @@ func schemaHPADebug() map[string]any {
 		"properties": map[string]any{
 			"namespace": map[string]any{"type": "string"},
 			"name":      map[string]any{"type": "string"},
+		},
+		"required": []string{"namespace"},
+	}
+}
+
+func schemaVPADebug() map[string]any {
+	return schemaHPADebug()
+}
+
+func schemaStorageDebug() map[string]any {
+	return map[string]any{
+		"type": "object",
+		"properties": map[string]any{
+			"namespace":     map[string]any{"type": "string"},
+			"pvc":           map[string]any{"type": "string"},
+			"pod":           map[string]any{"type": "string"},
+			"includeEvents": map[string]any{"type": "boolean"},
+		},
+		"required": []string{"namespace"},
+	}
+}
+
+func schemaConfigDebug() map[string]any {
+	return map[string]any{
+		"type": "object",
+		"properties": map[string]any{
+			"namespace":    map[string]any{"type": "string"},
+			"pod":          map[string]any{"type": "string"},
+			"kind":         map[string]any{"type": "string", "enum": []string{"ConfigMap", "Secret", "configmap", "secret"}},
+			"name":         map[string]any{"type": "string"},
+			"requiredKeys": map[string]any{"type": "array", "items": map[string]any{"type": "string"}},
 		},
 		"required": []string{"namespace"},
 	}

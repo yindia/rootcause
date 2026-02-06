@@ -186,20 +186,24 @@ Optional toolchains return “not detected” when the control plane is absent. 
 ## Tools and Features
 
 ### ✅ Core Kubernetes (`k8s.*` + kubectl-style aliases)
-- **CRUD + discovery**: `k8s.get`, `k8s.list`, `k8s.describe`, `k8s.apply`, `k8s.patch`, `k8s.delete`
-- **Ops + observability**: `k8s.logs`, `k8s.events`, `k8s.api_resources`, `k8s.crds`
-- **Execution**: `k8s.exec_readonly` (allowlisted commands), `k8s.port_forward`
-- **Debugging**: `k8s.overview`, `k8s.crashloop_debug`, `k8s.scheduling_debug`, `k8s.hpa_debug`, `k8s.network_debug`, `k8s.private_link_debug`
-  - Scheduling: ResourceQuota, LimitRange, PriorityClass, preemption signals
-  - Networking: NetworkPolicy analysis and blocked-path hints
-- **Graph**: `k8s.graph` (Ingress/Service/Endpoints/Workloads + mesh + NetworkPolicy)
+- **CRUD + discovery**: `k8s.get`, `k8s.list`, `k8s.describe`, `k8s.create`, `k8s.apply`, `k8s.patch`, `k8s.delete`, `k8s.api_resources`, `k8s.crds`
+- **Ops + observability**: `k8s.logs`, `k8s.events`, `k8s.context`, `k8s.explain_resource`, `k8s.ping`
+- **Workload operations**: `k8s.scale`, `k8s.rollout`
+- **Execution and access**: `k8s.exec`, `k8s.exec_readonly` (allowlisted), `k8s.port_forward`
+- **Debugging**: `k8s.overview`, `k8s.crashloop_debug`, `k8s.scheduling_debug`, `k8s.hpa_debug`, `k8s.vpa_debug`, `k8s.network_debug`, `k8s.private_link_debug`
+- **Maintenance**: `k8s.cleanup_pods`, `k8s.node_management`
+- **Graph and topology**: `k8s.graph` (Ingress/Service/Endpoints/Workloads + mesh + NetworkPolicy)
+- **Metrics**: `k8s.resource_usage` (metrics-server)
 
 ### 🕸️ Linkerd (`linkerd.*`)
-- `linkerd.health`, `linkerd.proxy_status`, `linkerd.identity_issues`, `linkerd.policy_debug`
+- `linkerd.health`, `linkerd.proxy_status`, `linkerd.identity_issues`, `linkerd.policy_debug`, `linkerd.cr_status`
+- `linkerd.virtualservice_status`, `linkerd.destinationrule_status`, `linkerd.gateway_status`, `linkerd.httproute_status`
 
 ### 🌐 Istio (`istio.*`)
-- `istio.health`, `istio.proxy_status`, `istio.cr_status`
-- `istio.virtualservice_status`, `istio.destinationrule_status`, `istio.gateway_status`, `istio.httproute_status`
+- `istio.health`, `istio.proxy_status`, `istio.config_summary`
+- `istio.service_mesh_hosts`, `istio.discover_namespaces`, `istio.pods_by_service`, `istio.external_dependency_check`
+- `istio.proxy_clusters`, `istio.proxy_listeners`, `istio.proxy_routes`, `istio.proxy_endpoints`, `istio.proxy_bootstrap`, `istio.proxy_config_dump`
+- `istio.cr_status`, `istio.virtualservice_status`, `istio.destinationrule_status`, `istio.gateway_status`, `istio.httproute_status`
 
 ### 🚀 Karpenter (`karpenter.*`)
 - `karpenter.status`, `karpenter.node_provisioning_debug`
@@ -211,7 +215,7 @@ Optional toolchains return “not detected” when the control plane is absent. 
 - `helm.template_apply`, `helm.template_uninstall`
 
 ### Kubectl-style aliases
-The `k8s.*` tools also expose aliases like `kubectl_get`, `kubectl_describe`, `kubectl_apply`, `kubectl_delete`, `kubectl_logs`, `kubectl_patch`, `kubectl_scale`, `kubectl_rollout`, `kubectl_context`, `kubectl_generic`, `explain_resource`, `list_api_resources`, and `ping`.
+The `k8s.*` tools also expose aliases like `kubectl_get`, `kubectl_list`, `kubectl_describe`, `kubectl_create`, `kubectl_apply`, `kubectl_delete`, `kubectl_logs`, `kubectl_patch`, `kubectl_scale`, `kubectl_rollout`, `kubectl_context`, `kubectl_generic`, `kubectl_top`, `explain_resource`, `list_api_resources`, and `ping`.
 
 ---
 

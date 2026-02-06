@@ -18,6 +18,7 @@ import (
 	"k8s.io/client-go/restmapper"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/util/homedir"
+	metricsclient "k8s.io/metrics/pkg/client/clientset/versioned"
 )
 
 type Clients struct {
@@ -26,6 +27,7 @@ type Clients struct {
 	Dynamic    dynamic.Interface
 	Discovery  discovery.DiscoveryInterface
 	Mapper     meta.RESTMapper
+	Metrics    metricsclient.Interface
 }
 
 type Config struct {
@@ -60,6 +62,10 @@ func NewClients(cfg Config) (*Clients, error) {
 		return nil, err
 	}
 	mapper := restmapper.NewDeferredDiscoveryRESTMapper(memory.NewMemCacheClient(discoveryClient))
+	metricsClient, err := metricsclient.NewForConfig(restConfig)
+	if err != nil {
+		return nil, err
+	}
 
 	return &Clients{
 		RestConfig: restConfig,
@@ -67,6 +73,7 @@ func NewClients(cfg Config) (*Clients, error) {
 		Dynamic:    dynamicClient,
 		Discovery:  discoveryClient,
 		Mapper:     mapper,
+		Metrics:    metricsClient,
 	}, nil
 }
 

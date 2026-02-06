@@ -113,6 +113,14 @@ func (t *Toolset) Register(reg mcp.Registry) error {
 			Handler:     t.handleAPIResources,
 		},
 		{
+			Name:        "k8s.resource_usage",
+			Description: "Fetch pod and node resource usage from metrics-server.",
+			ToolsetID:   t.ID(),
+			InputSchema: schemaResourceUsage(),
+			Safety:      mcp.SafetyReadOnly,
+			Handler:     t.handleResourceUsage,
+		},
+		{
 			Name:        "k8s.graph",
 			Description: "Build a topology graph across ingress, service, endpoints, and workloads.",
 			ToolsetID:   t.ID(),
@@ -257,6 +265,30 @@ func (t *Toolset) Register(reg mcp.Registry) error {
 			Handler:     t.handleHPADebug,
 		},
 		{
+			Name:        "k8s.vpa_debug",
+			Description: "Diagnose VerticalPodAutoscaler recommendations.",
+			ToolsetID:   t.ID(),
+			InputSchema: schemaVPADebug(),
+			Safety:      mcp.SafetyReadOnly,
+			Handler:     t.handleVPADebug,
+		},
+		{
+			Name:        "k8s.storage_debug",
+			Description: "Diagnose PVC binding and volume attachment issues.",
+			ToolsetID:   t.ID(),
+			InputSchema: schemaStorageDebug(),
+			Safety:      mcp.SafetyReadOnly,
+			Handler:     t.handleStorageDebug,
+		},
+		{
+			Name:        "k8s.config_debug",
+			Description: "Diagnose ConfigMap/Secret references and missing keys.",
+			ToolsetID:   t.ID(),
+			InputSchema: schemaConfigDebug(),
+			Safety:      mcp.SafetyReadOnly,
+			Handler:     t.handleConfigDebug,
+		},
+		{
 			Name:        "k8s.network_debug",
 			Description: "Diagnose service networking issues.",
 			ToolsetID:   t.ID(),
@@ -311,6 +343,7 @@ func (t *Toolset) Register(reg mcp.Registry) error {
 		{Name: "kubectl_generic", Description: "Generic wrapper for kubectl-style verbs (best-effort).", ToolsetID: t.ID(), InputSchema: schemaGeneric(), Safety: mcp.SafetyReadOnly, Handler: t.handleGeneric},
 		{Name: "explain_resource", Description: "Explain a Kubernetes resource using discovery metadata (best-effort).", ToolsetID: t.ID(), InputSchema: schemaExplain(), Safety: mcp.SafetyReadOnly, Handler: t.handleExplain},
 		{Name: "list_api_resources", Description: "List API resources available in the cluster.", ToolsetID: t.ID(), InputSchema: schemaAPIResources(), Safety: mcp.SafetyReadOnly, Handler: t.handleAPIResources},
+		{Name: "kubectl_top", Description: "Fetch resource usage from metrics-server.", ToolsetID: t.ID(), InputSchema: schemaResourceUsage(), Safety: mcp.SafetyReadOnly, Handler: t.handleResourceUsage},
 		{Name: "ping", Description: "Verify API server connectivity.", ToolsetID: t.ID(), InputSchema: schemaPing(), Safety: mcp.SafetyReadOnly, Handler: t.handlePing},
 		{Name: "port_forward", Description: "Port-forward to a pod or service for a limited duration.", ToolsetID: t.ID(), InputSchema: schemaPortForward(), Safety: mcp.SafetyReadOnly, Handler: t.handlePortForward},
 	}

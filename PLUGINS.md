@@ -67,7 +67,7 @@ func init() {
 ## Cross-Tool Interaction
 
 - Shared services: `ctx.Services.Register("key", svc)` and `ctx.Services.Get("key")`.
-- Internal tool calls: `ctx.Invoker.Call(ctx, req.User, "k8s.describe", args)`.
+- Internal tool calls: `ctx.CallTool(ctx, req.User, "k8s.describe", args)` (uses policy + audit).
 
 This keeps policy checks and audit logging consistent across toolsets.
 
