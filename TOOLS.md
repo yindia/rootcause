@@ -91,6 +91,15 @@ Use `k8s.debug_flow` to run a guided flow that builds `k8s.graph` and walks the 
 - `aws.ec2.list_placement_groups`, `aws.ec2.get_placement_group`
 - `aws.ec2.list_instance_status`, `aws.ec2.get_instance_status`
 
+### AWS EKS (`aws.eks.*`)
+- `aws.eks.list_clusters`, `aws.eks.get_cluster`
+- `aws.eks.list_nodegroups`, `aws.eks.get_nodegroup`
+- `aws.eks.list_addons`, `aws.eks.get_addon`
+- `aws.eks.list_fargate_profiles`, `aws.eks.get_fargate_profile`
+- `aws.eks.list_identity_provider_configs`, `aws.eks.get_identity_provider_config`
+- `aws.eks.list_updates`, `aws.eks.get_update`
+- `aws.eks.list_nodes`
+
 ---
 
 ## Kubectl-style aliases

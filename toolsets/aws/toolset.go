@@ -9,6 +9,7 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/service/autoscaling"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	"github.com/aws/aws-sdk-go-v2/service/eks"
 	"github.com/aws/aws-sdk-go-v2/service/elasticloadbalancingv2"
 	"github.com/aws/aws-sdk-go-v2/service/iam"
 	"github.com/aws/aws-sdk-go-v2/service/route53resolver"
@@ -16,6 +17,7 @@ import (
 	awslib "rootcause/internal/aws"
 	"rootcause/internal/mcp"
 	awsec2 "rootcause/toolsets/aws/ec2"
+	awseks "rootcause/toolsets/aws/eks"
 	awsiam "rootcause/toolsets/aws/iam"
 	awsvpc "rootcause/toolsets/aws/vpc"
 )
@@ -32,6 +34,8 @@ type Toolset struct {
 	asgClients map[string]asgClientEntry
 	elbMu      sync.Mutex
 	elbClients map[string]elbClientEntry
+	eksMu      sync.Mutex
+	eksClients map[string]eksClientEntry
 }
 
 type iamClientEntry struct {
@@ -56,6 +60,11 @@ type asgClientEntry struct {
 
 type elbClientEntry struct {
 	client *elasticloadbalancingv2.Client
+	region string
+}
+
+type eksClientEntry struct {
+	client *eks.Client
 	region string
 }
 
@@ -87,6 +96,7 @@ func (t *Toolset) Init(ctx mcp.ToolsetContext) error {
 	t.r53Clients = map[string]resolverClientEntry{}
 	t.asgClients = map[string]asgClientEntry{}
 	t.elbClients = map[string]elbClientEntry{}
+	t.eksClients = map[string]eksClientEntry{}
 	return nil
 }
 
@@ -102,6 +112,11 @@ func (t *Toolset) Register(reg mcp.Registry) error {
 		}
 	}
 	for _, tool := range awsec2.ToolSpecs(t.ctx, t.ID(), t.ec2Client, t.asgClient, t.elbClient, t.iamClient) {
+		if err := reg.Add(tool); err != nil {
+			return fmt.Errorf("register %s: %w", tool.Name, err)
+		}
+	}
+	for _, tool := range awseks.ToolSpecs(t.ctx, t.ID(), t.eksClient, t.ec2Client, t.asgClient) {
 		if err := reg.Add(tool); err != nil {
 			return fmt.Errorf("register %s: %w", tool.Name, err)
 		}
@@ -211,6 +226,27 @@ func (t *Toolset) elbClient(ctx context.Context, region string) (*elasticloadbal
 	t.elbMu.Lock()
 	t.elbClients[cacheKey] = elbClientEntry{client: client, region: usedRegion}
 	t.elbMu.Unlock()
+	return client, usedRegion, nil
+}
+
+func (t *Toolset) eksClient(ctx context.Context, region string) (*eks.Client, string, error) {
+	cacheKey := t.clientCacheKey(region)
+	t.eksMu.Lock()
+	if entry, ok := t.eksClients[cacheKey]; ok {
+		t.eksMu.Unlock()
+		return entry.client, entry.region, nil
+	}
+	t.eksMu.Unlock()
+
+	cfg, err := awslib.LoadConfig(ctx, region)
+	if err != nil {
+		return nil, "", err
+	}
+	client := eks.NewFromConfig(cfg)
+	usedRegion := strings.TrimSpace(cfg.Region)
+	t.eksMu.Lock()
+	t.eksClients[cacheKey] = eksClientEntry{client: client, region: usedRegion}
+	t.eksMu.Unlock()
 	return client, usedRegion, nil
 }
 
