@@ -69,6 +69,7 @@ func (d *metricsDiscovery) WithLegacy() discovery.DiscoveryInterface {
 
 func TestHandleResourceUsageMetrics(t *testing.T) {
 	podMetric := &metricsv1beta1.PodMetrics{
+		TypeMeta:  metav1.TypeMeta{Kind: "PodMetrics", APIVersion: "metrics.k8s.io/v1beta1"},
 		ObjectMeta: metav1.ObjectMeta{Name: "api", Namespace: "default"},
 		Timestamp:  metav1.NewTime(time.Now()),
 		Window:     metav1.Duration{Duration: time.Minute},
@@ -80,6 +81,7 @@ func TestHandleResourceUsageMetrics(t *testing.T) {
 		},
 	}
 	nodeMetric := &metricsv1beta1.NodeMetrics{
+		TypeMeta: metav1.TypeMeta{Kind: "NodeMetrics", APIVersion: "metrics.k8s.io/v1beta1"},
 		ObjectMeta: metav1.ObjectMeta{Name: "node-1"},
 		Timestamp:  metav1.NewTime(time.Now()),
 		Window:     metav1.Duration{Duration: time.Minute},
@@ -132,5 +134,50 @@ func TestHandleResourceUsageNoMetricsClient(t *testing.T) {
 	_, err := toolset.handleResourceUsage(context.Background(), mcp.ToolRequest{User: policy.User{Role: policy.RoleCluster}})
 	if err == nil {
 		t.Fatalf("expected error when metrics client missing")
+	}
+}
+
+func TestSummarizeMetricHelpers(t *testing.T) {
+	metric := &metricsv1beta1.PodMetrics{
+		ObjectMeta: metav1.ObjectMeta{Name: "api", Namespace: "default"},
+		Containers: []metricsv1beta1.ContainerMetrics{{Name: "app", Usage: corev1.ResourceList{
+			corev1.ResourceCPU:    resource.MustParse("5m"),
+			corev1.ResourceMemory: resource.MustParse("32Mi"),
+		}}},
+	}
+	usage := summarizePodMetric(metric)
+	if usage.Name != "api" || usage.CPUMilli == 0 {
+		t.Fatalf("unexpected pod usage: %#v", usage)
+	}
+	nodeMetric := &metricsv1beta1.NodeMetrics{ObjectMeta: metav1.ObjectMeta{Name: "node-1"}, Usage: corev1.ResourceList{
+		corev1.ResourceCPU:    resource.MustParse("200m"),
+		corev1.ResourceMemory: resource.MustParse("2Gi"),
+	}}
+	nodeUsageResult := summarizeNodeMetric(nodeMetric)
+	if nodeUsageResult.Name != "node-1" || nodeUsageResult.CPUMilli == 0 {
+		t.Fatalf("unexpected node usage: %#v", nodeUsageResult)
+	}
+
+	podUsage := []podUsage{
+		{Name: "b", CPUMilli: 5, MemoryBytes: 2},
+		{Name: "a", CPUMilli: 10, MemoryBytes: 1},
+	}
+	sortPodUsage(podUsage, "cpu")
+	if podUsage[0].Name != "a" {
+		t.Fatalf("expected cpu sort")
+	}
+	sortPodUsage(podUsage, "memory")
+	if podUsage[0].Name != "b" {
+		t.Fatalf("expected memory sort")
+	}
+
+	nodeUsageList := []nodeUsage{{Name: "b", CPUMilli: 2, MemoryBytes: 5}, {Name: "a", CPUMilli: 10, MemoryBytes: 1}}
+	sortNodeUsage(nodeUsageList, "cpu")
+	if nodeUsageList[0].Name != "a" {
+		t.Fatalf("expected node cpu sort")
+	}
+	sortNodeUsage(nodeUsageList, "memory")
+	if nodeUsageList[0].Name != "b" {
+		t.Fatalf("expected node memory sort")
 	}
 }
