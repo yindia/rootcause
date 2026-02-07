@@ -29,6 +29,10 @@ func TestDecodePolicyDocument(t *testing.T) {
 	if decoded == encoded {
 		t.Fatalf("expected decoded value")
 	}
+	invalid := "%zz"
+	if got := decodePolicyDocument(invalid); got != invalid {
+		t.Fatalf("expected fallback for invalid escape")
+	}
 }
 
 func TestRequireConfirm(t *testing.T) {
@@ -105,5 +109,16 @@ func TestSummarizers(t *testing.T) {
 	policySummary := summarizePolicy(policy)
 	if policySummary["name"] != "policy" {
 		t.Fatalf("unexpected policy summary: %#v", policySummary)
+	}
+}
+
+func TestPolicyVersionTime(t *testing.T) {
+	if !policyVersionTime(iamtypes.PolicyVersion{}).IsZero() {
+		t.Fatalf("expected zero time for nil date")
+	}
+	now := time.Now()
+	ver := iamtypes.PolicyVersion{CreateDate: &now}
+	if !policyVersionTime(ver).Equal(now) {
+		t.Fatalf("unexpected policy version time")
 	}
 }
