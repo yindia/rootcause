@@ -182,6 +182,9 @@ func TestVPCHandlersWithStubbedClient(t *testing.T) {
 	if _, err := svc.handleListRouteTables(context.Background(), mcp.ToolRequest{Arguments: map[string]any{"limit": 1}}); err != nil {
 		t.Fatalf("list route tables: %v", err)
 	}
+	if _, err := svc.handleGetRouteTable(context.Background(), mcp.ToolRequest{Arguments: map[string]any{"routeTableId": "rtb-1"}}); err != nil {
+		t.Fatalf("get route table: %v", err)
+	}
 	if _, err := svc.handleListSecurityGroups(context.Background(), mcp.ToolRequest{Arguments: map[string]any{"limit": 1}}); err != nil {
 		t.Fatalf("list security groups: %v", err)
 	}
