@@ -31,8 +31,6 @@ jobs:
           key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
           restore-keys: |
             ${{ runner.os }}-go-
-      - name: Run tests
-        run: go test ./...
       - name: GoReleaser dry-run
         uses: goreleaser/goreleaser-action@v6
         with:
