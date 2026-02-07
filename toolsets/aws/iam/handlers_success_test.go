@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"net/http/httptest"
 	"net/url"
 	"strings"
 	"testing"
@@ -53,6 +52,24 @@ func TestIAMHandlersWithStubbedClient(t *testing.T) {
   <ResponseMetadata><RequestId>req</RequestId></ResponseMetadata>
 </GetRoleResponse>`, assumeDoc,
 		),
+		"ListPolicies": `<ListPoliciesResponse xmlns="https://iam.amazonaws.com/doc/2010-05-08/">
+  <ListPoliciesResult>
+    <Policies>
+      <member>
+        <PolicyName>demo</PolicyName>
+        <PolicyId>PID</PolicyId>
+        <Arn>arn:aws:iam::123:policy/demo</Arn>
+        <Path>/</Path>
+        <DefaultVersionId>v1</DefaultVersionId>
+        <AttachmentCount>1</AttachmentCount>
+        <IsAttachable>true</IsAttachable>
+        <CreateDate>2024-01-01T00:00:00Z</CreateDate>
+      </member>
+    </Policies>
+    <IsTruncated>false</IsTruncated>
+  </ListPoliciesResult>
+  <ResponseMetadata><RequestId>req</RequestId></ResponseMetadata>
+</ListPoliciesResponse>`,
 	}
 	client := newIAMTestClient(t, responses)
 	svc := &Service{
@@ -92,36 +109,53 @@ func TestIAMHandlersWithStubbedClient(t *testing.T) {
 	if roleData["assumeRolePolicy"] == nil {
 		t.Fatalf("expected assume role policy")
 	}
+
+	if _, err := svc.handleIAMListPolicies(context.Background(), mcp.ToolRequest{Arguments: map[string]any{"limit": 1}}); err != nil {
+		t.Fatalf("list policies: %v", err)
+	}
 }
 
 func newIAMTestClient(t *testing.T, responses map[string]string) *iam.Client {
 	t.Helper()
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		body, _ := io.ReadAll(r.Body)
-		_ = r.Body.Close()
-		values, _ := url.ParseQuery(string(body))
-		action := values.Get("Action")
-		if action == "" {
-			action = r.URL.Query().Get("Action")
-		}
-		resp, ok := responses[action]
-		if !ok {
-			http.Error(w, "unknown action", http.StatusBadRequest)
-			return
-		}
-		w.Header().Set("Content-Type", "text/xml")
-		_, _ = w.Write([]byte(strings.TrimSpace(resp)))
-	}))
-	t.Cleanup(server.Close)
-
+	transport := &iamRoundTripper{responses: responses}
 	cfg := aws.Config{
 		Region:      "us-east-1",
 		Credentials: credentials.NewStaticCredentialsProvider("AKID", "SECRET", ""),
-		HTTPClient:  server.Client(),
+		HTTPClient:  &http.Client{Transport: transport},
 	}
-	resolver := aws.EndpointResolverWithOptionsFunc(func(service, region string, options ...interface{}) (aws.Endpoint, error) {
-		return aws.Endpoint{URL: server.URL, SigningRegion: region, HostnameImmutable: true}, nil
-	})
-	cfg.EndpointResolverWithOptions = resolver
+	cfg.EndpointResolverWithOptions = aws.EndpointResolverWithOptionsFunc(
+		func(service, region string, options ...interface{}) (aws.Endpoint, error) {
+			return aws.Endpoint{URL: "https://iam.test", SigningRegion: region, HostnameImmutable: true}, nil
+		},
+	)
 	return iam.NewFromConfig(cfg)
+}
+
+type iamRoundTripper struct {
+	responses map[string]string
+}
+
+func (rt *iamRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
+	body, _ := io.ReadAll(req.Body)
+	_ = req.Body.Close()
+	values, _ := url.ParseQuery(string(body))
+	action := values.Get("Action")
+	if action == "" {
+		action = req.URL.Query().Get("Action")
+	}
+	resp, ok := rt.responses[action]
+	if !ok {
+		return &http.Response{
+			StatusCode: http.StatusBadRequest,
+			Body:       io.NopCloser(strings.NewReader("unknown action")),
+			Header:     http.Header{"Content-Type": []string{"text/plain"}},
+			Request:    req,
+		}, nil
+	}
+	return &http.Response{
+		StatusCode: http.StatusOK,
+		Body:       io.NopCloser(strings.NewReader(strings.TrimSpace(resp))),
+		Header:     http.Header{"Content-Type": []string{"text/xml"}},
+		Request:    req,
+	}, nil
 }
