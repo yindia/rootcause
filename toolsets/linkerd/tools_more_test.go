@@ -105,9 +105,36 @@ func newLinkerdToolset(t *testing.T) *Toolset {
 			ReadyReplicas: 1,
 		},
 	}
+	controlPlane := &appsv1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "linkerd-controller",
+			Namespace: "linkerd",
+			Labels: map[string]string{
+				linkerdSelector: "true",
+			},
+		},
+		Spec: appsv1.DeploymentSpec{Replicas: &replicas},
+		Status: appsv1.DeploymentStatus{
+			ReadyReplicas: 0,
+		},
+	}
+	proxyPod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "api-proxy",
+			Namespace: "default",
+		},
+		Spec: corev1.PodSpec{Containers: []corev1.Container{{Name: "linkerd-proxy"}}},
+		Status: corev1.PodStatus{
+			Conditions: []corev1.PodCondition{{Type: corev1.PodReady, Status: corev1.ConditionFalse}},
+		},
+	}
 	client := k8sfake.NewSimpleClientset(
 		identity,
+		controlPlane,
+		proxyPod,
 		&corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "linkerd"}},
+		&corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "default"}},
+		&corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "other"}},
 	)
 
 	server := &unstructured.Unstructured{Object: map[string]any{
@@ -126,13 +153,57 @@ func newLinkerdToolset(t *testing.T) *Toolset {
 			"namespace": "default",
 		},
 	}}
+	virtualService := &unstructured.Unstructured{Object: map[string]any{
+		"apiVersion": "networking.istio.io/v1beta1",
+		"kind":       "VirtualService",
+		"metadata": map[string]any{
+			"name":      "api",
+			"namespace": "default",
+		},
+	}}
+	virtualServiceMulti := &unstructured.Unstructured{Object: map[string]any{
+		"apiVersion": "networking.istio.io/v1beta1",
+		"kind":       "VirtualService",
+		"metadata": map[string]any{
+			"name":      "multi",
+			"namespace": "default",
+		},
+	}}
+	virtualServiceOther := &unstructured.Unstructured{Object: map[string]any{
+		"apiVersion": "networking.istio.io/v1beta1",
+		"kind":       "VirtualService",
+		"metadata": map[string]any{
+			"name":      "multi",
+			"namespace": "other",
+		},
+	}}
+	destinationRule := &unstructured.Unstructured{Object: map[string]any{
+		"apiVersion": "networking.istio.io/v1beta1",
+		"kind":       "DestinationRule",
+		"metadata": map[string]any{
+			"name":      "api",
+			"namespace": "default",
+		},
+	}}
+	gateway := &unstructured.Unstructured{Object: map[string]any{
+		"apiVersion": "gateway.networking.k8s.io/v1",
+		"kind":       "Gateway",
+		"metadata": map[string]any{
+			"name":      "gw",
+			"namespace": "default",
+		},
+	}}
 	gvrServer := schema.GroupVersionResource{Group: "policy.linkerd.io", Version: "v1beta1", Resource: "servers"}
 	gvrRoute := schema.GroupVersionResource{Group: "gateway.networking.k8s.io", Version: "v1", Resource: "httproutes"}
+	gvrVirtualService := schema.GroupVersionResource{Group: "networking.istio.io", Version: "v1beta1", Resource: "virtualservices"}
+	gvrDestinationRule := schema.GroupVersionResource{Group: "networking.istio.io", Version: "v1beta1", Resource: "destinationrules"}
 	scheme := runtime.NewScheme()
 	dynamicClient := dynamicfake.NewSimpleDynamicClientWithCustomListKinds(scheme, map[schema.GroupVersionResource]string{
-		gvrServer: "ServerList",
-		gvrRoute:  "HTTPRouteList",
-	}, server, route)
+		gvrServer:          "ServerList",
+		gvrRoute:           "HTTPRouteList",
+		gvrVirtualService:  "VirtualServiceList",
+		gvrDestinationRule: "DestinationRuleList",
+	}, server, route, virtualService, destinationRule)
 
 	resources := []*metav1.APIResourceList{
 		{
@@ -147,6 +218,13 @@ func newLinkerdToolset(t *testing.T) *Toolset {
 				{Name: "httproutes", Kind: "HTTPRoute", Namespaced: true},
 			},
 		},
+		{
+			GroupVersion: "networking.istio.io/v1beta1",
+			APIResources: []metav1.APIResource{
+				{Name: "virtualservices", Kind: "VirtualService", Namespaced: true},
+				{Name: "destinationrules", Kind: "DestinationRule", Namespaced: true},
+			},
+		},
 	}
 	discoveryClient := &linkerdDiscoveryResources{
 		resources: resources,
@@ -154,6 +232,7 @@ func newLinkerdToolset(t *testing.T) *Toolset {
 			{Name: "linkerd.io"},
 			{Name: "policy.linkerd.io"},
 			{Name: "gateway.networking.k8s.io"},
+			{Name: "networking.istio.io"},
 		}},
 	}
 	groupResources, err := restmapper.GetAPIGroupResources(discoveryClient)
@@ -220,5 +299,55 @@ func TestLinkerdHelpers(t *testing.T) {
 	copyArgIfPresent(dst, map[string]any{"name": "demo"}, "name")
 	if dst["name"] != "demo" {
 		t.Fatalf("expected copyArgIfPresent to copy value")
+	}
+}
+
+func TestLinkerdHealthAndProxyStatus(t *testing.T) {
+	toolset := newLinkerdToolset(t)
+	user := policy.User{Role: policy.RoleCluster}
+	if _, err := toolset.handleHealth(context.Background(), mcp.ToolRequest{User: user}); err != nil {
+		t.Fatalf("handleHealth: %v", err)
+	}
+	result, err := toolset.handleProxyStatus(context.Background(), mcp.ToolRequest{
+		User:      user,
+		Arguments: map[string]any{"namespace": "default"},
+	})
+	if err != nil {
+		t.Fatalf("handleProxyStatus: %v", err)
+	}
+	data := result.Data.(map[string]any)
+	if data["evidence"] == nil {
+		t.Fatalf("expected proxy evidence")
+	}
+}
+
+func TestLinkerdMeshKindStatus(t *testing.T) {
+	toolset := newLinkerdToolset(t)
+	user := policy.User{Role: policy.RoleCluster}
+	if _, err := toolset.handleVirtualServiceStatus(context.Background(), mcp.ToolRequest{
+		User:      user,
+		Arguments: map[string]any{"namespace": "default"},
+	}); err != nil {
+		t.Fatalf("handleVirtualServiceStatus: %v", err)
+	}
+	if _, err := toolset.handleDestinationRuleStatus(context.Background(), mcp.ToolRequest{
+		User:      user,
+		Arguments: map[string]any{"namespace": "default"},
+	}); err != nil {
+		t.Fatalf("handleDestinationRuleStatus: %v", err)
+	}
+}
+
+func TestLinkerdAllowedNamespacesAndVersion(t *testing.T) {
+	toolset := newLinkerdToolset(t)
+	namespaces, err := toolset.allowedNamespaces(context.Background(), policy.User{Role: policy.RoleCluster}, "")
+	if err != nil {
+		t.Fatalf("allowedNamespaces: %v", err)
+	}
+	if len(namespaces) < 2 {
+		t.Fatalf("expected namespaces, got %v", namespaces)
+	}
+	if toolset.Version() == "" {
+		t.Fatalf("expected Version string")
 	}
 }

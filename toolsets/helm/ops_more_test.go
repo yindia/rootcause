@@ -190,8 +190,8 @@ func TestHandleRepoListAndUpdate(t *testing.T) {
 	repoFile := filepath.Join(dir, "repositories.yaml")
 	t.Setenv("HELM_REPOSITORY_CONFIG", repoFile)
 	file := repo.NewFile()
-	file.Add(&repo.Entry{Name: "b", URL: "https://example.com/b"})
-	file.Add(&repo.Entry{Name: "a", URL: "https://example.com/a"})
+	file.Add(&repo.Entry{Name: "b", URL: "http://127.0.0.1:1/b"})
+	file.Add(&repo.Entry{Name: "a", URL: "http://127.0.0.1:1/a"})
 	if err := file.WriteFile(repoFile, 0o644); err != nil {
 		t.Fatalf("write repo file: %v", err)
 	}
@@ -211,18 +211,14 @@ func TestHandleRepoListAndUpdate(t *testing.T) {
 	if err == nil {
 		t.Fatalf("expected repo update error for missing entry")
 	}
+	_, err = toolset.handleRepoUpdate(context.Background(), mcp.ToolRequest{})
+	if err == nil {
+		t.Fatalf("expected repo update error for unreachable repo")
+	}
 }
 
 func TestHandleRepoAdd(t *testing.T) {
 	dir := t.TempDir()
-	repoDir := filepath.Join(dir, "repo")
-	if err := os.MkdirAll(repoDir, 0o755); err != nil {
-		t.Fatalf("mkdir repo dir: %v", err)
-	}
-	index := "apiVersion: v1\nentries:\n  demo:\n  - version: 0.1.0\n    urls:\n    - demo-0.1.0.tgz\n"
-	if err := os.WriteFile(filepath.Join(repoDir, "index.yaml"), []byte(index), 0o644); err != nil {
-		t.Fatalf("write index: %v", err)
-	}
 	repoFile := filepath.Join(dir, "repositories.yaml")
 	if err := repo.NewFile().WriteFile(repoFile, 0o644); err != nil {
 		t.Fatalf("write empty repo file: %v", err)
@@ -233,10 +229,10 @@ func TestHandleRepoAdd(t *testing.T) {
 	cfg := config.DefaultConfig()
 	toolset := &Toolset{ctx: mcp.ToolsetContext{Config: &cfg}}
 	_, err := toolset.handleRepoAdd(context.Background(), mcp.ToolRequest{
-		Arguments: map[string]any{"name": "demo", "url": "file://" + repoDir},
+		Arguments: map[string]any{"name": "demo", "url": "http://127.0.0.1:1"},
 	})
 	if err == nil {
-		t.Fatalf("expected repo add error for unsupported file protocol")
+		t.Fatalf("expected repo add error for unreachable url")
 	}
 }
 
@@ -287,6 +283,40 @@ func TestHandleListAndStatus(t *testing.T) {
 	}
 }
 
+func TestHandleListAllNamespaces(t *testing.T) {
+	rel := &release.Release{
+		Name:      "demo",
+		Namespace: "default",
+		Version:   1,
+		Info:      &release.Info{Status: release.StatusDeployed},
+	}
+	toolset := &Toolset{ctx: mcp.ToolsetContext{Policy: policy.NewAuthorizer()}}
+	toolset.actionConfigOverride = func(namespace string) (*action.Configuration, error) {
+		mem := driver.NewMemory()
+		mem.SetNamespace(namespace)
+		cfg := &action.Configuration{
+			Releases:     storage.Init(mem),
+			Log:          func(string, ...interface{}) {},
+			Capabilities: nil,
+		}
+		cfg.KubeClient = &kubefake.PrintingKubeClient{Out: io.Discard}
+		_ = cfg.Releases.Create(rel)
+		return cfg, nil
+	}
+	if _, err := toolset.handleList(context.Background(), mcp.ToolRequest{
+		User:      policy.User{Role: policy.RoleCluster},
+		Arguments: map[string]any{"allNamespaces": true},
+	}); err != nil {
+		t.Fatalf("handleList all namespaces: %v", err)
+	}
+	if _, err := toolset.handleList(context.Background(), mcp.ToolRequest{
+		User:      policy.User{Role: policy.RoleNamespace},
+		Arguments: map[string]any{"allNamespaces": true},
+	}); err == nil {
+		t.Fatalf("expected error for allNamespaces with namespace role")
+	}
+}
+
 func TestHandleInstallUpgradeUninstall(t *testing.T) {
 	dir := t.TempDir()
 	chartDir := filepath.Join(dir, "demo")
@@ -328,6 +358,12 @@ func TestHandleInstallUpgradeUninstall(t *testing.T) {
 			"namespace": "default",
 			"chart":     chartDir,
 			"confirm":   true,
+			"wait":      true,
+			"atomic":    true,
+			"timeoutSeconds": 10,
+			"createNamespace": true,
+			"includeCRDs":     true,
+			"valuesYAML":      "replicaCount: 2\n",
 		},
 	}); err != nil {
 		t.Fatalf("handleInstall: %v", err)
@@ -340,6 +376,8 @@ func TestHandleInstallUpgradeUninstall(t *testing.T) {
 			"namespace": "default",
 			"chart":     chartDir,
 			"confirm":   true,
+			"install":   true,
+			"timeoutSeconds": 5,
 		},
 	}); err != nil {
 		t.Fatalf("handleUpgrade: %v", err)
@@ -351,6 +389,8 @@ func TestHandleInstallUpgradeUninstall(t *testing.T) {
 			"release":   "demo",
 			"namespace": "default",
 			"confirm":   true,
+			"keepHistory":    true,
+			"timeoutSeconds": 5,
 		},
 	}); err != nil {
 		t.Fatalf("handleUninstall: %v", err)
@@ -442,6 +482,128 @@ func TestHandleTemplateUninstall(t *testing.T) {
 	}
 }
 
+func TestHandleTemplateUninstallSkipsMissingName(t *testing.T) {
+	dir := t.TempDir()
+	chartDir := filepath.Join(dir, "demo")
+	if err := os.MkdirAll(filepath.Join(chartDir, "templates"), 0o755); err != nil {
+		t.Fatalf("mkdir chart: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(chartDir, "Chart.yaml"), []byte("apiVersion: v2\nname: demo\nversion: 0.1.0\n"), 0o644); err != nil {
+		t.Fatalf("write chart yaml: %v", err)
+	}
+	template := "apiVersion: v1\nkind: ConfigMap\nmetadata:\n  labels:\n    app: demo\n"
+	if err := os.WriteFile(filepath.Join(chartDir, "templates", "bad.yaml"), []byte(template), 0o644); err != nil {
+		t.Fatalf("write template: %v", err)
+	}
+
+	discoveryClient := &helmDiscovery{resources: []*metav1.APIResourceList{}}
+	mapper := meta.NewDefaultRESTMapper([]schema.GroupVersion{{Group: "", Version: "v1"}})
+	cfg := config.DefaultConfig()
+	toolset := New()
+	_ = toolset.Init(mcp.ToolsetContext{
+		Config:   &cfg,
+		Clients:  &kube.Clients{Dynamic: dynamicfake.NewSimpleDynamicClient(runtime.NewScheme())},
+		Policy:   policy.NewAuthorizer(),
+		Renderer: render.NewRenderer(),
+		Redactor: redact.New(),
+		Evidence: evidence.NewCollector(&kube.Clients{}),
+	})
+	toolset.actionConfigOverride = func(namespace string) (*action.Configuration, error) {
+		getter := &staticRESTClientGetter{
+			restConfig: &rest.Config{Host: "https://example.com"},
+			mapper:     mapper,
+			discovery:  discoveryClient,
+		}
+		cfg := new(action.Configuration)
+		if err := cfg.Init(getter, namespace, "memory", func(string, ...interface{}) {}); err != nil {
+			return nil, err
+		}
+		return cfg, nil
+	}
+
+	result, err := toolset.handleTemplateUninstall(context.Background(), mcp.ToolRequest{
+		User: policy.User{Role: policy.RoleCluster},
+		Arguments: map[string]any{
+			"release":   "demo",
+			"namespace": "default",
+			"chart":     chartDir,
+			"confirm":   true,
+		},
+	})
+	if err != nil {
+		t.Fatalf("handleTemplateUninstall: %v", err)
+	}
+	if result.Data.(map[string]any)["skipped"] == nil {
+		t.Fatalf("expected skipped output for missing name")
+	}
+}
+
+func TestHandleTemplateApply(t *testing.T) {
+	dir := t.TempDir()
+	chartDir := filepath.Join(dir, "demo")
+	if err := os.MkdirAll(filepath.Join(chartDir, "templates"), 0o755); err != nil {
+		t.Fatalf("mkdir chart: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(chartDir, "Chart.yaml"), []byte("apiVersion: v2\nname: demo\nversion: 0.1.0\n"), 0o644); err != nil {
+		t.Fatalf("write chart yaml: %v", err)
+	}
+	template := "apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: {{ .Release.Name }}-config\n  namespace: {{ .Release.Namespace }}\n"
+	if err := os.WriteFile(filepath.Join(chartDir, "templates", "configmap.yaml"), []byte(template), 0o644); err != nil {
+		t.Fatalf("write template: %v", err)
+	}
+
+	discoveryClient := &helmDiscovery{resources: []*metav1.APIResourceList{}}
+	mapper := meta.NewDefaultRESTMapper([]schema.GroupVersion{{Group: "", Version: "v1"}})
+	getter := &staticRESTClientGetter{
+		restConfig: &rest.Config{Host: "https://example.com"},
+		mapper:     mapper,
+		discovery:  discoveryClient,
+	}
+	actionCfg := new(action.Configuration)
+	if err := actionCfg.Init(getter, "default", "memory", func(string, ...interface{}) {}); err != nil {
+		t.Fatalf("init action config: %v", err)
+	}
+	actionCfg.KubeClient = &kubefake.PrintingKubeClient{Out: io.Discard}
+
+	cfg := config.DefaultConfig()
+	reg := mcp.NewRegistry(&cfg)
+	_ = reg.Add(mcp.ToolSpec{
+		Name:        "k8s.apply",
+		Description: "test apply",
+		ToolsetID:   "k8s",
+		Handler: func(ctx context.Context, req mcp.ToolRequest) (mcp.ToolResult, error) {
+			return mcp.ToolResult{Data: map[string]any{"applied": []string{"configmaps/default/demo-config"}}}, nil
+		},
+	})
+	toolset := New()
+	_ = toolset.Init(mcp.ToolsetContext{
+		Config:   &cfg,
+		Clients:  &kube.Clients{},
+		Policy:   policy.NewAuthorizer(),
+		Invoker:  mcp.NewToolInvoker(reg, mcp.ToolContext{Config: &cfg}),
+		Registry: reg,
+	})
+	toolset.actionConfigOverride = func(namespace string) (*action.Configuration, error) {
+		return actionCfg, nil
+	}
+
+	result, err := toolset.handleTemplateApply(context.Background(), mcp.ToolRequest{
+		User: policy.User{Role: policy.RoleCluster},
+		Arguments: map[string]any{
+			"release":   "demo",
+			"namespace": "default",
+			"chart":     chartDir,
+			"confirm":   true,
+		},
+	})
+	if err != nil {
+		t.Fatalf("handleTemplateApply: %v", err)
+	}
+	if result.Data.(map[string]any)["release"] != "demo" {
+		t.Fatalf("unexpected template apply result: %#v", result.Data)
+	}
+}
+
 func TestSharedRESTClientGetterRawConfig(t *testing.T) {
 	dir := t.TempDir()
 	cfgPath := filepath.Join(dir, "kubeconfig")
@@ -453,8 +615,44 @@ func TestSharedRESTClientGetterRawConfig(t *testing.T) {
 	if _, err := loader.RawConfig(); err != nil {
 		t.Fatalf("expected raw config: %v", err)
 	}
+	getter.restConfig = &rest.Config{Host: "https://example.com"}
+	getter.mapper = meta.NewDefaultRESTMapper([]schema.GroupVersion{{Group: "", Version: "v1"}})
+	getter.discovery = &helmDiscovery{resources: []*metav1.APIResourceList{}}
+	if _, err := getter.ToRESTConfig(); err != nil {
+		t.Fatalf("expected rest config: %v", err)
+	}
+	if _, err := getter.ToDiscoveryClient(); err != nil {
+		t.Fatalf("expected discovery client: %v", err)
+	}
+	if _, err := getter.ToRESTMapper(); err != nil {
+		t.Fatalf("expected rest mapper: %v", err)
+	}
 	toolset := New()
 	if toolset.Version() == "" {
 		t.Fatalf("expected toolset version")
+	}
+}
+
+func TestActionConfig(t *testing.T) {
+	discoveryClient := &helmDiscovery{resources: []*metav1.APIResourceList{}}
+	mapper := meta.NewDefaultRESTMapper([]schema.GroupVersion{{Group: "", Version: "v1"}})
+	cfg := config.DefaultConfig()
+	toolset := New()
+	_ = toolset.Init(mcp.ToolsetContext{
+		Config:  &cfg,
+		Clients: &kube.Clients{RestConfig: &rest.Config{Host: "https://example.com"}, Discovery: discoveryClient, Mapper: mapper},
+		Policy:  policy.NewAuthorizer(),
+	})
+	if _, err := toolset.actionConfig("default"); err != nil {
+		t.Fatalf("actionConfig: %v", err)
+	}
+	if toInt("42") != 0 {
+		t.Fatalf("expected toInt to return default for string")
+	}
+	if toInt(int32(2)) != 2 || toInt(int64(3)) != 3 {
+		t.Fatalf("expected toInt to handle int types")
+	}
+	if toInt(float32(1.5)) != 1 || toInt(float64(2.5)) != 2 {
+		t.Fatalf("expected toInt to handle float types")
 	}
 }
