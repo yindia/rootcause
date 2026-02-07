@@ -17,10 +17,18 @@ import (
 
 func TestEKSHandlersWithStubbedClient(t *testing.T) {
 	responses := map[string]string{
-		"/clusters":                     `{"clusters":["demo"]}`,
-		"/clusters/demo":                `{"cluster":{"name":"demo","arn":"arn:aws:eks:us-east-1:123:cluster/demo","version":"1.28","status":"ACTIVE"}}`,
-		"/clusters/demo/addons":         `{"addons":["vpc-cni"]}`,
-		"/clusters/demo/addons/vpc-cni": `{"addon":{"addonName":"vpc-cni","addonVersion":"1.12","status":"ACTIVE","health":{"issues":[]}}}`,
+		"/clusters":                                         `{"clusters":["demo"]}`,
+		"/clusters/demo":                                    `{"cluster":{"name":"demo","arn":"arn:aws:eks:us-east-1:123:cluster/demo","version":"1.28","status":"ACTIVE"}}`,
+		"/clusters/demo/addons":                             `{"addons":["vpc-cni"]}`,
+		"/clusters/demo/addons/vpc-cni":                     `{"addon":{"addonName":"vpc-cni","addonVersion":"1.12","status":"ACTIVE","health":{"issues":[]}}}`,
+		"/clusters/demo/node-groups":                        `{"nodegroups":["ng-1"]}`,
+		"/clusters/demo/node-groups/ng-1":                   `{"nodegroup":{"nodegroupName":"ng-1","nodegroupArn":"arn:ng","status":"ACTIVE","version":"1.28","capacityType":"ON_DEMAND","subnets":["subnet-1"]}}`,
+		"/clusters/demo/fargate-profiles":                   `{"fargateProfileNames":["fp-1"]}`,
+		"/clusters/demo/fargate-profiles/fp-1":              `{"fargateProfile":{"fargateProfileName":"fp-1","fargateProfileArn":"arn:fp","status":"ACTIVE","subnets":["subnet-1"]}}`,
+		"/clusters/demo/identity-provider-configs":          `{"identityProviderConfigs":[{"type":"oidc","name":"idp"}]}`,
+		"/clusters/demo/identity-provider-configs/describe": `{"identityProviderConfig":{"oidc":{"clientId":"client","issuerUrl":"https://issuer"}}}`,
+		"/clusters/demo/updates":                            `{"updateIds":["upd-1"]}`,
+		"/clusters/demo/updates/upd-1":                      `{"update":{"id":"upd-1","status":"Successful","type":"VersionUpdate"}}`,
 	}
 	client := newEKSTestClient(t, responses)
 	svc := &Service{
@@ -41,6 +49,30 @@ func TestEKSHandlersWithStubbedClient(t *testing.T) {
 	}
 	if _, err := svc.handleGetAddon(context.Background(), mcp.ToolRequest{Arguments: map[string]any{"clusterName": "demo", "addonName": "vpc-cni"}}); err != nil {
 		t.Fatalf("get addon: %v", err)
+	}
+	if _, err := svc.handleListNodegroups(context.Background(), mcp.ToolRequest{Arguments: map[string]any{"clusterName": "demo"}}); err != nil {
+		t.Fatalf("list nodegroups: %v", err)
+	}
+	if _, err := svc.handleGetNodegroup(context.Background(), mcp.ToolRequest{Arguments: map[string]any{"clusterName": "demo", "nodegroupName": "ng-1"}}); err != nil {
+		t.Fatalf("get nodegroup: %v", err)
+	}
+	if _, err := svc.handleListFargateProfiles(context.Background(), mcp.ToolRequest{Arguments: map[string]any{"clusterName": "demo"}}); err != nil {
+		t.Fatalf("list fargate profiles: %v", err)
+	}
+	if _, err := svc.handleGetFargateProfile(context.Background(), mcp.ToolRequest{Arguments: map[string]any{"clusterName": "demo", "profileName": "fp-1"}}); err != nil {
+		t.Fatalf("get fargate profile: %v", err)
+	}
+	if _, err := svc.handleListIdentityProviderConfigs(context.Background(), mcp.ToolRequest{Arguments: map[string]any{"clusterName": "demo"}}); err != nil {
+		t.Fatalf("list identity provider configs: %v", err)
+	}
+	if _, err := svc.handleGetIdentityProviderConfig(context.Background(), mcp.ToolRequest{Arguments: map[string]any{"clusterName": "demo", "type": "oidc", "name": "idp"}}); err != nil {
+		t.Fatalf("get identity provider config: %v", err)
+	}
+	if _, err := svc.handleListUpdates(context.Background(), mcp.ToolRequest{Arguments: map[string]any{"clusterName": "demo"}}); err != nil {
+		t.Fatalf("list updates: %v", err)
+	}
+	if _, err := svc.handleGetUpdate(context.Background(), mcp.ToolRequest{Arguments: map[string]any{"clusterName": "demo", "updateId": "upd-1"}}); err != nil {
+		t.Fatalf("get update: %v", err)
 	}
 }
 
