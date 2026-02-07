@@ -195,15 +195,17 @@ func newLinkerdToolset(t *testing.T) *Toolset {
 	}}
 	gvrServer := schema.GroupVersionResource{Group: "policy.linkerd.io", Version: "v1beta1", Resource: "servers"}
 	gvrRoute := schema.GroupVersionResource{Group: "gateway.networking.k8s.io", Version: "v1", Resource: "httproutes"}
+	gvrGateway := schema.GroupVersionResource{Group: "gateway.networking.k8s.io", Version: "v1", Resource: "gateways"}
 	gvrVirtualService := schema.GroupVersionResource{Group: "networking.istio.io", Version: "v1beta1", Resource: "virtualservices"}
 	gvrDestinationRule := schema.GroupVersionResource{Group: "networking.istio.io", Version: "v1beta1", Resource: "destinationrules"}
 	scheme := runtime.NewScheme()
 	dynamicClient := dynamicfake.NewSimpleDynamicClientWithCustomListKinds(scheme, map[schema.GroupVersionResource]string{
 		gvrServer:          "ServerList",
 		gvrRoute:           "HTTPRouteList",
+		gvrGateway:         "GatewayList",
 		gvrVirtualService:  "VirtualServiceList",
 		gvrDestinationRule: "DestinationRuleList",
-	}, server, route, virtualService, destinationRule)
+	}, server, route, gateway, virtualService, virtualServiceMulti, virtualServiceOther, destinationRule)
 
 	resources := []*metav1.APIResourceList{
 		{
@@ -216,6 +218,7 @@ func newLinkerdToolset(t *testing.T) *Toolset {
 			GroupVersion: "gateway.networking.k8s.io/v1",
 			APIResources: []metav1.APIResource{
 				{Name: "httproutes", Kind: "HTTPRoute", Namespaced: true},
+				{Name: "gateways", Kind: "Gateway", Namespaced: true},
 			},
 		},
 		{
@@ -349,5 +352,127 @@ func TestLinkerdAllowedNamespacesAndVersion(t *testing.T) {
 	}
 	if toolset.Version() == "" {
 		t.Fatalf("expected Version string")
+	}
+}
+
+func TestLinkerdGatewayAndCRStatusErrors(t *testing.T) {
+	toolset := newLinkerdToolset(t)
+	user := policy.User{Role: policy.RoleCluster}
+	if _, err := toolset.handleGatewayStatus(context.Background(), mcp.ToolRequest{
+		User:      user,
+		Arguments: map[string]any{"namespace": "default"},
+	}); err != nil {
+		t.Fatalf("handleGatewayStatus: %v", err)
+	}
+	if _, err := toolset.handleCRStatus(context.Background(), mcp.ToolRequest{
+		User:      user,
+		Arguments: map[string]any{"kind": "VirtualService", "name": "multi"},
+	}); err == nil {
+		t.Fatalf("expected multiple namespace error")
+	}
+	if _, err := toolset.handleCRStatus(context.Background(), mcp.ToolRequest{
+		User:      user,
+		Arguments: map[string]any{"kind": "Server", "name": "missing", "namespace": "default"},
+	}); err != nil {
+		t.Fatalf("handleCRStatus not found: %v", err)
+	}
+}
+
+func TestLinkerdNotDetectedPaths(t *testing.T) {
+	client := k8sfake.NewSimpleClientset(&corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "default"}})
+	discoveryClient := &linkerdDiscoveryResources{groups: &metav1.APIGroupList{}}
+	cfg := config.DefaultConfig()
+	toolset := New()
+	_ = toolset.Init(mcp.ToolsetContext{
+		Config:   &cfg,
+		Clients:  &kube.Clients{Typed: client, Discovery: discoveryClient},
+		Policy:   policy.NewAuthorizer(),
+		Renderer: render.NewRenderer(),
+		Redactor: redact.New(),
+	})
+	if _, err := toolset.handleIdentityIssues(context.Background(), mcp.ToolRequest{User: policy.User{Role: policy.RoleCluster}}); err != nil {
+		t.Fatalf("handleIdentityIssues not detected: %v", err)
+	}
+
+	discoveryClient.groups = &metav1.APIGroupList{Groups: []metav1.APIGroup{{Name: "linkerd.io"}}}
+	toolsetPolicy := New()
+	_ = toolsetPolicy.Init(mcp.ToolsetContext{
+		Config:   &cfg,
+		Clients:  &kube.Clients{Typed: client, Discovery: discoveryClient},
+		Policy:   policy.NewAuthorizer(),
+		Renderer: render.NewRenderer(),
+		Redactor: redact.New(),
+	})
+	if _, err := toolsetPolicy.handlePolicyDebug(context.Background(), mcp.ToolRequest{User: policy.User{Role: policy.RoleCluster}}); err != nil {
+		t.Fatalf("handlePolicyDebug missing policy group: %v", err)
+	}
+}
+
+func TestLinkerdInitError(t *testing.T) {
+	toolset := New()
+	if err := toolset.Init(mcp.ToolsetContext{}); err == nil {
+		t.Fatalf("expected init error for missing clients")
+	}
+}
+
+func TestLinkerdCRStatusClusterScoped(t *testing.T) {
+	clusterObj := &unstructured.Unstructured{Object: map[string]any{
+		"apiVersion": "linkerd.io/v1alpha2",
+		"kind":       "ClusterConfig",
+		"metadata":   map[string]any{"name": "cluster"},
+	}}
+	gvr := schema.GroupVersionResource{Group: "linkerd.io", Version: "v1alpha2", Resource: "clusterconfigs"}
+	scheme := runtime.NewScheme()
+	dynamicClient := dynamicfake.NewSimpleDynamicClientWithCustomListKinds(scheme, map[schema.GroupVersionResource]string{
+		gvr: "ClusterConfigList",
+	}, clusterObj)
+	discoveryClient := &linkerdDiscoveryResources{
+		resources: []*metav1.APIResourceList{{
+			GroupVersion: "linkerd.io/v1alpha2",
+			APIResources: []metav1.APIResource{{Name: "clusterconfigs", Kind: "ClusterConfig", Namespaced: false}},
+		}},
+		groups: &metav1.APIGroupList{Groups: []metav1.APIGroup{{Name: "linkerd.io"}}},
+	}
+	groupResources, err := restmapper.GetAPIGroupResources(discoveryClient)
+	if err != nil {
+		t.Fatalf("get api group resources: %v", err)
+	}
+	mapper := restmapper.NewDiscoveryRESTMapper(groupResources)
+
+	client := k8sfake.NewSimpleClientset()
+	cfg := config.DefaultConfig()
+	toolset := New()
+	clients := &kube.Clients{Typed: client, Dynamic: dynamicClient, Discovery: discoveryClient, Mapper: mapper}
+	_ = toolset.Init(mcp.ToolsetContext{
+		Config:   &cfg,
+		Clients:  clients,
+		Policy:   policy.NewAuthorizer(),
+		Renderer: render.NewRenderer(),
+		Redactor: redact.New(),
+		Evidence: evidence.NewCollector(clients),
+	})
+
+	if _, err := toolset.handleCRStatus(context.Background(), mcp.ToolRequest{
+		User:      policy.User{Role: policy.RoleCluster},
+		Arguments: map[string]any{"kind": "ClusterConfig", "name": "cluster"},
+	}); err != nil {
+		t.Fatalf("handleCRStatus cluster scoped: %v", err)
+	}
+}
+
+func TestLinkerdHelperCoverage(t *testing.T) {
+	pod := &corev1.Pod{Spec: corev1.PodSpec{Containers: []corev1.Container{{Name: "linkerd-proxy"}}}}
+	if !hasLinkerdProxy(pod) {
+		t.Fatalf("expected linkerd-proxy")
+	}
+	pod.Status.Conditions = []corev1.PodCondition{{Type: corev1.PodReady, Status: corev1.ConditionTrue}}
+	if !isPodReady(pod) {
+		t.Fatalf("expected ready pod")
+	}
+	if sliceIf("") != nil {
+		t.Fatalf("expected nil slice for empty value")
+	}
+	if _, err := toUnstructured(pod); err != nil {
+		t.Fatalf("toUnstructured: %v", err)
 	}
 }
