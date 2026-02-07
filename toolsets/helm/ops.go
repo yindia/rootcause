@@ -37,6 +37,12 @@ import (
 
 const helmDriver = "secrets"
 
+var newChartRepository = repo.NewChartRepository
+var downloadIndexFile = func(chartRepo *repo.ChartRepository) (string, error) {
+	return chartRepo.DownloadIndexFile()
+}
+var loadRepoFile = repo.LoadFile
+
 type sharedRESTClientGetter struct {
 	restConfig *rest.Config
 	mapper     meta.RESTMapper
@@ -134,7 +140,7 @@ func (t *Toolset) handleRepoAdd(ctx context.Context, req mcp.ToolRequest) (mcp.T
 	if err := os.MkdirAll(filepath.Dir(repoFile), 0o755); err != nil {
 		return errorResult(err), err
 	}
-	file, err := repo.LoadFile(repoFile)
+	file, err := loadRepoFile(repoFile)
 	if err != nil {
 		if !os.IsNotExist(err) {
 			return errorResult(err), err
@@ -157,11 +163,11 @@ func (t *Toolset) handleRepoAdd(ctx context.Context, req mcp.ToolRequest) (mcp.T
 	} else {
 		file.Add(entry)
 	}
-	chartRepo, err := repo.NewChartRepository(entry, getter.All(settings))
+	chartRepo, err := newChartRepository(entry, getter.All(settings))
 	if err != nil {
 		return errorResult(err), err
 	}
-	if _, err := chartRepo.DownloadIndexFile(); err != nil {
+	if _, err := downloadIndexFile(chartRepo); err != nil {
 		return errorResult(err), err
 	}
 	if err := file.WriteFile(repoFile, 0o644); err != nil {
@@ -172,7 +178,7 @@ func (t *Toolset) handleRepoAdd(ctx context.Context, req mcp.ToolRequest) (mcp.T
 
 func (t *Toolset) handleRepoList(ctx context.Context, req mcp.ToolRequest) (mcp.ToolResult, error) {
 	settings := t.helmSettings()
-	file, err := repo.LoadFile(settings.RepositoryConfig)
+	file, err := loadRepoFile(settings.RepositoryConfig)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return mcp.ToolResult{Data: map[string]any{"repositories": []map[string]any{}}}, nil
@@ -192,7 +198,7 @@ func (t *Toolset) handleRepoList(ctx context.Context, req mcp.ToolRequest) (mcp.
 func (t *Toolset) handleRepoUpdate(ctx context.Context, req mcp.ToolRequest) (mcp.ToolResult, error) {
 	settings := t.helmSettings()
 	name := toString(req.Arguments["name"])
-	file, err := repo.LoadFile(settings.RepositoryConfig)
+	file, err := loadRepoFile(settings.RepositoryConfig)
 	if err != nil {
 		return errorResult(err), err
 	}
@@ -201,11 +207,11 @@ func (t *Toolset) handleRepoUpdate(ctx context.Context, req mcp.ToolRequest) (mc
 		if name != "" && entry.Name != name {
 			continue
 		}
-		chartRepo, err := repo.NewChartRepository(entry, getter.All(settings))
+		chartRepo, err := newChartRepository(entry, getter.All(settings))
 		if err != nil {
 			return errorResult(err), err
 		}
-		if _, err := chartRepo.DownloadIndexFile(); err != nil {
+		if _, err := downloadIndexFile(chartRepo); err != nil {
 			return errorResult(err), err
 		}
 		updated = append(updated, entry.Name)

@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"strconv"
 	"strings"
@@ -15,9 +16,21 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/tools/portforward"
 	"k8s.io/client-go/transport/spdy"
+	"k8s.io/apimachinery/pkg/util/httpstream"
 
 	"rootcause/internal/mcp"
 )
+
+type portForwarder interface {
+	ForwardPorts() error
+	GetPorts() ([]portforward.ForwardedPort, error)
+}
+
+var spdyRoundTripperFor = spdy.RoundTripperFor
+
+var newPortForwarder = func(dialer httpstream.Dialer, addresses []string, ports []string, stopChan, readyChan chan struct{}, out, errOut io.Writer) (portForwarder, error) {
+	return portforward.NewOnAddresses(dialer, addresses, ports, stopChan, readyChan, out, errOut)
+}
 
 func (t *Toolset) handlePortForward(ctx context.Context, req mcp.ToolRequest) (mcp.ToolResult, error) {
 	args := req.Arguments
@@ -69,7 +82,7 @@ func (t *Toolset) handlePortForward(ctx context.Context, req mcp.ToolRequest) (m
 	}
 
 	reqURL := t.ctx.Clients.Typed.CoreV1().RESTClient().Post().Resource("pods").Namespace(namespace).Name(pod).SubResource("portforward")
-	transport, upgrader, err := spdy.RoundTripperFor(t.ctx.Clients.RestConfig)
+	transport, upgrader, err := spdyRoundTripperFor(t.ctx.Clients.RestConfig)
 	if err != nil {
 		return errorResult(err), err
 	}
@@ -79,7 +92,7 @@ func (t *Toolset) handlePortForward(ctx context.Context, req mcp.ToolRequest) (m
 	readyChan := make(chan struct{})
 	out := &bytes.Buffer{}
 	errOut := &bytes.Buffer{}
-	pf, err := portforward.NewOnAddresses(dialer, []string{localAddress}, ports, stopChan, readyChan, out, errOut)
+	pf, err := newPortForwarder(dialer, []string{localAddress}, ports, stopChan, readyChan, out, errOut)
 	if err != nil {
 		return errorResult(err), err
 	}

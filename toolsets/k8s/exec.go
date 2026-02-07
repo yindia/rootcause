@@ -14,6 +14,8 @@ import (
 	"rootcause/internal/mcp"
 )
 
+var newSPDYExecutor = remotecommand.NewSPDYExecutor
+
 func (t *Toolset) handleExec(ctx context.Context, req mcp.ToolRequest) (mcp.ToolResult, error) {
 	args := req.Arguments
 	namespace := toString(args["namespace"])
@@ -53,7 +55,7 @@ func (t *Toolset) execCommand(ctx context.Context, namespace, pod, container str
 		TTY:       false,
 	}
 	reqURL.VersionedParams(options, scheme.ParameterCodec)
-	exec, err := remotecommand.NewSPDYExecutor(t.ctx.Clients.RestConfig, "POST", reqURL.URL())
+	exec, err := newSPDYExecutor(t.ctx.Clients.RestConfig, "POST", reqURL.URL())
 	if err != nil {
 		return "", "", err
 	}

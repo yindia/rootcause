@@ -46,6 +46,9 @@ func TestHelperFunctions(t *testing.T) {
 	if got := toStringSlice("x"); len(got) != 1 || got[0] != "x" {
 		t.Fatalf("unexpected toStringSlice string: %#v", got)
 	}
+	if got := toStringSlice([]string{"a", "b"}); len(got) != 2 {
+		t.Fatalf("unexpected toStringSlice []string: %#v", got)
+	}
 	if got := toBool(true); !got {
 		t.Fatalf("expected true toBool")
 	}
