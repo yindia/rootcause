@@ -102,21 +102,25 @@ func (t *Toolset) Init(ctx mcp.ToolsetContext) error {
 
 func (t *Toolset) Register(reg mcp.Registry) error {
 	for _, tool := range awsiam.ToolSpecs(t.ctx, t.ID(), t.iamClient) {
+		tool = t.wrapListCache(tool)
 		if err := reg.Add(tool); err != nil {
 			return fmt.Errorf("register %s: %w", tool.Name, err)
 		}
 	}
 	for _, tool := range awsvpc.ToolSpecs(t.ctx, t.ID(), t.ec2Client, t.resolverClient) {
+		tool = t.wrapListCache(tool)
 		if err := reg.Add(tool); err != nil {
 			return fmt.Errorf("register %s: %w", tool.Name, err)
 		}
 	}
 	for _, tool := range awsec2.ToolSpecs(t.ctx, t.ID(), t.ec2Client, t.asgClient, t.elbClient, t.iamClient) {
+		tool = t.wrapListCache(tool)
 		if err := reg.Add(tool); err != nil {
 			return fmt.Errorf("register %s: %w", tool.Name, err)
 		}
 	}
 	for _, tool := range awseks.ToolSpecs(t.ctx, t.ID(), t.eksClient, t.ec2Client, t.asgClient) {
+		tool = t.wrapListCache(tool)
 		if err := reg.Add(tool); err != nil {
 			return fmt.Errorf("register %s: %w", tool.Name, err)
 		}

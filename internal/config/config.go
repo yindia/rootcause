@@ -11,14 +11,16 @@ import (
 )
 
 type Config struct {
-	Kubeconfig         string       `toml:"kubeconfig"`
-	Context            string       `toml:"context"`
-	Toolsets           []string     `toml:"toolsets"`
-	ReadOnly           bool         `toml:"read_only"`
-	DisableDestructive bool         `toml:"disable_destructive"`
-	LogLevel           string       `toml:"log_level"`
-	Safety             SafetyConfig `toml:"safety"`
-	Exec               ExecConfig   `toml:"exec_readonly"`
+	Kubeconfig         string        `toml:"kubeconfig"`
+	Context            string        `toml:"context"`
+	Toolsets           []string      `toml:"toolsets"`
+	ReadOnly           bool          `toml:"read_only"`
+	DisableDestructive bool          `toml:"disable_destructive"`
+	LogLevel           string        `toml:"log_level"`
+	Safety             SafetyConfig  `toml:"safety"`
+	Exec               ExecConfig    `toml:"exec_readonly"`
+	Timeouts           TimeoutConfig `toml:"timeouts"`
+	Cache              CacheConfig   `toml:"cache"`
 }
 
 type SafetyConfig struct {
@@ -28,6 +30,18 @@ type SafetyConfig struct {
 type ExecConfig struct {
 	Enabled         bool     `toml:"enabled"`
 	AllowedCommands []string `toml:"allowed_commands"`
+}
+
+type TimeoutConfig struct {
+	DefaultSeconds int            `toml:"default_seconds"`
+	MaxSeconds     int            `toml:"max_seconds"`
+	PerTool        map[string]int `toml:"per_tool"`
+}
+
+type CacheConfig struct {
+	DiscoveryTTLSeconds int `toml:"discovery_ttl_seconds"`
+	GraphTTLSeconds     int `toml:"graph_ttl_seconds"`
+	AWSListTTLSeconds   int `toml:"aws_list_ttl_seconds"`
 }
 
 type Overrides struct {
@@ -44,6 +58,21 @@ func DefaultConfig() Config {
 		Kubeconfig: "",
 		Toolsets:   []string{"k8s", "linkerd", "karpenter", "istio", "helm", "aws"},
 		LogLevel:   "info",
+		Timeouts: TimeoutConfig{
+			DefaultSeconds: 60,
+			MaxSeconds:     900,
+			PerTool: map[string]int{
+				"k8s.port_forward": 600,
+				"helm.install":     300,
+				"helm.upgrade":     300,
+				"helm.uninstall":   180,
+			},
+		},
+		Cache: CacheConfig{
+			DiscoveryTTLSeconds: 300,
+			GraphTTLSeconds:     30,
+			AWSListTTLSeconds:   60,
+		},
 	}
 }
 
@@ -133,6 +162,29 @@ func merge(dst *Config, src Config) {
 	}
 	if len(src.Exec.AllowedCommands) > 0 {
 		dst.Exec.AllowedCommands = append([]string{}, src.Exec.AllowedCommands...)
+	}
+	if src.Timeouts.DefaultSeconds > 0 {
+		dst.Timeouts.DefaultSeconds = src.Timeouts.DefaultSeconds
+	}
+	if src.Timeouts.MaxSeconds > 0 {
+		dst.Timeouts.MaxSeconds = src.Timeouts.MaxSeconds
+	}
+	if len(src.Timeouts.PerTool) > 0 {
+		if dst.Timeouts.PerTool == nil {
+			dst.Timeouts.PerTool = map[string]int{}
+		}
+		for key, value := range src.Timeouts.PerTool {
+			dst.Timeouts.PerTool[key] = value
+		}
+	}
+	if src.Cache.DiscoveryTTLSeconds > 0 {
+		dst.Cache.DiscoveryTTLSeconds = src.Cache.DiscoveryTTLSeconds
+	}
+	if src.Cache.GraphTTLSeconds > 0 {
+		dst.Cache.GraphTTLSeconds = src.Cache.GraphTTLSeconds
+	}
+	if src.Cache.AWSListTTLSeconds > 0 {
+		dst.Cache.AWSListTTLSeconds = src.Cache.AWSListTTLSeconds
 	}
 }
 

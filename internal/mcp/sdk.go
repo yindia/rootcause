@@ -53,7 +53,13 @@ func toolHandler(spec ToolSpec, ctx ToolContext) sdkmcp.ToolHandler {
 			return nil, &sdkjsonrpc.Error{Code: -32002, Message: err.Error()}
 		}
 
-		result, toolErr := spec.Handler(callCtx, ToolRequest{Arguments: args, User: user, Context: ctx})
+		if ctx.Clients != nil && ctx.Config != nil {
+			ttl := time.Duration(ctx.Config.Cache.DiscoveryTTLSeconds) * time.Second
+			ctx.Clients.RefreshDiscovery(ttl)
+		}
+		execCtx, cancel := withToolTimeout(callCtx, ctx.Config, spec)
+		result, toolErr := spec.Handler(execCtx, ToolRequest{Arguments: args, User: user, Context: ctx})
+		cancel()
 		outcome := "success"
 		if toolErr != nil {
 			outcome = "error"
@@ -74,9 +80,7 @@ func buildCallToolResult(result ToolResult, toolErr error) *sdkmcp.CallToolResul
 	}
 	if toolErr != nil {
 		res.IsError = true
-		if result.Data != nil {
-			res.StructuredContent = result.Data
-		}
+		res.StructuredContent = BuildErrorEnvelope(toolErr, result.Data)
 		if res.Content == nil {
 			res.Content = []sdkmcp.Content{&sdkmcp.TextContent{Text: toolErr.Error()}}
 		}

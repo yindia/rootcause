@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -270,9 +271,19 @@ func (t *Toolset) handleGraph(ctx context.Context, req mcp.ToolRequest) (mcp.Too
 	if err := t.ctx.Policy.CheckNamespace(req.User, namespace, true); err != nil {
 		return errorResult(err), err
 	}
+	clusterAccess := req.User.Role == policy.RoleCluster
+	if t.ctx.Cache != nil && t.ctx.Config != nil {
+		ttlSeconds := t.ctx.Config.Cache.GraphTTLSeconds
+		if ttlSeconds > 0 {
+			key := graphCacheKey(kind, namespace, name, clusterAccess)
+			if cached, ok := t.ctx.Cache.Get(key); ok {
+				return mcp.ToolResult{Data: cached, Metadata: mcp.ToolMetadata{Namespaces: []string{namespace}}}, nil
+			}
+		}
+	}
 
 	graph := newGraphBuilder()
-	cache, cacheWarnings := t.buildGraphCache(ctx, namespace, req.User.Role == policy.RoleCluster)
+	cache, cacheWarnings := t.buildGraphCache(ctx, namespace, clusterAccess)
 	warnings := append([]string{}, cacheWarnings...)
 
 	switch kind {
@@ -329,7 +340,18 @@ func (t *Toolset) handleGraph(ctx context.Context, req mcp.ToolRequest) (mcp.Too
 	if len(warnings) > 0 {
 		out["warnings"] = warnings
 	}
+	if t.ctx.Cache != nil && t.ctx.Config != nil {
+		ttlSeconds := t.ctx.Config.Cache.GraphTTLSeconds
+		if ttlSeconds > 0 {
+			key := graphCacheKey(kind, namespace, name, clusterAccess)
+			t.ctx.Cache.Set(key, out, time.Duration(ttlSeconds)*time.Second)
+		}
+	}
 	return mcp.ToolResult{Data: out, Metadata: mcp.ToolMetadata{Namespaces: []string{namespace}}}, nil
+}
+
+func graphCacheKey(kind, namespace, name string, clusterAccess bool) string {
+	return fmt.Sprintf("graph:%s:%s:%s:%t", kind, namespace, name, clusterAccess)
 }
 
 var (

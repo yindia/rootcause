@@ -9,6 +9,7 @@ import (
 	sdkmcp "github.com/modelcontextprotocol/go-sdk/mcp"
 
 	"rootcause/internal/audit"
+	"rootcause/internal/cache"
 	"rootcause/internal/config"
 	"rootcause/internal/evidence"
 	"rootcause/internal/kube"
@@ -28,6 +29,7 @@ type Options struct {
 	LogLevel           string
 	Version            string
 	Stderr             io.Writer
+	Transport          sdkmcp.Transport
 }
 
 func Run(ctx context.Context, opts Options) error {
@@ -101,7 +103,11 @@ func Run(ctx context.Context, opts Options) error {
 		}
 	}()
 
-	if err := server.Run(ctx, &sdkmcp.StdioTransport{}); err != nil {
+	transport := opts.Transport
+	if transport == nil {
+		transport = &sdkmcp.StdioTransport{}
+	}
+	if err := server.Run(ctx, transport); err != nil {
 		return fmt.Errorf("server error: %w", err)
 	}
 	return nil
@@ -121,6 +127,7 @@ func buildRuntime(cfg config.Config, errOut io.Writer) (rcmcp.ToolContext, *rcmc
 	evidenceCollector := evidence.NewCollector(clients)
 	auditLogger := audit.NewLogger(errOut)
 	serviceRegistry := rcmcp.NewServiceRegistry()
+	cacheStore := cache.NewStore()
 	reg := rcmcp.NewRegistry(&cfg)
 
 	toolCtx := rcmcp.ToolContext{
@@ -132,6 +139,7 @@ func buildRuntime(cfg config.Config, errOut io.Writer) (rcmcp.ToolContext, *rcmc
 		Redactor: redactor,
 		Audit:    auditLogger,
 		Services: serviceRegistry,
+		Cache:    cacheStore,
 		Registry: reg,
 	}
 	toolCtx.Invoker = rcmcp.NewToolInvoker(reg, toolCtx)
