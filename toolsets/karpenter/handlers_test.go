@@ -126,3 +126,28 @@ func TestHandleStatusDetected(t *testing.T) {
 		t.Fatalf("unexpected namespaces: %#v", result.Metadata.Namespaces)
 	}
 }
+
+func TestHandleStatusNotDetected(t *testing.T) {
+	client := fake.NewSimpleClientset()
+	cfg := config.DefaultConfig()
+	toolset := New()
+	_ = toolset.Init(mcp.ToolsetContext{
+		Config:   &cfg,
+		Clients:  &kube.Clients{Typed: client, Discovery: &karpenterDiscovery{groups: []string{}}},
+		Policy:   policy.NewAuthorizer(),
+		Renderer: render.NewRenderer(),
+		Redactor: redact.New(),
+		Evidence: evidence.NewCollector(&kube.Clients{Typed: client}),
+	})
+
+	result, err := toolset.handleStatus(context.Background(), mcp.ToolRequest{
+		User: policy.User{Role: policy.RoleCluster},
+	})
+	if err != nil {
+		t.Fatalf("handleStatus: %v", err)
+	}
+	data, ok := result.Data.(map[string]any)
+	if !ok || data["evidence"] == nil {
+		t.Fatalf("expected evidence output, got %#v", result.Data)
+	}
+}

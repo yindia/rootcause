@@ -126,3 +126,58 @@ func TestHandleHealthDetected(t *testing.T) {
 		t.Fatalf("unexpected namespaces: %#v", result.Metadata.Namespaces)
 	}
 }
+
+func TestHandleHealthNotDetected(t *testing.T) {
+	client := fake.NewSimpleClientset()
+	cfg := config.DefaultConfig()
+	toolset := New()
+	_ = toolset.Init(mcp.ToolsetContext{
+		Config:   &cfg,
+		Clients:  &kube.Clients{Typed: client, Discovery: &istioDiscovery{groups: []string{}}},
+		Policy:   policy.NewAuthorizer(),
+		Renderer: render.NewRenderer(),
+		Redactor: redact.New(),
+		Evidence: evidence.NewCollector(&kube.Clients{Typed: client}),
+	})
+	result, err := toolset.handleHealth(context.Background(), mcp.ToolRequest{
+		User: policy.User{Role: policy.RoleCluster},
+	})
+	if err != nil {
+		t.Fatalf("handleHealth: %v", err)
+	}
+	data := result.Data.(map[string]any)
+	if evidenceItems, ok := data["evidence"].([]render.EvidenceItem); ok && len(evidenceItems) == 0 {
+		t.Fatalf("expected evidence")
+	}
+}
+
+func TestHandleProxyStatusNoProxy(t *testing.T) {
+	pod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "demo",
+			Namespace: "default",
+		},
+	}
+	client := fake.NewSimpleClientset(pod)
+	clients := &kube.Clients{Typed: client}
+	cfg := config.DefaultConfig()
+	toolset := New()
+	_ = toolset.Init(mcp.ToolsetContext{
+		Config:   &cfg,
+		Clients:  clients,
+		Policy:   policy.NewAuthorizer(),
+		Renderer: render.NewRenderer(),
+		Redactor: redact.New(),
+		Evidence: evidence.NewCollector(clients),
+	})
+	result, err := toolset.handleProxyStatus(context.Background(), mcp.ToolRequest{
+		User: policy.User{Role: policy.RoleCluster},
+	})
+	if err != nil {
+		t.Fatalf("handleProxyStatus: %v", err)
+	}
+	data := result.Data.(map[string]any)
+	if _, ok := data["evidence"]; !ok {
+		t.Fatalf("expected evidence output")
+	}
+}

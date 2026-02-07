@@ -214,3 +214,31 @@ func TestHandleDescribePod(t *testing.T) {
 		t.Fatalf("expected evidence in describe output")
 	}
 }
+
+func TestHandleDeletePod(t *testing.T) {
+	pod := &unstructured.Unstructured{}
+	pod.SetAPIVersion("v1")
+	pod.SetKind("Pod")
+	pod.SetName("demo")
+	pod.SetNamespace("default")
+
+	toolset, _ := newTestToolset(pod)
+	req := mcp.ToolRequest{
+		Arguments: map[string]any{
+			"apiVersion": "v1",
+			"kind":       "Pod",
+			"name":       "demo",
+			"namespace":  "default",
+			"confirm":    true,
+		},
+		User: policy.User{Role: policy.RoleCluster},
+	}
+	result, err := toolset.handleDelete(context.Background(), req)
+	if err != nil {
+		t.Fatalf("handleDelete: %v", err)
+	}
+	data, ok := result.Data.(map[string]any)
+	if !ok || data["deleted"] != true {
+		t.Fatalf("unexpected delete result: %#v", result.Data)
+	}
+}
