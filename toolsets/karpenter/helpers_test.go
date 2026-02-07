@@ -29,6 +29,13 @@ func TestToolsetInitAndRegister(t *testing.T) {
 	if _, ok := reg.Get("karpenter.status"); !ok {
 		t.Fatalf("expected karpenter.status to be registered")
 	}
+	factory, ok := mcp.ToolsetFactoryFor("karpenter")
+	if !ok {
+		t.Fatalf("expected toolset factory")
+	}
+	if factory() == nil {
+		t.Fatalf("expected toolset instance")
+	}
 }
 
 func TestConditionHelpers(t *testing.T) {
@@ -39,6 +46,9 @@ func TestConditionHelpers(t *testing.T) {
 	condTrue := map[string]any{"type": "Ready", "status": "True"}
 	if !isConditionTrue(condTrue, []string{"Ready"}) {
 		t.Fatalf("expected condition true")
+	}
+	if isConditionFalse(map[string]any{"type": "Other", "status": "False"}, []string{"Ready"}) {
+		t.Fatalf("expected condition false to be filtered")
 	}
 }
 
@@ -64,5 +74,8 @@ func TestTypeHelpers(t *testing.T) {
 	pod := &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "demo"}}
 	if _, err := toUnstructured(pod); err != nil {
 		t.Fatalf("toUnstructured: %v", err)
+	}
+	if _, err := toUnstructured(nil); err == nil {
+		t.Fatalf("expected error for nil pod")
 	}
 }

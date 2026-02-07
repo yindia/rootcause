@@ -57,4 +57,7 @@ func TestPodHelpers(t *testing.T) {
 	if _, err := toUnstructured(pod); err != nil {
 		t.Fatalf("toUnstructured: %v", err)
 	}
+	if _, err := toUnstructured(nil); err == nil {
+		t.Fatalf("expected error for nil pod")
+	}
 }
