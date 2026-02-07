@@ -181,6 +181,24 @@ func TestHandlePortForwardServiceInvalidPort(t *testing.T) {
 	}
 }
 
+func TestHandlePortForwardMissingArgsMore(t *testing.T) {
+	cfg := config.DefaultConfig()
+	toolset := New()
+	_ = toolset.Init(mcp.ToolsetContext{
+		Config:   &cfg,
+		Clients:  &kube.Clients{},
+		Policy:   policy.NewAuthorizer(),
+		Renderer: render.NewRenderer(),
+		Redactor: redact.New(),
+	})
+	if _, err := toolset.handlePortForward(context.Background(), mcp.ToolRequest{
+		User:      policy.User{Role: policy.RoleCluster},
+		Arguments: map[string]any{},
+	}); err == nil {
+		t.Fatalf("expected handlePortForward missing args error")
+	}
+}
+
 func TestHandlePortForwardServiceNoPods(t *testing.T) {
 	namespace := "default"
 	svc := &corev1.Service{
