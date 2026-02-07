@@ -44,6 +44,7 @@ func newKarpenterToolset(t *testing.T) *Toolset {
 		node,
 		&corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "karpenter"}},
 		&corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "default"}},
+		&corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "other"}},
 	)
 
 	nodePool := &unstructured.Unstructured{Object: map[string]any{
@@ -62,6 +63,16 @@ func newKarpenterToolset(t *testing.T) *Toolset {
 			"ttlSecondsAfterEmpty": int64(30),
 		},
 	}}
+	nodePoolMissing := &unstructured.Unstructured{Object: map[string]any{
+		"apiVersion": "karpenter.sh/v1beta1",
+		"kind":       "NodePool",
+		"metadata": map[string]any{
+			"name": "pool-missing",
+		},
+		"spec": map[string]any{
+			"nodeClassRef": map[string]any{"name": "missing", "kind": "EC2NodeClass"},
+		},
+	}}
 	provisioner := &unstructured.Unstructured{Object: map[string]any{
 		"apiVersion": "karpenter.sh/v1beta1",
 		"kind":       "Provisioner",
@@ -73,6 +84,14 @@ func newKarpenterToolset(t *testing.T) *Toolset {
 			"requirements": []any{
 				map[string]any{"key": "capacity-type", "operator": "In", "values": []any{"spot"}},
 			},
+		},
+	}}
+	provisionerOther := &unstructured.Unstructured{Object: map[string]any{
+		"apiVersion": "karpenter.sh/v1beta1",
+		"kind":       "Provisioner",
+		"metadata": map[string]any{
+			"name":      "prov",
+			"namespace": "other",
 		},
 	}}
 	nodeClaim := &unstructured.Unstructured{Object: map[string]any{
@@ -120,7 +139,7 @@ func newKarpenterToolset(t *testing.T) *Toolset {
 		gvrProvisioner: "ProvisionerList",
 		gvrClaim:       "NodeClaimList",
 		gvrClass:       "EC2NodeClassList",
-	}, nodePool, provisioner, nodeClaim, nodeClass)
+	}, nodePool, nodePoolMissing, provisioner, provisionerOther, nodeClaim, nodeClass)
 
 	discovery := &fakeCachedDiscovery{
 		resources: []*metav1.APIResourceList{

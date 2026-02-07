@@ -24,6 +24,12 @@ func TestAssumePolicyMentionsServiceAccount(t *testing.T) {
 	if assumePolicyMentionsServiceAccount(data, "default", "missing") {
 		t.Fatalf("expected missing service account")
 	}
+	if assumePolicyMentionsServiceAccount(nil, "default", "api") {
+		t.Fatalf("expected nil policy to be false")
+	}
+	if assumePolicyMentionsServiceAccount(map[string]any{}, "default", "api") {
+		t.Fatalf("expected empty policy to be false")
+	}
 }
 
 func TestAddAWSRoleEvidence(t *testing.T) {

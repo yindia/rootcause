@@ -31,6 +31,23 @@ func TestToolsetInitAndRegister(t *testing.T) {
 	}
 }
 
+func TestToolsetRegisterExecReadonly(t *testing.T) {
+	cfg := config.DefaultConfig()
+	cfg.Exec.Enabled = true
+	cfg.Exec.AllowedCommands = []string{"ls"}
+	toolset := New()
+	if err := toolset.Init(mcp.ToolsetContext{Clients: &kube.Clients{}, Config: &cfg}); err != nil {
+		t.Fatalf("init: %v", err)
+	}
+	reg := mcp.NewRegistry(&cfg)
+	if err := toolset.Register(reg); err != nil {
+		t.Fatalf("register: %v", err)
+	}
+	if _, ok := reg.Get("k8s.exec_readonly"); !ok {
+		t.Fatalf("expected exec_readonly tool")
+	}
+}
+
 func TestConfirmAndArgsHelpers(t *testing.T) {
 	if err := requireConfirm(map[string]any{"confirm": true}); err != nil {
 		t.Fatalf("expected confirm to pass: %v", err)
@@ -76,6 +93,22 @@ func TestPortParsing(t *testing.T) {
 	}
 	if _, ok := parsePortNumber("abc"); ok {
 		t.Fatalf("expected non-numeric port rejection")
+	}
+}
+
+func TestNamespaceHelpers(t *testing.T) {
+	toolset := New()
+	if err := toolset.checkAllowedNamespace([]string{"default"}, "default"); err != nil {
+		t.Fatalf("expected allowed namespace")
+	}
+	if err := toolset.checkAllowedNamespace([]string{"default"}, "other"); err == nil {
+		t.Fatalf("expected namespace restriction")
+	}
+	if got := resourceRef("pods", "default", "api"); got != "pods/default/api" {
+		t.Fatalf("unexpected resourceRef: %s", got)
+	}
+	if got := resourceRef("namespaces", "", "default"); got != "namespaces/default" {
+		t.Fatalf("unexpected cluster resourceRef: %s", got)
 	}
 }
 

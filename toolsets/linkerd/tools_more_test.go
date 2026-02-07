@@ -458,6 +458,12 @@ func TestLinkerdCRStatusClusterScoped(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("handleCRStatus cluster scoped: %v", err)
 	}
+	if _, err := toolset.handleCRStatus(context.Background(), mcp.ToolRequest{
+		User:      policy.User{Role: policy.RoleCluster},
+		Arguments: map[string]any{"kind": "ClusterConfig"},
+	}); err != nil {
+		t.Fatalf("handleCRStatus cluster list: %v", err)
+	}
 }
 
 func TestLinkerdHelperCoverage(t *testing.T) {
@@ -465,14 +471,83 @@ func TestLinkerdHelperCoverage(t *testing.T) {
 	if !hasLinkerdProxy(pod) {
 		t.Fatalf("expected linkerd-proxy")
 	}
+	plainPod := &corev1.Pod{Spec: corev1.PodSpec{Containers: []corev1.Container{{Name: "app"}}}}
+	if hasLinkerdProxy(plainPod) {
+		t.Fatalf("expected no proxy container")
+	}
 	pod.Status.Conditions = []corev1.PodCondition{{Type: corev1.PodReady, Status: corev1.ConditionTrue}}
 	if !isPodReady(pod) {
 		t.Fatalf("expected ready pod")
+	}
+	if isPodReady(&corev1.Pod{}) {
+		t.Fatalf("expected pod not ready")
 	}
 	if sliceIf("") != nil {
 		t.Fatalf("expected nil slice for empty value")
 	}
 	if _, err := toUnstructured(pod); err != nil {
 		t.Fatalf("toUnstructured: %v", err)
+	}
+}
+
+func TestLinkerdCRStatusAdditionalBranches(t *testing.T) {
+	toolset := newLinkerdToolset(t)
+	clusterUser := policy.User{Role: policy.RoleCluster}
+	if _, err := toolset.handleCRStatus(context.Background(), mcp.ToolRequest{
+		User:      clusterUser,
+		Arguments: map[string]any{"kind": "VirtualService"},
+	}); err != nil {
+		t.Fatalf("handleCRStatus list all: %v", err)
+	}
+	if _, err := toolset.handleCRStatus(context.Background(), mcp.ToolRequest{
+		User:      clusterUser,
+		Arguments: map[string]any{"kind": "DestinationRule", "name": "api"},
+	}); err != nil {
+		t.Fatalf("handleCRStatus single namespace lookup: %v", err)
+	}
+	namespaceUser := policy.User{Role: policy.RoleNamespace, AllowedNamespaces: []string{"default"}}
+	if _, err := toolset.handleCRStatus(context.Background(), mcp.ToolRequest{
+		User:      namespaceUser,
+		Arguments: map[string]any{"kind": "VirtualService"},
+	}); err != nil {
+		t.Fatalf("handleCRStatus namespace role: %v", err)
+	}
+}
+
+func TestLinkerdIdentityNotFound(t *testing.T) {
+	client := k8sfake.NewSimpleClientset()
+	discoveryClient := &linkerdDiscoveryResources{groups: &metav1.APIGroupList{Groups: []metav1.APIGroup{{Name: "linkerd.io"}}}}
+	cfg := config.DefaultConfig()
+	toolset := New()
+	_ = toolset.Init(mcp.ToolsetContext{
+		Config:   &cfg,
+		Clients:  &kube.Clients{Typed: client, Discovery: discoveryClient},
+		Policy:   policy.NewAuthorizer(),
+		Renderer: render.NewRenderer(),
+		Redactor: redact.New(),
+	})
+	if _, err := toolset.handleIdentityIssues(context.Background(), mcp.ToolRequest{User: policy.User{Role: policy.RoleCluster}}); err != nil {
+		t.Fatalf("handleIdentityIssues no deployment: %v", err)
+	}
+}
+
+func TestDetectLinkerdNamespaceFallback(t *testing.T) {
+	client := k8sfake.NewSimpleClientset(&corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "linkerd"}})
+	discoveryClient := &linkerdDiscoveryResources{groups: &metav1.APIGroupList{}}
+	cfg := config.DefaultConfig()
+	toolset := New()
+	_ = toolset.Init(mcp.ToolsetContext{
+		Config:   &cfg,
+		Clients:  &kube.Clients{Typed: client, Discovery: discoveryClient},
+		Policy:   policy.NewAuthorizer(),
+		Renderer: render.NewRenderer(),
+		Redactor: redact.New(),
+	})
+	detected, namespaces, _, err := toolset.detectLinkerd(context.Background())
+	if err != nil {
+		t.Fatalf("detectLinkerd: %v", err)
+	}
+	if !detected || len(namespaces) == 0 {
+		t.Fatalf("expected namespace fallback detection")
 	}
 }

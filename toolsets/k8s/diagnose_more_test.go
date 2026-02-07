@@ -2,10 +2,12 @@ package k8s
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	k8sfake "k8s.io/client-go/kubernetes/fake"
 
 	"rootcause/internal/config"
@@ -88,5 +90,37 @@ func TestHandleDiagnoseCrashLoopAndPending(t *testing.T) {
 	data, ok := result.Data.(map[string]any)
 	if !ok || data["evidence"] == nil {
 		t.Fatalf("expected evidence output, got %#v", result.Data)
+	}
+}
+
+func TestHandleDiagnoseLimit(t *testing.T) {
+	var objects []runtime.Object
+	for i := 0; i < 12; i++ {
+		pod := &corev1.Pod{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      fmt.Sprintf("api-%d", i),
+				Namespace: "default",
+			},
+		}
+		objects = append(objects, pod)
+	}
+	client := k8sfake.NewSimpleClientset(objects...)
+	cfg := config.DefaultConfig()
+	clients := &kube.Clients{Typed: client}
+	toolset := New()
+	_ = toolset.Init(mcp.ToolsetContext{
+		Config:   &cfg,
+		Clients:  clients,
+		Policy:   policy.NewAuthorizer(),
+		Renderer: render.NewRenderer(),
+		Redactor: redact.New(),
+		Evidence: evidence.NewCollector(clients),
+	})
+
+	if _, err := toolset.handleDiagnose(context.Background(), mcp.ToolRequest{
+		User:      policy.User{Role: policy.RoleCluster},
+		Arguments: map[string]any{"keyword": "api"},
+	}); err != nil {
+		t.Fatalf("handleDiagnose limit: %v", err)
 	}
 }

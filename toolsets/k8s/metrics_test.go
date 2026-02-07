@@ -8,15 +8,19 @@ import (
 	openapi_v2 "github.com/google/gnostic-models/openapiv2"
 
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/version"
-	metricsv1beta1 "k8s.io/metrics/pkg/apis/metrics/v1beta1"
-	metricsfake "k8s.io/metrics/pkg/client/clientset/versioned/fake"
+	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/openapi"
 	"k8s.io/client-go/rest"
-	"k8s.io/client-go/discovery"
+	clienttesting "k8s.io/client-go/testing"
+	metricsv1beta1 "k8s.io/metrics/pkg/apis/metrics/v1beta1"
+	metricsfake "k8s.io/metrics/pkg/client/clientset/versioned/fake"
 
 	"rootcause/internal/config"
 	"rootcause/internal/kube"
@@ -61,15 +65,15 @@ func (d *metricsDiscovery) OpenAPIV3() openapi.Client {
 }
 
 func (d *metricsDiscovery) RESTClient() rest.Interface { return nil }
-func (d *metricsDiscovery) Fresh() bool               { return true }
-func (d *metricsDiscovery) Invalidate()               {}
+func (d *metricsDiscovery) Fresh() bool                { return true }
+func (d *metricsDiscovery) Invalidate()                {}
 func (d *metricsDiscovery) WithLegacy() discovery.DiscoveryInterface {
 	return d
 }
 
 func TestHandleResourceUsageMetrics(t *testing.T) {
 	podMetric := &metricsv1beta1.PodMetrics{
-		TypeMeta:  metav1.TypeMeta{Kind: "PodMetrics", APIVersion: "metrics.k8s.io/v1beta1"},
+		TypeMeta:   metav1.TypeMeta{Kind: "PodMetrics", APIVersion: "metrics.k8s.io/v1beta1"},
 		ObjectMeta: metav1.ObjectMeta{Name: "api", Namespace: "default"},
 		Timestamp:  metav1.NewTime(time.Now()),
 		Window:     metav1.Duration{Duration: time.Minute},
@@ -81,7 +85,7 @@ func TestHandleResourceUsageMetrics(t *testing.T) {
 		},
 	}
 	nodeMetric := &metricsv1beta1.NodeMetrics{
-		TypeMeta: metav1.TypeMeta{Kind: "NodeMetrics", APIVersion: "metrics.k8s.io/v1beta1"},
+		TypeMeta:   metav1.TypeMeta{Kind: "NodeMetrics", APIVersion: "metrics.k8s.io/v1beta1"},
 		ObjectMeta: metav1.ObjectMeta{Name: "node-1"},
 		Timestamp:  metav1.NewTime(time.Now()),
 		Window:     metav1.Duration{Duration: time.Minute},
@@ -134,6 +138,102 @@ func TestHandleResourceUsageNoMetricsClient(t *testing.T) {
 	_, err := toolset.handleResourceUsage(context.Background(), mcp.ToolRequest{User: policy.User{Role: policy.RoleCluster}})
 	if err == nil {
 		t.Fatalf("expected error when metrics client missing")
+	}
+}
+
+func TestHandleResourceUsageNotDetected(t *testing.T) {
+	metricsClient := metricsfake.NewSimpleClientset()
+	client := fake.NewSimpleClientset()
+	clients := &kube.Clients{Typed: client, Metrics: metricsClient, Discovery: &vpaDiscovery{}}
+	cfg := config.DefaultConfig()
+	toolset := New()
+	_ = toolset.Init(mcp.ToolsetContext{
+		Config:   &cfg,
+		Clients:  clients,
+		Policy:   policy.NewAuthorizer(),
+		Renderer: render.NewRenderer(),
+		Redactor: redact.New(),
+	})
+	result, err := toolset.handleResourceUsage(context.Background(), mcp.ToolRequest{User: policy.User{Role: policy.RoleCluster}})
+	if err != nil {
+		t.Fatalf("handleResourceUsage not detected: %v", err)
+	}
+	data := result.Data.(map[string]any)
+	if data["error"] == nil {
+		t.Fatalf("expected metrics api error")
+	}
+}
+
+func TestHandleResourceUsageNamespaceRoleWarning(t *testing.T) {
+	podMetric := &metricsv1beta1.PodMetrics{
+		ObjectMeta: metav1.ObjectMeta{Name: "api", Namespace: "default"},
+		Containers: []metricsv1beta1.ContainerMetrics{{Name: "app", Usage: corev1.ResourceList{
+			corev1.ResourceCPU:    resource.MustParse("5m"),
+			corev1.ResourceMemory: resource.MustParse("16Mi"),
+		}}},
+	}
+	metricsClient := metricsfake.NewSimpleClientset(podMetric)
+	client := fake.NewSimpleClientset(&corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "default"}})
+	clients := &kube.Clients{Typed: client, Metrics: metricsClient, Discovery: &metricsDiscovery{}}
+	cfg := config.DefaultConfig()
+	toolset := New()
+	_ = toolset.Init(mcp.ToolsetContext{
+		Config:   &cfg,
+		Clients:  clients,
+		Policy:   policy.NewAuthorizer(),
+		Renderer: render.NewRenderer(),
+		Redactor: redact.New(),
+	})
+	result, err := toolset.handleResourceUsage(context.Background(), mcp.ToolRequest{
+		User: policy.User{Role: policy.RoleNamespace, AllowedNamespaces: []string{"default"}},
+		Arguments: map[string]any{
+			"namespace":    "default",
+			"includePods":  true,
+			"includeNodes": true,
+		},
+	})
+	if err != nil {
+		t.Fatalf("handleResourceUsage namespace role: %v", err)
+	}
+	data := result.Data.(map[string]any)
+	if data["warnings"] == nil {
+		t.Fatalf("expected warnings for node metrics")
+	}
+}
+
+func TestHandleResourceUsageNodeMetricsNotFound(t *testing.T) {
+	podMetric := &metricsv1beta1.PodMetrics{
+		ObjectMeta: metav1.ObjectMeta{Name: "api", Namespace: "default"},
+		Containers: []metricsv1beta1.ContainerMetrics{{Name: "app", Usage: corev1.ResourceList{
+			corev1.ResourceCPU:    resource.MustParse("5m"),
+			corev1.ResourceMemory: resource.MustParse("16Mi"),
+		}}},
+	}
+	metricsClient := metricsfake.NewSimpleClientset(podMetric)
+	metricsClient.PrependReactor("list", "nodes", func(action clienttesting.Action) (bool, runtime.Object, error) {
+		return true, nil, apierrors.NewNotFound(schema.GroupResource{Group: "metrics.k8s.io", Resource: "nodes"}, "")
+	})
+	client := fake.NewSimpleClientset(&corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "default"}})
+	clients := &kube.Clients{Typed: client, Metrics: metricsClient, Discovery: &metricsDiscovery{}}
+	cfg := config.DefaultConfig()
+	toolset := New()
+	_ = toolset.Init(mcp.ToolsetContext{
+		Config:   &cfg,
+		Clients:  clients,
+		Policy:   policy.NewAuthorizer(),
+		Renderer: render.NewRenderer(),
+		Redactor: redact.New(),
+	})
+	result, err := toolset.handleResourceUsage(context.Background(), mcp.ToolRequest{
+		User:      policy.User{Role: policy.RoleCluster},
+		Arguments: map[string]any{"namespace": "default", "includePods": true, "includeNodes": true},
+	})
+	if err != nil {
+		t.Fatalf("handleResourceUsage node not found: %v", err)
+	}
+	data := result.Data.(map[string]any)
+	if data["warnings"] == nil {
+		t.Fatalf("expected node metrics warning")
 	}
 }
 

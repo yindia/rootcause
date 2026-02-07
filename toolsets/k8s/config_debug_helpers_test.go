@@ -54,4 +54,29 @@ func TestConfigDebugMissingRefs(t *testing.T) {
 	if !missingSecret.Missing {
 		t.Fatalf("expected missing secret when name is empty")
 	}
+
+	notFoundCM := toolset.checkConfigMapKeys(context.Background(), "default", "missing", []string{"key"}, "direct", false, "")
+	if !notFoundCM.Missing {
+		t.Fatalf("expected missing configmap when not found")
+	}
+	notFoundSecret := toolset.checkSecretKeys(context.Background(), "default", "missing", []string{"key"}, "direct", false, "")
+	if !notFoundSecret.Missing {
+		t.Fatalf("expected missing secret when not found")
+	}
+}
+
+func TestConfigDebugOptionalRefAndTitleKind(t *testing.T) {
+	if optionalRef(nil) {
+		t.Fatalf("expected optionalRef nil false")
+	}
+	val := true
+	if !optionalRef(&val) {
+		t.Fatalf("expected optionalRef true")
+	}
+	if titleKind("") != "" {
+		t.Fatalf("expected empty titleKind")
+	}
+	if titleKind("secret") != "Secret" {
+		t.Fatalf("expected titleKind capitalization")
+	}
 }

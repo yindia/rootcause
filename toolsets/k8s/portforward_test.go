@@ -54,6 +54,19 @@ func TestResolveTargetPort(t *testing.T) {
 	}
 }
 
+func TestResolveTargetPortError(t *testing.T) {
+	port := corev1.ServicePort{}
+	if _, err := resolveTargetPort(port, &corev1.Pod{}); err == nil {
+		t.Fatalf("expected resolveTargetPort error")
+	}
+	if _, err := resolveNamedPort("missing", &corev1.Pod{}); err == nil {
+		t.Fatalf("expected resolveNamedPort error")
+	}
+	if _, err := resolveNamedPort("missing", nil); err == nil {
+		t.Fatalf("expected resolveNamedPort nil pod error")
+	}
+}
+
 func TestResolveServicePortMappings(t *testing.T) {
 	namespace := "default"
 	svc := &corev1.Service{
@@ -64,7 +77,7 @@ func TestResolveServicePortMappings(t *testing.T) {
 	}
 	pod := &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{Name: "api-1", Namespace: namespace},
-		Spec: corev1.PodSpec{Containers: []corev1.Container{{Ports: []corev1.ContainerPort{{Name: "http", ContainerPort: 8080}}}}},
+		Spec:       corev1.PodSpec{Containers: []corev1.Container{{Ports: []corev1.ContainerPort{{Name: "http", ContainerPort: 8080}}}}},
 	}
 	client := fake.NewSimpleClientset(svc, pod)
 	toolset := New()
@@ -79,6 +92,27 @@ func TestResolveServicePortMappings(t *testing.T) {
 	}
 	if len(mappings) != 1 || mappings[0].ServicePort != 80 || mappings[0].TargetPort != 8080 {
 		t.Fatalf("unexpected mappings: %#v", mappings)
+	}
+}
+
+func TestResolveServicePortMappingsMissingPort(t *testing.T) {
+	namespace := "default"
+	svc := &corev1.Service{
+		ObjectMeta: metav1.ObjectMeta{Name: "api", Namespace: namespace},
+		Spec: corev1.ServiceSpec{
+			Ports: []corev1.ServicePort{{Name: "http", Port: 80, TargetPort: intstr.FromString("http")}},
+		},
+	}
+	pod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{Name: "api-1", Namespace: namespace},
+		Spec:       corev1.PodSpec{Containers: []corev1.Container{{Ports: []corev1.ContainerPort{{Name: "http", ContainerPort: 8080}}}}},
+	}
+	client := fake.NewSimpleClientset(svc, pod)
+	toolset := New()
+	toolset.ctx.Clients = &kube.Clients{Typed: client}
+
+	if _, _, err := toolset.resolveServicePortMappings(context.Background(), namespace, "api", "api-1", []string{"10443:missing"}); err == nil {
+		t.Fatalf("expected missing port error")
 	}
 }
 
@@ -100,6 +134,19 @@ func TestResolvePodForService(t *testing.T) {
 	}
 }
 
+func TestResolvePodForServiceNoEndpoints(t *testing.T) {
+	namespace := "default"
+	endpoints := &corev1.Endpoints{
+		ObjectMeta: metav1.ObjectMeta{Name: "api", Namespace: namespace},
+	}
+	client := fake.NewSimpleClientset(endpoints)
+	toolset := New()
+	toolset.ctx.Clients = &kube.Clients{Typed: client}
+	if _, err := toolset.resolvePodForService(context.Background(), namespace, "api"); err == nil {
+		t.Fatalf("expected resolvePodForService error")
+	}
+}
+
 func TestHandlePortForwardServiceInvalidPort(t *testing.T) {
 	namespace := "default"
 	svc := &corev1.Service{
@@ -108,7 +155,7 @@ func TestHandlePortForwardServiceInvalidPort(t *testing.T) {
 	}
 	endpoints := &corev1.Endpoints{
 		ObjectMeta: metav1.ObjectMeta{Name: "api", Namespace: namespace},
-		Subsets: []corev1.EndpointSubset{{Addresses: []corev1.EndpointAddress{{TargetRef: &corev1.ObjectReference{Kind: "Pod", Name: "api-1"}}}}},
+		Subsets:    []corev1.EndpointSubset{{Addresses: []corev1.EndpointAddress{{TargetRef: &corev1.ObjectReference{Kind: "Pod", Name: "api-1"}}}}},
 	}
 	pod := &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "api-1", Namespace: namespace}}
 	client := fake.NewSimpleClientset(svc, endpoints, pod)
@@ -131,5 +178,37 @@ func TestHandlePortForwardServiceInvalidPort(t *testing.T) {
 	})
 	if err == nil {
 		t.Fatalf("expected port-forward error")
+	}
+}
+
+func TestHandlePortForwardServiceNoPods(t *testing.T) {
+	namespace := "default"
+	svc := &corev1.Service{
+		ObjectMeta: metav1.ObjectMeta{Name: "api", Namespace: namespace},
+		Spec:       corev1.ServiceSpec{Ports: []corev1.ServicePort{{Name: "http", Port: 80}}},
+	}
+	endpoints := &corev1.Endpoints{
+		ObjectMeta: metav1.ObjectMeta{Name: "api", Namespace: namespace},
+	}
+	client := fake.NewSimpleClientset(svc, endpoints)
+	cfg := config.DefaultConfig()
+	toolset := New()
+	_ = toolset.Init(mcp.ToolsetContext{
+		Config:   &cfg,
+		Clients:  &kube.Clients{Typed: client},
+		Policy:   policy.NewAuthorizer(),
+		Renderer: render.NewRenderer(),
+		Redactor: redact.New(),
+	})
+	_, err := toolset.handlePortForward(context.Background(), mcp.ToolRequest{
+		User: policy.User{Role: policy.RoleCluster},
+		Arguments: map[string]any{
+			"namespace": namespace,
+			"service":   "api",
+			"ports":     []any{"8080:80"},
+		},
+	})
+	if err == nil {
+		t.Fatalf("expected no pod error")
 	}
 }

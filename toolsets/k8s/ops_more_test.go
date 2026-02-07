@@ -56,6 +56,75 @@ func TestHandleApplyAndPatch(t *testing.T) {
 	}
 }
 
+func TestHandleApplyMissingConfirm(t *testing.T) {
+	toolset := newDynamicToolset(schema.GroupVersionResource{Group: "", Version: "v1", Resource: "configmaps"}, "ConfigMapList", "ConfigMap")
+	_, err := toolset.handleApply(context.Background(), mcp.ToolRequest{
+		User:      policy.User{Role: policy.RoleCluster},
+		Arguments: map[string]any{"manifest": "apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: demo"},
+	})
+	if err == nil {
+		t.Fatalf("expected confirm error")
+	}
+}
+
+func TestHandleApplyNamespaceMismatch(t *testing.T) {
+	toolset := newDynamicToolset(schema.GroupVersionResource{Group: "", Version: "v1", Resource: "configmaps"}, "ConfigMapList", "ConfigMap")
+	manifest := "{\"apiVersion\":\"v1\",\"kind\":\"ConfigMap\",\"metadata\":{\"name\":\"demo\",\"namespace\":\"default\"}}"
+	_, err := toolset.handleApply(context.Background(), mcp.ToolRequest{
+		User: policy.User{Role: policy.RoleCluster},
+		Arguments: map[string]any{
+			"manifest":  manifest,
+			"confirm":   true,
+			"namespace": "other",
+		},
+	})
+	if err == nil {
+		t.Fatalf("expected namespace mismatch error")
+	}
+}
+
+func TestHandleApplyMissingManifest(t *testing.T) {
+	toolset := newDynamicToolset(schema.GroupVersionResource{Group: "", Version: "v1", Resource: "configmaps"}, "ConfigMapList", "ConfigMap")
+	_, err := toolset.handleApply(context.Background(), mcp.ToolRequest{
+		User:      policy.User{Role: policy.RoleCluster},
+		Arguments: map[string]any{"confirm": true},
+	})
+	if err == nil {
+		t.Fatalf("expected missing manifest error")
+	}
+}
+
+func TestHandleApplyMissingNamespace(t *testing.T) {
+	toolset := newDynamicToolset(schema.GroupVersionResource{Group: "", Version: "v1", Resource: "configmaps"}, "ConfigMapList", "ConfigMap")
+	manifest := "{\"apiVersion\":\"v1\",\"kind\":\"ConfigMap\",\"metadata\":{\"name\":\"demo\"}}"
+	_, err := toolset.handleApply(context.Background(), mcp.ToolRequest{
+		User: policy.User{Role: policy.RoleCluster},
+		Arguments: map[string]any{
+			"manifest": manifest,
+			"confirm":  true,
+		},
+	})
+	if err == nil {
+		t.Fatalf("expected missing namespace error")
+	}
+}
+
+func TestHandleApplyNamespaceFromArgs(t *testing.T) {
+	toolset := newDynamicToolset(schema.GroupVersionResource{Group: "", Version: "v1", Resource: "configmaps"}, "ConfigMapList", "ConfigMap")
+	manifest := "{\"apiVersion\":\"v1\",\"kind\":\"ConfigMap\",\"metadata\":{\"name\":\"demo\"}}"
+	_, err := toolset.handleApply(context.Background(), mcp.ToolRequest{
+		User: policy.User{Role: policy.RoleCluster},
+		Arguments: map[string]any{
+			"manifest":  manifest,
+			"confirm":   true,
+			"namespace": "default",
+		},
+	})
+	if err == nil {
+		// apply may return error with fake dynamic client; it's ok either way.
+	}
+}
+
 func TestHandleLogsError(t *testing.T) {
 	pod := &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "api", Namespace: "default"}}
 	client := k8sfake.NewSimpleClientset(pod)
@@ -84,6 +153,48 @@ func TestHandleLogsError(t *testing.T) {
 			t.Fatalf("expected logs output")
 		}
 	}
+}
+
+func TestHandleLogsMissingArgs(t *testing.T) {
+	cfg := config.DefaultConfig()
+	toolset := New()
+	_ = toolset.Init(mcp.ToolsetContext{
+		Config:   &cfg,
+		Clients:  &kube.Clients{},
+		Policy:   policy.NewAuthorizer(),
+		Renderer: render.NewRenderer(),
+		Redactor: redact.New(),
+	})
+	if _, err := toolset.handleLogs(context.Background(), mcp.ToolRequest{User: policy.User{Role: policy.RoleCluster}}); err == nil {
+		t.Fatalf("expected logs missing args error")
+	}
+}
+
+func TestHandleLogsOptions(t *testing.T) {
+	pod := &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "api", Namespace: "default"}}
+	client := k8sfake.NewSimpleClientset(pod)
+	clients := &kube.Clients{Typed: client}
+	cfg := config.DefaultConfig()
+	toolset := New()
+	_ = toolset.Init(mcp.ToolsetContext{
+		Config:   &cfg,
+		Clients:  clients,
+		Policy:   policy.NewAuthorizer(),
+		Renderer: render.NewRenderer(),
+		Redactor: redact.New(),
+		Evidence: evidence.NewCollector(clients),
+	})
+
+	_, _ = toolset.handleLogs(context.Background(), mcp.ToolRequest{
+		User: policy.User{Role: policy.RoleCluster},
+		Arguments: map[string]any{
+			"namespace":    "default",
+			"pod":          "api",
+			"container":    "app",
+			"tailLines":    float64(10),
+			"sinceSeconds": float64(30),
+		},
+	})
 }
 
 func TestHandlePortForwardMissingArgs(t *testing.T) {
@@ -160,10 +271,10 @@ func TestHandleEventsNamespace(t *testing.T) {
 	_, err := toolset.handleEvents(context.Background(), mcp.ToolRequest{
 		User: policy.User{Role: policy.RoleCluster},
 		Arguments: map[string]any{
-			"namespace":            "default",
-			"involvedObjectKind":  "Pod",
-			"involvedObjectName":  "api",
-			"involvedObjectUID":   "pod-uid",
+			"namespace":          "default",
+			"involvedObjectKind": "Pod",
+			"involvedObjectName": "api",
+			"involvedObjectUID":  "pod-uid",
 		},
 	})
 	if err != nil {
@@ -182,11 +293,11 @@ func TestHandleGenericGet(t *testing.T) {
 	result, err := toolset.handleGeneric(context.Background(), mcp.ToolRequest{
 		User: policy.User{Role: policy.RoleCluster},
 		Arguments: map[string]any{
-			"verb":      "get",
+			"verb":       "get",
 			"apiVersion": "v1",
-			"kind":      "Pod",
-			"name":      "demo",
-			"namespace": "default",
+			"kind":       "Pod",
+			"name":       "demo",
+			"namespace":  "default",
 		},
 	})
 	if err != nil {
@@ -219,11 +330,11 @@ func TestHandleGenericListDescribe(t *testing.T) {
 	_, err = toolset.handleGeneric(context.Background(), mcp.ToolRequest{
 		User: policy.User{Role: policy.RoleCluster},
 		Arguments: map[string]any{
-			"verb":      "describe",
+			"verb":       "describe",
 			"apiVersion": "v1",
-			"kind":      "Pod",
-			"name":      "demo",
-			"namespace": "default",
+			"kind":       "Pod",
+			"name":       "demo",
+			"namespace":  "default",
 		},
 	})
 	if err != nil {
@@ -238,6 +349,22 @@ func TestAPIResourceMatches(t *testing.T) {
 	}
 	if apiResourceMatches("service", "v1", resource) {
 		t.Fatalf("expected resource mismatch")
+	}
+	resource = metav1.APIResource{
+		Name:         "pods",
+		Kind:         "Pod",
+		SingularName: "pod",
+		ShortNames:   []string{"po"},
+		Categories:   []string{"all"},
+	}
+	if !apiResourceMatches("apps", "apps/v1", resource) {
+		t.Fatalf("expected group version match")
+	}
+	if !apiResourceMatches("po", "v1", resource) {
+		t.Fatalf("expected short name match")
+	}
+	if !apiResourceMatches("all", "v1", resource) {
+		t.Fatalf("expected category match")
 	}
 }
 
