@@ -38,3 +38,20 @@ func TestConfigDebugHelpers(t *testing.T) {
 		t.Fatalf("expected volume items")
 	}
 }
+
+func TestConfigDebugMissingRefs(t *testing.T) {
+	client := k8sfake.NewSimpleClientset()
+	clients := &kube.Clients{Typed: client}
+	cfg := config.DefaultConfig()
+	toolset := New()
+	_ = toolset.Init(mcp.ToolsetContext{Config: &cfg, Clients: clients, Policy: policy.NewAuthorizer(), Renderer: render.NewRenderer(), Redactor: redact.New()})
+
+	missingCM := toolset.checkConfigMapKeys(context.Background(), "default", "", []string{"key"}, "direct", false, "")
+	if !missingCM.Missing {
+		t.Fatalf("expected missing configmap when name is empty")
+	}
+	missingSecret := toolset.checkSecretKeys(context.Background(), "default", "", []string{"key"}, "direct", false, "")
+	if !missingSecret.Missing {
+		t.Fatalf("expected missing secret when name is empty")
+	}
+}

@@ -104,6 +104,9 @@ func (t *Toolset) helmSettings() *cli.EnvSettings {
 }
 
 func (t *Toolset) actionConfig(namespace string) (*action.Configuration, error) {
+	if t.actionConfigOverride != nil {
+		return t.actionConfigOverride(namespace)
+	}
 	getter := &sharedRESTClientGetter{
 		restConfig: t.ctx.Clients.RestConfig,
 		mapper:     t.ctx.Clients.Mapper,
