@@ -44,3 +44,23 @@ func TestInvokerMissingRegistry(t *testing.T) {
 		t.Fatalf("expected error for missing registry")
 	}
 }
+
+func TestInvokerSuccess(t *testing.T) {
+	cfg := config.DefaultConfig()
+	reg := NewRegistry(&cfg)
+	_ = reg.Add(ToolSpec{
+		Name:      "demo",
+		ToolsetID: "core",
+		Handler: func(ctx context.Context, req ToolRequest) (ToolResult, error) {
+			return ToolResult{Data: map[string]any{"ok": true}}, nil
+		},
+	})
+	invoker := NewToolInvoker(reg, ToolContext{Policy: policy.NewAuthorizer()})
+	result, err := invoker.Call(context.Background(), policy.User{Role: policy.RoleCluster}, "demo", nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result.Data == nil {
+		t.Fatalf("expected result data")
+	}
+}

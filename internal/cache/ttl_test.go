@@ -34,3 +34,16 @@ func TestStoreDelete(t *testing.T) {
 		t.Fatalf("expected key to be deleted")
 	}
 }
+
+func TestStoreNilAndEmptyKey(t *testing.T) {
+	var store *Store
+	if _, ok := store.Get("missing"); ok {
+		t.Fatalf("expected nil store get to be false")
+	}
+	store = NewStore()
+	store.Set("", "value", time.Minute)
+	store.Delete("")
+	if _, ok := store.Get(""); ok {
+		t.Fatalf("expected empty key to be ignored")
+	}
+}

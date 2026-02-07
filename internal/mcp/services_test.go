@@ -18,3 +18,24 @@ func TestServiceRegistry(t *testing.T) {
 		t.Fatalf("expected duplicate registration error")
 	}
 }
+
+func TestServiceRegistryErrors(t *testing.T) {
+	var reg *ServiceRegistry
+	if err := reg.Register("demo", "value"); err == nil {
+		t.Fatalf("expected error for nil registry")
+	}
+	if _, ok := reg.Get("demo"); ok {
+		t.Fatalf("expected nil registry get to fail")
+	}
+	if names := reg.Names(); names != nil {
+		t.Fatalf("expected nil names for nil registry")
+	}
+
+	reg = NewServiceRegistry()
+	if err := reg.Register("", "value"); err == nil {
+		t.Fatalf("expected error for empty name")
+	}
+	if err := reg.Register("demo", nil); err == nil {
+		t.Fatalf("expected error for nil service")
+	}
+}

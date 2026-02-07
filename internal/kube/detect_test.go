@@ -146,3 +146,16 @@ func TestControlPlaneNamespacesMissingClient(t *testing.T) {
 		t.Fatalf("expected error for missing typed client")
 	}
 }
+
+func TestControlPlaneNamespacesEmptySelectors(t *testing.T) {
+	ctx := context.Background()
+	client := fake.NewSimpleClientset()
+	clients := &Clients{Typed: client}
+	namespaces, err := ControlPlaneNamespaces(ctx, clients, []string{""})
+	if err != nil {
+		t.Fatalf("control plane namespaces: %v", err)
+	}
+	if len(namespaces) != 0 {
+		t.Fatalf("expected no namespaces, got %#v", namespaces)
+	}
+}

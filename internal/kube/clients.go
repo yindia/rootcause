@@ -41,6 +41,21 @@ type Config struct {
 	Context    string
 }
 
+var (
+	newTypedClient = func(cfg *rest.Config) (kubernetes.Interface, error) {
+		return kubernetes.NewForConfig(cfg)
+	}
+	newDynamicClient = func(cfg *rest.Config) (dynamic.Interface, error) {
+		return dynamic.NewForConfig(cfg)
+	}
+	newDiscoveryClient = func(cfg *rest.Config) (discovery.DiscoveryInterface, error) {
+		return discovery.NewDiscoveryClientForConfig(cfg)
+	}
+	newMetricsClient = func(cfg *rest.Config) (metricsclient.Interface, error) {
+		return metricsclient.NewForConfig(cfg)
+	}
+)
+
 func NewClients(cfg Config) (*Clients, error) {
 	loadingRules := clientcmd.NewDefaultClientConfigLoadingRules()
 	if explicit := kubeconfigPath(cfg.Kubeconfig); explicit != "" {
@@ -55,21 +70,21 @@ func NewClients(cfg Config) (*Clients, error) {
 		return nil, err
 	}
 
-	typed, err := kubernetes.NewForConfig(restConfig)
+	typed, err := newTypedClient(restConfig)
 	if err != nil {
 		return nil, err
 	}
-	dynamicClient, err := dynamic.NewForConfig(restConfig)
+	dynamicClient, err := newDynamicClient(restConfig)
 	if err != nil {
 		return nil, err
 	}
-	discoveryClient, err := discovery.NewDiscoveryClientForConfig(restConfig)
+	discoveryClient, err := newDiscoveryClient(restConfig)
 	if err != nil {
 		return nil, err
 	}
 	cachedDiscovery := memory.NewMemCacheClient(discoveryClient)
 	mapper := restmapper.NewDeferredDiscoveryRESTMapper(cachedDiscovery)
-	metricsClient, err := metricsclient.NewForConfig(restConfig)
+	metricsClient, err := newMetricsClient(restConfig)
 	if err != nil {
 		return nil, err
 	}

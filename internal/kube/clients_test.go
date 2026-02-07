@@ -1,6 +1,7 @@
 package kube
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -12,10 +13,13 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/version"
 	"k8s.io/client-go/discovery"
+	"k8s.io/client-go/dynamic"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/openapi"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/restmapper"
 	"k8s.io/client-go/util/homedir"
+	metricsclient "k8s.io/metrics/pkg/client/clientset/versioned"
 )
 
 type fakeDiscovery struct {
@@ -95,6 +99,18 @@ func TestKubeconfigPathEnv(t *testing.T) {
 	path := kubeconfigPath("$KUBEPATH/config")
 	if !strings.HasPrefix(path, dir) {
 		t.Fatalf("expected env-expanded path, got %q", path)
+	}
+}
+
+func TestKubeconfigPathEmptyAndNoHome(t *testing.T) {
+	if kubeconfigPath("") != "" {
+		t.Fatalf("expected empty path")
+	}
+	t.Setenv("HOME", "")
+	t.Setenv("USERPROFILE", "")
+	path := kubeconfigPath("~/.kube/config")
+	if !strings.HasPrefix(path, "~") {
+		t.Fatalf("expected tilde to be preserved, got %q", path)
 	}
 }
 
@@ -304,6 +320,32 @@ func TestResolveResourceBestEffortErrors(t *testing.T) {
 	}
 }
 
+func TestResolveResourceBestEffortInvalidGroupVersion(t *testing.T) {
+	resources := []*metav1.APIResourceList{
+		{
+			GroupVersion: "invalid/extra/parts",
+			APIResources: []metav1.APIResource{
+				{Name: "pods", Kind: "Pod", Namespaced: true},
+			},
+		},
+	}
+	fake := &fakeDiscovery{resources: resources}
+	mapper := restmapper.NewDiscoveryRESTMapper(nil)
+	_, _, err := ResolveResourceBestEffort(mapper, fake, "", "Pod", "", "")
+	if err == nil {
+		t.Fatalf("expected error for invalid groupVersion")
+	}
+}
+
+func TestResolveResourceBestEffortAPIVersionError(t *testing.T) {
+	mapper := restmapper.NewDiscoveryRESTMapper(nil)
+	fake := &fakeDiscovery{resources: []*metav1.APIResourceList{}}
+	_, _, err := ResolveResourceBestEffort(mapper, fake, "apps/v1", "Missing", "", "")
+	if err == nil {
+		t.Fatalf("expected error when apiVersion is set and resolve fails")
+	}
+}
+
 func TestRefreshDiscovery(t *testing.T) {
 	fake := &fakeDiscovery{}
 	mapper := restmapper.NewDeferredDiscoveryRESTMapper(fake)
@@ -395,5 +437,93 @@ current-context: test
 	}
 	if clients.Typed == nil || clients.Dynamic == nil || clients.Mapper == nil {
 		t.Fatalf("expected clients to be initialized")
+	}
+}
+
+func TestNewClientsInvalidConfig(t *testing.T) {
+	dir := t.TempDir()
+	kubeconfigPath := filepath.Join(dir, "kubeconfig")
+	if err := os.WriteFile(kubeconfigPath, []byte("not yaml"), 0o644); err != nil {
+		t.Fatalf("write kubeconfig: %v", err)
+	}
+	if _, err := NewClients(Config{Kubeconfig: kubeconfigPath}); err == nil {
+		t.Fatalf("expected error for invalid kubeconfig")
+	}
+}
+
+func TestContainsString(t *testing.T) {
+	if !containsString([]string{"a", "b"}, "b") {
+		t.Fatalf("expected to find value")
+	}
+	if containsString([]string{"a", "b"}, "c") {
+		t.Fatalf("expected missing value")
+	}
+}
+
+func TestNewClientsConstructorErrors(t *testing.T) {
+	dir := t.TempDir()
+	kubeconfigPath := filepath.Join(dir, "kubeconfig")
+	kubeconfig := `
+apiVersion: v1
+kind: Config
+clusters:
+- name: test
+  cluster:
+    server: https://example.com
+users:
+- name: test
+  user:
+    token: fake
+contexts:
+- name: test
+  context:
+    cluster: test
+    user: test
+current-context: test
+`
+	if err := os.WriteFile(kubeconfigPath, []byte(kubeconfig), 0600); err != nil {
+		t.Fatalf("write kubeconfig: %v", err)
+	}
+
+	origTyped := newTypedClient
+	origDynamic := newDynamicClient
+	origDiscovery := newDiscoveryClient
+	origMetrics := newMetricsClient
+	t.Cleanup(func() {
+		newTypedClient = origTyped
+		newDynamicClient = origDynamic
+		newDiscoveryClient = origDiscovery
+		newMetricsClient = origMetrics
+	})
+
+	newTypedClient = func(*rest.Config) (kubernetes.Interface, error) {
+		return nil, fmt.Errorf("typed error")
+	}
+	if _, err := NewClients(Config{Kubeconfig: kubeconfigPath}); err == nil {
+		t.Fatalf("expected typed client error")
+	}
+
+	newTypedClient = origTyped
+	newDynamicClient = func(*rest.Config) (dynamic.Interface, error) {
+		return nil, fmt.Errorf("dynamic error")
+	}
+	if _, err := NewClients(Config{Kubeconfig: kubeconfigPath}); err == nil {
+		t.Fatalf("expected dynamic client error")
+	}
+
+	newDynamicClient = origDynamic
+	newDiscoveryClient = func(*rest.Config) (discovery.DiscoveryInterface, error) {
+		return nil, fmt.Errorf("discovery error")
+	}
+	if _, err := NewClients(Config{Kubeconfig: kubeconfigPath}); err == nil {
+		t.Fatalf("expected discovery client error")
+	}
+
+	newDiscoveryClient = origDiscovery
+	newMetricsClient = func(*rest.Config) (metricsclient.Interface, error) {
+		return nil, fmt.Errorf("metrics error")
+	}
+	if _, err := NewClients(Config{Kubeconfig: kubeconfigPath}); err == nil {
+		t.Fatalf("expected metrics client error")
 	}
 }

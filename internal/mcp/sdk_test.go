@@ -46,6 +46,10 @@ func TestAPIKeyFromRequest(t *testing.T) {
 	if apiKeyFromRequest(req) != "token" {
 		t.Fatalf("expected bearer token from header")
 	}
+
+	if apiKeyFromRequest(nil) != "" {
+		t.Fatalf("expected empty api key for nil request")
+	}
 }
 
 func TestRegisterSDKToolsAndToolHandler(t *testing.T) {
@@ -92,6 +96,12 @@ func TestRegisterSDKToolsAndToolHandler(t *testing.T) {
 	}
 }
 
+func TestRegisterSDKToolsNilArgs(t *testing.T) {
+	if _, err := RegisterSDKTools(nil, nil, ToolContext{}); err == nil {
+		t.Fatalf("expected error for nil server/registry")
+	}
+}
+
 func TestBuildCallToolResultSuccess(t *testing.T) {
 	result := ToolResult{
 		Data: map[string]any{"ok": true},
@@ -124,6 +134,18 @@ func TestBuildCallToolResultError(t *testing.T) {
 	}
 }
 
+func TestBuildCallToolResultFallbacks(t *testing.T) {
+	out := buildCallToolResult(ToolResult{}, nil)
+	if out.Content == nil || len(out.Content) == 0 {
+		t.Fatalf("expected content for empty result")
+	}
+	result := ToolResult{Data: map[string]any{"bad": func() {}}}
+	out = buildCallToolResult(result, nil)
+	if out.Content == nil || len(out.Content) == 0 {
+		t.Fatalf("expected content fallback for marshal error")
+	}
+}
+
 func TestToolHandlerInvalidArgs(t *testing.T) {
 	cfg := config.DefaultConfig()
 	spec := ToolSpec{
@@ -145,6 +167,31 @@ func TestToolHandlerInvalidArgs(t *testing.T) {
 	}
 	if _, ok := err.(*sdkjsonrpc.Error); !ok {
 		t.Fatalf("expected jsonrpc error, got %T", err)
+	}
+}
+
+func TestToolHandlerErrorResult(t *testing.T) {
+	cfg := config.DefaultConfig()
+	spec := ToolSpec{
+		Name:      "demo",
+		ToolsetID: "core",
+		Handler: func(ctx context.Context, req ToolRequest) (ToolResult, error) {
+			return ToolResult{Data: map[string]any{"hint": "fail"}}, errors.New("fail")
+		},
+	}
+	toolCtx := ToolContext{
+		Config: &cfg,
+		Policy: policy.NewAuthorizer(),
+		Audit:  audit.NewLogger(io.Discard),
+	}
+	handler := toolHandler(spec, toolCtx)
+	req := &sdkmcp.CallToolRequest{Params: &sdkmcp.CallToolParamsRaw{Name: "demo"}}
+	result, err := handler(context.Background(), req)
+	if err != nil {
+		t.Fatalf("unexpected handler error: %v", err)
+	}
+	if result == nil || !result.IsError {
+		t.Fatalf("expected error result")
 	}
 }
 

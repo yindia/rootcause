@@ -2,6 +2,7 @@ package audit
 
 import (
 	"bytes"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -29,4 +30,18 @@ func TestLoggerWritesJSON(t *testing.T) {
 func TestLoggerNilWriter(t *testing.T) {
 	logger := NewLogger(nil)
 	logger.Log(Event{Tool: "k8s.get", Toolset: "k8s", Outcome: "success"})
+}
+
+func TestLoggerMarshalError(t *testing.T) {
+	orig := jsonMarshal
+	t.Cleanup(func() { jsonMarshal = orig })
+	jsonMarshal = func(any) ([]byte, error) {
+		return nil, fmt.Errorf("fail")
+	}
+	var buf bytes.Buffer
+	logger := NewLogger(&buf)
+	logger.Log(Event{Tool: "k8s.get", Toolset: "k8s", Outcome: "success"})
+	if buf.Len() != 0 {
+		t.Fatalf("expected no output on marshal error")
+	}
 }
