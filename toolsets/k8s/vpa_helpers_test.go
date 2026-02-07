@@ -77,6 +77,13 @@ func TestVPAHelpers(t *testing.T) {
 	if len(stringifyResourceMap(map[string]any{"cpu": "100m"})) == 0 {
 		t.Fatalf("expected resource map")
 	}
+	cpuMilli, memBytes := sumPodMetrics(&metricsv1beta1.PodMetrics{Containers: []metricsv1beta1.ContainerMetrics{{Usage: corev1.ResourceList{
+		corev1.ResourceCPU:    resource.MustParse("5m"),
+		corev1.ResourceMemory: resource.MustParse("16Mi"),
+	}}}})
+	if cpuMilli == 0 || memBytes == 0 {
+		t.Fatalf("expected summed metrics")
+	}
 }
 
 func TestSelectorAndMetricsCollection(t *testing.T) {
@@ -90,6 +97,14 @@ func TestSelectorAndMetricsCollection(t *testing.T) {
 			Template: corev1.PodTemplateSpec{ObjectMeta: metav1.ObjectMeta{Labels: labels}},
 		},
 	}
+	sts := &appsv1.StatefulSet{
+		ObjectMeta: metav1.ObjectMeta{Name: "db", Namespace: "default"},
+		Spec:       appsv1.StatefulSetSpec{Selector: &metav1.LabelSelector{MatchLabels: labels}},
+	}
+	ds := &appsv1.DaemonSet{
+		ObjectMeta: metav1.ObjectMeta{Name: "agent", Namespace: "default"},
+		Spec:       appsv1.DaemonSetSpec{Selector: &metav1.LabelSelector{MatchLabels: labels}},
+	}
 	pod := &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "api-1", Namespace: "default", Labels: labels}}
 	metric := &metricsv1beta1.PodMetrics{
 		TypeMeta:   metav1.TypeMeta{Kind: "PodMetrics", APIVersion: "metrics.k8s.io/v1beta1"},
@@ -98,7 +113,7 @@ func TestSelectorAndMetricsCollection(t *testing.T) {
 		Containers: []metricsv1beta1.ContainerMetrics{{Name: "app", Usage: corev1.ResourceList{corev1.ResourceCPU: resource.MustParse("10m"), corev1.ResourceMemory: resource.MustParse("64Mi")}}},
 	}
 
-	client := k8sfake.NewSimpleClientset(deploy, pod)
+	client := k8sfake.NewSimpleClientset(deploy, sts, ds, pod)
 	metricsClient := metricsfake.NewSimpleClientset(metric)
 	clients := &kube.Clients{Typed: client, Metrics: metricsClient}
 	cfg := config.DefaultConfig()
@@ -108,6 +123,15 @@ func TestSelectorAndMetricsCollection(t *testing.T) {
 	selector, workload, err := toolset.selectorForTarget(context.Background(), "default", "Deployment", "api")
 	if err != nil || selector == nil || workload == nil {
 		t.Fatalf("selectorForTarget: %v", err)
+	}
+	if _, _, err := toolset.selectorForTarget(context.Background(), "default", "StatefulSet", "db"); err != nil {
+		t.Fatalf("selectorForTarget statefulset: %v", err)
+	}
+	if _, _, err := toolset.selectorForTarget(context.Background(), "default", "DaemonSet", "agent"); err != nil {
+		t.Fatalf("selectorForTarget daemonset: %v", err)
+	}
+	if selector, _, err := toolset.selectorForTarget(context.Background(), "default", "Unknown", "foo"); err != nil || selector != nil {
+		t.Fatalf("expected nil selector for unknown kind")
 	}
 
 	evidence, err := toolset.collectVPATargetMetrics(context.Background(), "default", map[string]string{"kind": "Deployment", "name": "api"})

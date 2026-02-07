@@ -9,7 +9,12 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/kubernetes/fake"
 
+	"rootcause/internal/config"
 	"rootcause/internal/kube"
+	"rootcause/internal/mcp"
+	"rootcause/internal/policy"
+	"rootcause/internal/redact"
+	"rootcause/internal/render"
 )
 
 func TestParsePortSpec(t *testing.T) {
@@ -92,5 +97,39 @@ func TestResolvePodForService(t *testing.T) {
 	podName, err := toolset.resolvePodForService(context.Background(), namespace, "api")
 	if err != nil || podName != "api-1" {
 		t.Fatalf("resolvePodForService: %v %s", err, podName)
+	}
+}
+
+func TestHandlePortForwardServiceInvalidPort(t *testing.T) {
+	namespace := "default"
+	svc := &corev1.Service{
+		ObjectMeta: metav1.ObjectMeta{Name: "api", Namespace: namespace},
+		Spec:       corev1.ServiceSpec{Ports: []corev1.ServicePort{{Name: "http", Port: 80}}},
+	}
+	endpoints := &corev1.Endpoints{
+		ObjectMeta: metav1.ObjectMeta{Name: "api", Namespace: namespace},
+		Subsets: []corev1.EndpointSubset{{Addresses: []corev1.EndpointAddress{{TargetRef: &corev1.ObjectReference{Kind: "Pod", Name: "api-1"}}}}},
+	}
+	pod := &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "api-1", Namespace: namespace}}
+	client := fake.NewSimpleClientset(svc, endpoints, pod)
+	cfg := config.DefaultConfig()
+	toolset := New()
+	_ = toolset.Init(mcp.ToolsetContext{
+		Config:   &cfg,
+		Clients:  &kube.Clients{Typed: client},
+		Policy:   policy.NewAuthorizer(),
+		Renderer: render.NewRenderer(),
+		Redactor: redact.New(),
+	})
+	_, err := toolset.handlePortForward(context.Background(), mcp.ToolRequest{
+		User: policy.User{Role: policy.RoleCluster},
+		Arguments: map[string]any{
+			"namespace": namespace,
+			"service":   "api",
+			"ports":     []any{":bad"},
+		},
+	})
+	if err == nil {
+		t.Fatalf("expected port-forward error")
 	}
 }

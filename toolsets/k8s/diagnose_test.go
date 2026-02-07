@@ -62,3 +62,51 @@ func TestHandleDiagnose(t *testing.T) {
 		t.Fatalf("expected evidence output")
 	}
 }
+
+func TestHandleDiagnoseNoMatches(t *testing.T) {
+	client := fake.NewSimpleClientset()
+	clients := &kube.Clients{Typed: client}
+	cfg := config.DefaultConfig()
+	toolset := New()
+	_ = toolset.Init(mcp.ToolsetContext{
+		Config:   &cfg,
+		Clients:  clients,
+		Policy:   policy.NewAuthorizer(),
+		Renderer: render.NewRenderer(),
+		Redactor: redact.New(),
+		Evidence: evidence.NewCollector(clients),
+	})
+
+	_, err := toolset.handleDiagnose(context.Background(), mcp.ToolRequest{
+		User: policy.User{Role: policy.RoleCluster},
+		Arguments: map[string]any{
+			"keyword": "missing",
+		},
+	})
+	if err != nil {
+		t.Fatalf("handleDiagnose no matches: %v", err)
+	}
+}
+
+func TestHandleDiagnoseMissingKeyword(t *testing.T) {
+	client := fake.NewSimpleClientset()
+	clients := &kube.Clients{Typed: client}
+	cfg := config.DefaultConfig()
+	toolset := New()
+	_ = toolset.Init(mcp.ToolsetContext{
+		Config:   &cfg,
+		Clients:  clients,
+		Policy:   policy.NewAuthorizer(),
+		Renderer: render.NewRenderer(),
+		Redactor: redact.New(),
+		Evidence: evidence.NewCollector(clients),
+	})
+
+	_, err := toolset.handleDiagnose(context.Background(), mcp.ToolRequest{
+		User:      policy.User{Role: policy.RoleCluster},
+		Arguments: map[string]any{},
+	})
+	if err == nil {
+		t.Fatalf("expected error for missing keyword")
+	}
+}

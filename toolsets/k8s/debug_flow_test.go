@@ -166,3 +166,72 @@ func TestHandleDebugFlowInvalid(t *testing.T) {
 		t.Fatalf("expected error for missing args")
 	}
 }
+
+func TestHandleDebugFlowPermissionServiceAccount(t *testing.T) {
+	toolset := newDebugFlowToolset(baseFlowGraph())
+	_, err := toolset.handleDebugFlow(context.Background(), mcp.ToolRequest{
+		User: policy.User{Role: policy.RoleCluster},
+		Arguments: map[string]any{
+			"namespace": "default",
+			"kind":      "serviceaccount",
+			"name":      "default",
+			"scenario":  "permission",
+			"maxSteps":  5,
+		},
+	})
+	if err != nil {
+		t.Fatalf("handleDebugFlow permission serviceaccount: %v", err)
+	}
+}
+
+func TestHandleDebugFlowPermissionDefault(t *testing.T) {
+	graph := map[string]any{
+		"nodes": []any{map[string]any{"id": "service/default/api", "kind": "Service", "name": "api", "namespace": "default"}},
+		"edges": []any{},
+	}
+	toolset := newDebugFlowToolset(graph)
+	_, err := toolset.handleDebugFlow(context.Background(), mcp.ToolRequest{
+		User: policy.User{Role: policy.RoleCluster},
+		Arguments: map[string]any{
+			"namespace": "default",
+			"kind":      "service",
+			"name":      "api",
+			"scenario":  "permission",
+			"maxSteps":  5,
+		},
+	})
+	if err != nil {
+		t.Fatalf("handleDebugFlow permission default: %v", err)
+	}
+}
+
+func TestPodsFromEntryBranches(t *testing.T) {
+	graph := graphView{nodes: map[string]flowNode{}, edges: []graphEdge{}}
+	pod := flowNode{ID: "pod/default/api-1", Kind: "Pod", Name: "api-1", Namespace: "default"}
+	svc := flowNode{ID: "service/default/api", Kind: "Service", Name: "api", Namespace: "default"}
+	deploy := flowNode{ID: "deployment/default/api", Kind: "Deployment", Name: "api", Namespace: "default"}
+	graph.nodes[pod.ID] = pod
+	graph.nodes[svc.ID] = svc
+	graph.nodes[deploy.ID] = deploy
+	graph.edges = append(graph.edges, graphEdge{From: svc.ID, To: pod.ID, Relation: "routes-to"})
+	graph.edges = append(graph.edges, graphEdge{From: deploy.ID, To: pod.ID, Relation: "owns"})
+
+	pods := podsFromEntry(graph, pod.ID)
+	if len(pods) != 1 {
+		t.Fatalf("expected pod entry")
+	}
+	pods = podsFromEntry(graph, svc.ID)
+	if len(pods) != 1 {
+		t.Fatalf("expected service pods")
+	}
+	pods = podsFromEntry(graph, deploy.ID)
+	if len(pods) != 1 {
+		t.Fatalf("expected workload pods")
+	}
+	unknown := flowNode{ID: "service/default/unknown", Kind: "Service", Name: "unknown", Namespace: "default"}
+	graph.nodes[unknown.ID] = unknown
+	pods = podsFromEntry(graph, unknown.ID)
+	if len(pods) != 0 {
+		t.Fatalf("expected no pods for unknown service")
+	}
+}

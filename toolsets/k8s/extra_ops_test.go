@@ -27,7 +27,7 @@ import (
 	"rootcause/internal/render"
 )
 
-func newDynamicToolset(gvr schema.GroupVersionResource, listKind string, objects ...*unstructured.Unstructured) *Toolset {
+func newDynamicToolset(gvr schema.GroupVersionResource, listKind, kind string, objects ...*unstructured.Unstructured) *Toolset {
 	scheme := runtime.NewScheme()
 	runtimeObjects := make([]runtime.Object, 0, len(objects))
 	for _, obj := range objects {
@@ -42,7 +42,7 @@ func newDynamicToolset(gvr schema.GroupVersionResource, listKind string, objects
 				PreferredVersion: metav1.GroupVersionForDiscovery{GroupVersion: gvr.GroupVersion().String(), Version: gvr.Version},
 			},
 			VersionedResources: map[string][]metav1.APIResource{
-				gvr.Version: {{Name: gvr.Resource, Kind: "ConfigMap", Namespaced: true}},
+				gvr.Version: {{Name: gvr.Resource, Kind: kind, Namespaced: true}},
 			},
 		},
 	})
@@ -63,7 +63,7 @@ func newDynamicToolset(gvr schema.GroupVersionResource, listKind string, objects
 
 func TestHandleCreateConfigMap(t *testing.T) {
 	gvr := schema.GroupVersionResource{Group: "", Version: "v1", Resource: "configmaps"}
-	toolset := newDynamicToolset(gvr, "ConfigMapList")
+	toolset := newDynamicToolset(gvr, "ConfigMapList", "ConfigMap")
 	manifest := "apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: demo\n  namespace: default\n"
 	result, err := toolset.handleCreate(context.Background(), mcp.ToolRequest{
 		User: policy.User{Role: policy.RoleCluster},

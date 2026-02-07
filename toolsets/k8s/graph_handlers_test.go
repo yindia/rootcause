@@ -128,6 +128,21 @@ func newGraphToolset() *Toolset {
 		},
 		{
 			Object: map[string]any{
+				"apiVersion": "networking.istio.io/v1beta1",
+				"kind":       "DestinationRule",
+				"metadata":   map[string]any{"name": "api", "namespace": namespace},
+				"spec":       map[string]any{"host": "api.default.svc.cluster.local"},
+			},
+		},
+		{
+			Object: map[string]any{
+				"apiVersion": "networking.istio.io/v1beta1",
+				"kind":       "Gateway",
+				"metadata":   map[string]any{"name": "gateway-1", "namespace": namespace},
+			},
+		},
+		{
+			Object: map[string]any{
 				"apiVersion": "security.istio.io/v1beta1",
 				"kind":       "AuthorizationPolicy",
 				"metadata":   map[string]any{"name": "allow", "namespace": namespace},
@@ -164,7 +179,9 @@ func newGraphToolset() *Toolset {
 	dyn := dynamicfake.NewSimpleDynamicClientWithCustomListKinds(scheme, map[schema.GroupVersionResource]string{
 		{Group: "gateway.networking.k8s.io", Version: "v1", Resource: "gateways"}:     "GatewayList",
 		{Group: "gateway.networking.k8s.io", Version: "v1", Resource: "httproutes"}:   "HTTPRouteList",
-		{Group: "networking.istio.io", Version: "v1beta1", Resource: "virtualservices"}: "VirtualServiceList",
+		{Group: "networking.istio.io", Version: "v1beta1", Resource: "virtualservices"}:  "VirtualServiceList",
+		{Group: "networking.istio.io", Version: "v1beta1", Resource: "destinationrules"}: "DestinationRuleList",
+		{Group: "networking.istio.io", Version: "v1beta1", Resource: "gateways"}:         "GatewayList",
 		{Group: "security.istio.io", Version: "v1beta1", Resource: "authorizationpolicies"}: "AuthorizationPolicyList",
 		{Group: "linkerd.io", Version: "v1alpha2", Resource: "serviceprofiles"}:            "ServiceProfileList",
 		{Group: "policy.linkerd.io", Version: "v1alpha1", Resource: "serverauthorizations"}: "ServerAuthorizationList",
@@ -177,6 +194,8 @@ func newGraphToolset() *Toolset {
 		}},
 		{GroupVersion: "networking.istio.io/v1beta1", APIResources: []metav1.APIResource{
 			{Name: "virtualservices", Kind: "VirtualService", Namespaced: true},
+			{Name: "destinationrules", Kind: "DestinationRule", Namespaced: true},
+			{Name: "gateways", Kind: "Gateway", Namespaced: true},
 		}},
 		{GroupVersion: "security.istio.io/v1beta1", APIResources: []metav1.APIResource{
 			{Name: "authorizationpolicies", Kind: "AuthorizationPolicy", Namespaced: true},
@@ -200,7 +219,11 @@ func newGraphToolset() *Toolset {
 		{
 			Group: metav1.APIGroup{Name: "networking.istio.io", Versions: []metav1.GroupVersionForDiscovery{{GroupVersion: "networking.istio.io/v1beta1", Version: "v1beta1"}}, PreferredVersion: metav1.GroupVersionForDiscovery{GroupVersion: "networking.istio.io/v1beta1", Version: "v1beta1"}},
 			VersionedResources: map[string][]metav1.APIResource{
-				"v1beta1": {{Name: "virtualservices", Kind: "VirtualService", Namespaced: true}},
+				"v1beta1": {
+					{Name: "virtualservices", Kind: "VirtualService", Namespaced: true},
+					{Name: "destinationrules", Kind: "DestinationRule", Namespaced: true},
+					{Name: "gateways", Kind: "Gateway", Namespaced: true},
+				},
 			},
 		},
 		{

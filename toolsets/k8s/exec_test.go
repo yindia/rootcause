@@ -59,3 +59,27 @@ func TestHandleExecShellBlocked(t *testing.T) {
 		t.Fatalf("expected shell command error")
 	}
 }
+
+func TestHandleExecReadonlyBlocked(t *testing.T) {
+	cfg := config.DefaultConfig()
+	cfg.Exec.AllowedCommands = []string{"ls"}
+	toolset := New()
+	_ = toolset.Init(mcp.ToolsetContext{
+		Config:   &cfg,
+		Clients:  &kube.Clients{},
+		Policy:   policy.NewAuthorizer(),
+		Renderer: render.NewRenderer(),
+		Redactor: redact.New(),
+	})
+	_, err := toolset.handleExecReadonly(context.Background(), mcp.ToolRequest{
+		User: policy.User{Role: policy.RoleCluster},
+		Arguments: map[string]any{
+			"namespace": "default",
+			"pod":       "api-1",
+			"command":   []any{"cat"},
+		},
+	})
+	if err == nil {
+		t.Fatalf("expected exec readonly rejection")
+	}
+}

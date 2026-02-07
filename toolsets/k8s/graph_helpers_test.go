@@ -7,6 +7,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/discovery"
 )
@@ -49,5 +50,18 @@ func TestAddMeshGraphs(t *testing.T) {
 	_ = toolset.addLinkerdGraph(context.Background(), graph, "default", index)
 	if len(graph.nodes) == 0 {
 		t.Fatalf("expected mesh nodes")
+	}
+}
+
+func TestLinkByTargetRef(t *testing.T) {
+	toolset := newGraphToolset()
+	graph := newGraphBuilder()
+	obj := &unstructured.Unstructured{Object: map[string]any{
+		"spec": map[string]any{"targetRef": map[string]any{"kind": "Service", "name": "api"}},
+	}}
+	res := groupResource{Kind: "VirtualService", Group: "networking.istio.io"}
+	_ = toolset.linkByTargetRef(graph, obj, res, "default")
+	if len(graph.edges) == 0 {
+		t.Fatalf("expected targetRef edge")
 	}
 }
