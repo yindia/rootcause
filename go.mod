@@ -4,6 +4,20 @@ go 1.23.0
 
 require (
 	github.com/BurntSushi/toml v1.6.0
+	github.com/aws/aws-sdk-go-v2 v1.41.1
+	github.com/aws/aws-sdk-go-v2/config v1.32.7
+	github.com/aws/aws-sdk-go-v2/credentials v1.19.7
+	github.com/aws/aws-sdk-go-v2/service/autoscaling v1.64.0
+	github.com/aws/aws-sdk-go-v2/service/ec2 v1.285.0
+	github.com/aws/aws-sdk-go-v2/service/ecr v1.55.1
+	github.com/aws/aws-sdk-go-v2/service/eks v1.77.1
+	github.com/aws/aws-sdk-go-v2/service/elasticloadbalancingv2 v1.54.6
+	github.com/aws/aws-sdk-go-v2/service/iam v1.53.2
+	github.com/aws/aws-sdk-go-v2/service/kms v1.49.5
+	github.com/aws/aws-sdk-go-v2/service/route53resolver v1.42.1
+	github.com/aws/aws-sdk-go-v2/service/sts v1.41.6
+	github.com/aws/smithy-go v1.24.0
+	github.com/google/gnostic-models v0.6.8
 	github.com/modelcontextprotocol/go-sdk v1.2.0
 	helm.sh/helm/v3 v3.13.3
 	k8s.io/api v0.28.4
@@ -23,6 +37,15 @@ require (
 	github.com/Masterminds/squirrel v1.5.4 // indirect
 	github.com/Microsoft/hcsshim v0.11.0 // indirect
 	github.com/asaskevich/govalidator v0.0.0-20200428143746-21a406dcc535 // indirect
+	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.18.17 // indirect
+	github.com/aws/aws-sdk-go-v2/internal/configsources v1.4.17 // indirect
+	github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.7.17 // indirect
+	github.com/aws/aws-sdk-go-v2/internal/ini v1.8.4 // indirect
+	github.com/aws/aws-sdk-go-v2/service/internal/accept-encoding v1.13.4 // indirect
+	github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.13.17 // indirect
+	github.com/aws/aws-sdk-go-v2/service/signin v1.0.5 // indirect
+	github.com/aws/aws-sdk-go-v2/service/sso v1.30.9 // indirect
+	github.com/aws/aws-sdk-go-v2/service/ssooidc v1.35.13 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
 	github.com/chai2010/gettext-go v1.0.2 // indirect
@@ -53,7 +76,6 @@ require (
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang/protobuf v1.5.3 // indirect
 	github.com/google/btree v1.0.1 // indirect
-	github.com/google/gnostic-models v0.6.8 // indirect
 	github.com/google/go-cmp v0.7.0 // indirect
 	github.com/google/gofuzz v1.2.0 // indirect
 	github.com/google/jsonschema-go v0.3.0 // indirect

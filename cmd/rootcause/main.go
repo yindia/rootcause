@@ -9,6 +9,7 @@ import (
 
 	"rootcause/pkg/server"
 
+	_ "rootcause/toolsets/aws"
 	_ "rootcause/toolsets/helm"
 	_ "rootcause/toolsets/istio"
 	_ "rootcause/toolsets/k8s"
@@ -17,6 +18,9 @@ import (
 )
 
 const version = "0.1.0"
+
+var runServer = server.Run
+var exit = os.Exit
 
 func main() {
 	ctx := context.Background()
@@ -64,9 +68,9 @@ func main() {
 		options.LogLevel = *logLevel
 	}
 
-	if err := server.Run(ctx, options); err != nil {
+	if err := runServer(ctx, options); err != nil {
 		fmt.Fprintf(os.Stderr, "%v\n", err)
-		os.Exit(1)
+		exit(1)
 	}
 }
 

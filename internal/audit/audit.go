@@ -23,6 +23,8 @@ type Logger struct {
 	mu  sync.Mutex
 }
 
+var jsonMarshal = json.Marshal
+
 func NewLogger(out io.Writer) *Logger {
 	if out == nil {
 		out = io.Discard
@@ -33,7 +35,7 @@ func NewLogger(out io.Writer) *Logger {
 func (l *Logger) Log(event Event) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
-	data, err := json.Marshal(event)
+	data, err := jsonMarshal(event)
 	if err != nil {
 		return
 	}

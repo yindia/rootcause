@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
+	"time"
 
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -25,15 +27,34 @@ type Clients struct {
 	RestConfig *rest.Config
 	Typed      kubernetes.Interface
 	Dynamic    dynamic.Interface
-	Discovery  discovery.DiscoveryInterface
+	Discovery  discovery.CachedDiscoveryInterface
 	Mapper     meta.RESTMapper
 	Metrics    metricsclient.Interface
+
+	discoveryMu        sync.Mutex
+	discoveryResetAt   time.Time
+	deferredRESTMapper *restmapper.DeferredDiscoveryRESTMapper
 }
 
 type Config struct {
 	Kubeconfig string
 	Context    string
 }
+
+var (
+	newTypedClient = func(cfg *rest.Config) (kubernetes.Interface, error) {
+		return kubernetes.NewForConfig(cfg)
+	}
+	newDynamicClient = func(cfg *rest.Config) (dynamic.Interface, error) {
+		return dynamic.NewForConfig(cfg)
+	}
+	newDiscoveryClient = func(cfg *rest.Config) (discovery.DiscoveryInterface, error) {
+		return discovery.NewDiscoveryClientForConfig(cfg)
+	}
+	newMetricsClient = func(cfg *rest.Config) (metricsclient.Interface, error) {
+		return metricsclient.NewForConfig(cfg)
+	}
+)
 
 func NewClients(cfg Config) (*Clients, error) {
 	loadingRules := clientcmd.NewDefaultClientConfigLoadingRules()
@@ -49,32 +70,53 @@ func NewClients(cfg Config) (*Clients, error) {
 		return nil, err
 	}
 
-	typed, err := kubernetes.NewForConfig(restConfig)
+	typed, err := newTypedClient(restConfig)
 	if err != nil {
 		return nil, err
 	}
-	dynamicClient, err := dynamic.NewForConfig(restConfig)
+	dynamicClient, err := newDynamicClient(restConfig)
 	if err != nil {
 		return nil, err
 	}
-	discoveryClient, err := discovery.NewDiscoveryClientForConfig(restConfig)
+	discoveryClient, err := newDiscoveryClient(restConfig)
 	if err != nil {
 		return nil, err
 	}
-	mapper := restmapper.NewDeferredDiscoveryRESTMapper(memory.NewMemCacheClient(discoveryClient))
-	metricsClient, err := metricsclient.NewForConfig(restConfig)
+	cachedDiscovery := memory.NewMemCacheClient(discoveryClient)
+	mapper := restmapper.NewDeferredDiscoveryRESTMapper(cachedDiscovery)
+	metricsClient, err := newMetricsClient(restConfig)
 	if err != nil {
 		return nil, err
 	}
 
 	return &Clients{
-		RestConfig: restConfig,
-		Typed:      typed,
-		Dynamic:    dynamicClient,
-		Discovery:  discoveryClient,
-		Mapper:     mapper,
-		Metrics:    metricsClient,
+		RestConfig:         restConfig,
+		Typed:              typed,
+		Dynamic:            dynamicClient,
+		Discovery:          cachedDiscovery,
+		Mapper:             mapper,
+		Metrics:            metricsClient,
+		discoveryResetAt:   time.Now(),
+		deferredRESTMapper: mapper,
 	}, nil
+}
+
+func (c *Clients) RefreshDiscovery(ttl time.Duration) {
+	if c == nil || ttl <= 0 {
+		return
+	}
+	c.discoveryMu.Lock()
+	defer c.discoveryMu.Unlock()
+	if time.Since(c.discoveryResetAt) < ttl {
+		return
+	}
+	if c.Discovery != nil {
+		c.Discovery.Invalidate()
+	}
+	if c.deferredRESTMapper != nil {
+		c.deferredRESTMapper.Reset()
+	}
+	c.discoveryResetAt = time.Now()
 }
 
 func kubeconfigPath(path string) string {

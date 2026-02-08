@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"rootcause/internal/audit"
+	"rootcause/internal/cache"
 	"rootcause/internal/config"
 	"rootcause/internal/evidence"
 	"rootcause/internal/kube"
@@ -63,6 +64,7 @@ type ToolContext struct {
 	Redactor *redact.Redactor
 	Audit    *audit.Logger
 	Services *ServiceRegistry
+	Cache    *cache.Store
 	Invoker  *ToolInvoker
 	Registry Registry
 }

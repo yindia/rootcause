@@ -3,11 +3,14 @@ package helm
 import (
 	"errors"
 
+	"helm.sh/helm/v3/pkg/action"
+
 	"rootcause/internal/mcp"
 )
 
 type Toolset struct {
-	ctx mcp.ToolsetContext
+	ctx                  mcp.ToolsetContext
+	actionConfigOverride func(namespace string) (*action.Configuration, error)
 }
 
 func New() *Toolset {

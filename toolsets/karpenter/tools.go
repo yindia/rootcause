@@ -344,6 +344,9 @@ func pendingReason(pod *corev1.Pod) (string, string) {
 }
 
 func toUnstructured(pod *corev1.Pod) (*unstructured.Unstructured, error) {
+	if pod == nil {
+		return nil, errors.New("pod is required")
+	}
 	objMap, err := runtime.DefaultUnstructuredConverter.ToUnstructured(pod)
 	if err != nil {
 		return nil, err

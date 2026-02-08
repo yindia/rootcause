@@ -3,6 +3,7 @@ package mcp
 import (
 	"context"
 	"errors"
+	"time"
 
 	"rootcause/internal/policy"
 )
@@ -30,7 +31,13 @@ func (i *ToolInvoker) Call(ctx context.Context, user policy.User, toolName strin
 			return ToolResult{Data: map[string]any{"error": err.Error()}}, err
 		}
 	}
-	result, toolErr := spec.Handler(ctx, ToolRequest{Arguments: args, User: user, Context: i.ctx})
+	if i.ctx.Clients != nil && i.ctx.Config != nil {
+		ttl := time.Duration(i.ctx.Config.Cache.DiscoveryTTLSeconds) * time.Second
+		i.ctx.Clients.RefreshDiscovery(ttl)
+	}
+	execCtx, cancel := withToolTimeout(ctx, i.ctx.Config, spec)
+	result, toolErr := spec.Handler(execCtx, ToolRequest{Arguments: args, User: user, Context: i.ctx})
+	cancel()
 	outcome := "success"
 	if toolErr != nil {
 		outcome = "error"

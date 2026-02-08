@@ -381,6 +381,19 @@ func schemaConfigDebug() map[string]any {
 	}
 }
 
+func schemaPermissionDebug() map[string]any {
+	return map[string]any{
+		"type": "object",
+		"properties": map[string]any{
+			"namespace":      map[string]any{"type": "string"},
+			"serviceAccount": map[string]any{"type": "string"},
+			"pod":            map[string]any{"type": "string"},
+			"awsRegion":      map[string]any{"type": "string"},
+		},
+		"required": []string{"namespace"},
+	}
+}
+
 func schemaDebugFlow() map[string]any {
 	return map[string]any{
 		"type": "object",
@@ -390,7 +403,7 @@ func schemaDebugFlow() map[string]any {
 			"name":      map[string]any{"type": "string"},
 			"scenario": map[string]any{
 				"type": "string",
-				"enum": []string{"traffic", "pending", "crashloop", "autoscaling", "networkpolicy", "mesh"},
+				"enum": []string{"traffic", "pending", "crashloop", "autoscaling", "networkpolicy", "mesh", "permission"},
 			},
 			"maxSteps": map[string]any{"type": "number"},
 		},

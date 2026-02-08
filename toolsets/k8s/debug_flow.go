@@ -105,6 +105,8 @@ func (t *Toolset) handleDebugFlow(ctx context.Context, req mcp.ToolRequest) (mcp
 		t.buildNetworkPolicyFlow(graph, entryID, namespace, addStep)
 	case "mesh":
 		t.buildMeshFlow(graph, entryID, namespace, addStep)
+	case "permission":
+		t.buildPermissionFlow(graph, entryID, namespace, addStep)
 	default:
 		return errorResult(fmt.Errorf("unsupported scenario: %s", scenario)), fmt.Errorf("unsupported scenario: %s", scenario)
 	}
@@ -202,6 +204,31 @@ func (t *Toolset) buildMeshFlow(graph graphView, entryID, namespace string, addS
 	}
 	if hasKindGroup(graph, "ServiceProfile", "linkerd.io") {
 		addStep(flowNode{Kind: "Linkerd", Name: "mesh", Namespace: namespace, ID: "linkerd"}, "linkerd.policy_debug", map[string]any{}, map[string]string{"reason": "linkerd mesh"})
+	}
+}
+
+func (t *Toolset) buildPermissionFlow(graph graphView, entryID, namespace string, addStep func(flowNode, string, map[string]any, map[string]string)) {
+	entry, ok := graph.nodes[entryID]
+	if ok && strings.EqualFold(entry.Kind, "ServiceAccount") {
+		addStep(entry, "k8s.permission_debug", map[string]any{"namespace": namespace, "serviceAccount": entry.Name}, map[string]string{"reason": "service account RBAC"})
+		return
+	}
+	if ok && strings.EqualFold(entry.Kind, "Pod") {
+		addStep(entry, "k8s.permission_debug", map[string]any{"namespace": namespace, "pod": entry.Name}, map[string]string{"reason": "pod service account"})
+		return
+	}
+	pods := podsFromEntry(graph, entryID)
+	if len(pods) == 0 {
+		addStep(flowNode{Kind: "ServiceAccount", Name: "default", Namespace: namespace, ID: namespace + "/default"}, "k8s.permission_debug", map[string]any{"namespace": namespace, "serviceAccount": "default"}, map[string]string{"reason": "default service account"})
+		return
+	}
+	maxPods := 3
+	if len(pods) < maxPods {
+		maxPods = len(pods)
+	}
+	for i := 0; i < maxPods; i++ {
+		pod := pods[i]
+		addStep(pod, "k8s.permission_debug", map[string]any{"namespace": namespace, "pod": pod.Name}, map[string]string{"reason": "pod service account"})
 	}
 }
 

@@ -2,6 +2,7 @@
 
 [![Go](https://img.shields.io/badge/go-1.23%2B-00ADD8?logo=go&logoColor=white)](https://go.dev/)
 [![MCP](https://img.shields.io/badge/MCP-stdio-4A90E2)](https://modelcontextprotocol.io/)
+[![codecov](https://codecov.io/gh/yindia/rootcause/graph/badge.svg?token=F85C1M50K6)](https://codecov.io/gh/yindia/rootcause)
 
 RootCause is a local-first MCP server that helps operators manage Kubernetes resources and identify the real root cause of failures through interoperable toolsets.
 
@@ -24,8 +25,7 @@ Inspired by:
 - [MCP Client Example (stdio)](#mcp-client-example-stdio)
 - [MCP Client Setup](#mcp-client-setup)
 - [Toolchains](#toolchains)
-- [Quick Tool Picker](#quick-tool-picker-)
-- [Tools and Features](#tools-and-features)
+- [Tools](#tools)
 - [Safety Modes](#safety-modes)
 - [Config and Flags](#config-and-flags)
 - [Kubeconfig Resolution](#kubeconfig-resolution)
@@ -194,62 +194,15 @@ Enabled by default:
 - `karpenter`
 - `istio`
 - `helm`
+- `aws`
 
 Optional toolchains return “not detected” when the control plane is absent. Additional toolchains can be registered via the plugin SDK; see `PLUGINS.md`.
 
 ---
 
-## Quick Tool Picker 🧰
+## Tools
 
-- **Traffic errors (5xx/timeout)**: `k8s.debug_flow` scenario `traffic`, then `k8s.network_debug`, `istio.*` or `linkerd.*` as needed.
-- **Pending pods**: `k8s.debug_flow` scenario `pending`, or `k8s.scheduling_debug` + `k8s.storage_debug`.
-- **CrashLoopBackOff**: `k8s.debug_flow` scenario `crashloop`, or `k8s.crashloop_debug` + `k8s.config_debug`.
-- **Autoscaling issues**: `k8s.hpa_debug` / `k8s.vpa_debug` + `k8s.resource_usage`.
-- **Volume/PVC failures**: `k8s.storage_debug`.
-- **Missing config keys**: `k8s.config_debug`.
-
----
-
-## Tools and Features
-
-### ✅ Core Kubernetes (`k8s.*` + kubectl-style aliases)
-- **CRUD + discovery**: `k8s.get`, `k8s.list`, `k8s.describe`, `k8s.create`, `k8s.apply`, `k8s.patch`, `k8s.delete`, `k8s.api_resources`, `k8s.crds`
-- **Ops + observability**: `k8s.logs`, `k8s.events`, `k8s.context`, `k8s.explain_resource`, `k8s.ping`
-- **Workload operations**: `k8s.scale`, `k8s.rollout`
-- **Execution and access**: `k8s.exec`, `k8s.exec_readonly` (allowlisted), `k8s.port_forward`
-- **Debugging**: `k8s.overview`, `k8s.crashloop_debug`, `k8s.scheduling_debug`, `k8s.hpa_debug`, `k8s.vpa_debug`, `k8s.storage_debug`, `k8s.config_debug`, `k8s.network_debug`, `k8s.private_link_debug`, `k8s.debug_flow`
-- **Maintenance**: `k8s.cleanup_pods`, `k8s.node_management`
-- **Graph and topology**: `k8s.graph` (Ingress/Service/Endpoints/Workloads + mesh + NetworkPolicy)
-- **Metrics**: `k8s.resource_usage` (metrics-server)
-
-### Graph-first Debugging (Recommended)
-
-RootCause can walk the graph node-by-node for common failures. Use `k8s.debug_flow` to run a guided flow that builds `k8s.graph`, then inspects each hop in order.
-
-
-### 🕸️ Linkerd (`linkerd.*`)
-- `linkerd.health`, `linkerd.proxy_status`, `linkerd.identity_issues`, `linkerd.policy_debug`, `linkerd.cr_status`
-- `linkerd.virtualservice_status`, `linkerd.destinationrule_status`, `linkerd.gateway_status`, `linkerd.httproute_status`
-
-### 🌐 Istio (`istio.*`)
-- `istio.health`, `istio.proxy_status`, `istio.config_summary`
-- `istio.service_mesh_hosts`, `istio.discover_namespaces`, `istio.pods_by_service`, `istio.external_dependency_check`
-- `istio.proxy_clusters`, `istio.proxy_listeners`, `istio.proxy_routes`, `istio.proxy_endpoints`, `istio.proxy_bootstrap`, `istio.proxy_config_dump`
-- `istio.cr_status`, `istio.virtualservice_status`, `istio.destinationrule_status`, `istio.gateway_status`, `istio.httproute_status`
-
-
-### 🚀 Karpenter (`karpenter.*`)
-- `karpenter.status`, `karpenter.node_provisioning_debug`
-- `karpenter.nodepool_debug`, `karpenter.nodeclass_debug`, `karpenter.interruption_debug`
-
-### ⎈ Helm (`helm.*`)
-- `helm.repo_add`, `helm.repo_list`, `helm.repo_update`
-- `helm.list`, `helm.status`
-- `helm.install`, `helm.upgrade`, `helm.uninstall`
-- `helm.template_apply`, `helm.template_uninstall`
-
-### Kubectl-style aliases
-The `k8s.*` tools also expose aliases like `kubectl_get`, `kubectl_list`, `kubectl_describe`, `kubectl_create`, `kubectl_apply`, `kubectl_delete`, `kubectl_logs`, `kubectl_patch`, `kubectl_scale`, `kubectl_rollout`, `kubectl_context`, `kubectl_generic`, `kubectl_top`, `explain_resource`, `list_api_resources`, and `ping`.
+See `TOOLS.md` for the full tool catalog, quick picker, and graph-first debugging flow references.
 
 ---
 
@@ -263,7 +216,7 @@ The `k8s.*` tools also expose aliases like `kubectl_get`, `kubectl_list`, `kubec
 ## Config and Flags
 
 ```
-rootcause --config config.example.toml --toolsets k8s,linkerd,istio,karpenter,helm
+rootcause --config config.example.toml --toolsets k8s,linkerd,istio,karpenter,helm,aws
 ```
 
 ### Flags
@@ -277,6 +230,12 @@ rootcause --config config.example.toml --toolsets k8s,linkerd,istio,karpenter,he
 - `--log-level`
 
 If `--config` is not set, RootCause will use the `ROOTCAUSE_CONFIG` environment variable when present.
+
+---
+
+## AWS Credentials
+
+The AWS IAM tools use the standard AWS credential chain and region resolution. Set `AWS_REGION` or `AWS_DEFAULT_REGION` (defaults to `us-east-1`), optionally select a profile with `AWS_PROFILE` or `AWS_DEFAULT_PROFILE`, and use any of the normal credential sources (env vars, shared config/credentials files, SSO, or instance metadata).
 
 ---
 
@@ -296,7 +255,7 @@ RootCause is organized around shared Kubernetes plumbing and toolsets that reuse
 - Common safeguards live in `internal/policy` (namespace vs cluster enforcement and tool allowlists) and `internal/redact` (token/secret redaction).
 - `internal/evidence` gathers events, owner chains, endpoints, and pod status summaries used by all toolsets.
 - `internal/render` enforces a consistent analysis output format (root causes, evidence, next checks, resources examined) and provides the shared describe helper.
-- Toolsets live under `toolsets/` and register namespaced tools (`k8s.*`, `linkerd.*`, `karpenter.*`) through a shared MCP registry.
+- Toolsets live under `toolsets/` and register namespaced tools (`k8s.*`, `linkerd.*`, `karpenter.*`, `istio.*`, `helm.*`, `aws.iam.*`, `aws.vpc.*`) through a shared MCP registry.
 
 The MCP server runs over stdio using the MCP Go SDK and is designed for local kubeconfig usage. Optional in-cluster deployment is intentionally out of scope for Phase 1.
 
@@ -315,7 +274,7 @@ RootCause uses MCP over stdio by default (required). HTTP/SSE is not implemented
 
 ## Future Cloud Readiness
 
-The toolset system is designed to add cloud integrations (AWS/GCP/Azure) later without changing the core MCP or shared Kubernetes libraries.
+AWS IAM support is now available. The toolset system is designed to add deeper cloud integrations (EKS/EC2/VPC/GCP/Azure) without changing the core MCP or shared Kubernetes libraries.
 
 ---
 

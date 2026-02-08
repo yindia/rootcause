@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"strconv"
 	"strings"
@@ -13,11 +14,26 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/tools/portforward"
+	"k8s.io/client-go/rest"
 	"k8s.io/client-go/transport/spdy"
+	"k8s.io/apimachinery/pkg/util/httpstream"
 
 	"rootcause/internal/mcp"
 )
+
+type portForwarder interface {
+	ForwardPorts() error
+	GetPorts() ([]portforward.ForwardedPort, error)
+}
+
+var spdyRoundTripperFor = spdy.RoundTripperFor
+
+var newPortForwarder = func(dialer httpstream.Dialer, addresses []string, ports []string, stopChan, readyChan chan struct{}, out, errOut io.Writer) (portForwarder, error) {
+	return portforward.NewOnAddresses(dialer, addresses, ports, stopChan, readyChan, out, errOut)
+}
 
 func (t *Toolset) handlePortForward(ctx context.Context, req mcp.ToolRequest) (mcp.ToolResult, error) {
 	args := req.Arguments
@@ -68,8 +84,35 @@ func (t *Toolset) handlePortForward(ctx context.Context, req mcp.ToolRequest) (m
 		durationSeconds = 60
 	}
 
-	reqURL := t.ctx.Clients.Typed.CoreV1().RESTClient().Post().Resource("pods").Namespace(namespace).Name(pod).SubResource("portforward")
-	transport, upgrader, err := spdy.RoundTripperFor(t.ctx.Clients.RestConfig)
+	restClient := t.ctx.Clients.Typed.CoreV1().RESTClient()
+	if restClient == nil {
+		return errorResult(errors.New("rest client not available")), errors.New("rest client not available")
+	}
+	if client, ok := restClient.(*rest.RESTClient); ok && client == nil {
+		restClient = nil
+	}
+	if restClient == nil {
+		if t.ctx.Clients.RestConfig == nil {
+			return errorResult(errors.New("rest client not available")), errors.New("rest client not available")
+		}
+		cfg := rest.CopyConfig(t.ctx.Clients.RestConfig)
+		if cfg.GroupVersion == nil {
+			cfg.GroupVersion = &schema.GroupVersion{Version: "v1"}
+		}
+		if cfg.APIPath == "" {
+			cfg.APIPath = "/api"
+		}
+		if cfg.NegotiatedSerializer == nil {
+			cfg.NegotiatedSerializer = scheme.Codecs.WithoutConversion()
+		}
+		client, err := rest.RESTClientFor(cfg)
+		if err != nil {
+			return errorResult(err), err
+		}
+		restClient = client
+	}
+	reqURL := restClient.Post().Resource("pods").Namespace(namespace).Name(pod).SubResource("portforward")
+	transport, upgrader, err := spdyRoundTripperFor(t.ctx.Clients.RestConfig)
 	if err != nil {
 		return errorResult(err), err
 	}
@@ -79,7 +122,7 @@ func (t *Toolset) handlePortForward(ctx context.Context, req mcp.ToolRequest) (m
 	readyChan := make(chan struct{})
 	out := &bytes.Buffer{}
 	errOut := &bytes.Buffer{}
-	pf, err := portforward.NewOnAddresses(dialer, []string{localAddress}, ports, stopChan, readyChan, out, errOut)
+	pf, err := newPortForwarder(dialer, []string{localAddress}, ports, stopChan, readyChan, out, errOut)
 	if err != nil {
 		return errorResult(err), err
 	}

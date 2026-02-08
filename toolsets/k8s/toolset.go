@@ -289,8 +289,16 @@ func (t *Toolset) Register(reg mcp.Registry) error {
 			Handler:     t.handleConfigDebug,
 		},
 		{
+			Name:        "k8s.permission_debug",
+			Description: "Analyze ServiceAccount RBAC and IRSA IAM role bindings.",
+			ToolsetID:   t.ID(),
+			InputSchema: schemaPermissionDebug(),
+			Safety:      mcp.SafetyReadOnly,
+			Handler:     t.handlePermissionDebug,
+		},
+		{
 			Name:        "k8s.debug_flow",
-			Description: "Run a graph-driven debug flow (traffic/pending/crashloop/autoscaling/networkpolicy/mesh).",
+			Description: "Run a graph-driven debug flow (traffic/pending/crashloop/autoscaling/networkpolicy/mesh/permission).",
 			ToolsetID:   t.ID(),
 			InputSchema: schemaDebugFlow(),
 			Safety:      mcp.SafetyReadOnly,
