@@ -10,6 +10,8 @@ import (
 	"rootcause/internal/policy"
 	"rootcause/internal/redact"
 	"rootcause/internal/render"
+
+	"k8s.io/client-go/rest"
 )
 
 func TestAssumePolicyMentionsServiceAccount(t *testing.T) {
@@ -39,7 +41,15 @@ func TestAddAWSRoleEvidence(t *testing.T) {
 	invoker := mcp.NewToolInvoker(reg, ctx)
 	ctx.Invoker = invoker
 	toolset := New()
-	_ = toolset.Init(mcp.ToolsetContext{Config: &cfg, Clients: &kube.Clients{}, Registry: reg, Invoker: invoker, Policy: policy.NewAuthorizer(), Renderer: render.NewRenderer(), Redactor: redact.New()})
+	_ = toolset.Init(mcp.ToolsetContext{
+		Config:   &cfg,
+		Clients:  &kube.Clients{RestConfig: &rest.Config{Host: "https://cluster.eks.amazonaws.com"}},
+		Registry: reg,
+		Invoker:  invoker,
+		Policy:   policy.NewAuthorizer(),
+		Renderer: render.NewRenderer(),
+		Redactor: redact.New(),
+	})
 
 	_ = reg.Add(mcp.ToolSpec{
 		Name:      "aws.iam.get_role",

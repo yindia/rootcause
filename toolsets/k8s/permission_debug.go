@@ -12,6 +12,7 @@ import (
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	"rootcause/internal/kube"
 	"rootcause/internal/mcp"
 	"rootcause/internal/policy"
 	"rootcause/internal/render"
@@ -293,6 +294,17 @@ func (t *Toolset) addAWSRoleEvidence(ctx context.Context, req mcp.ToolRequest, a
 	}
 	if _, ok := t.ctx.Registry.Get("aws.iam.get_role"); !ok {
 		analysis.AddEvidence("awsIam", "aws toolset not enabled")
+		return
+	}
+	if t.ctx.Clients == nil {
+		analysis.AddEvidence("cloud", "unknown (missing kube clients)")
+		analysis.AddEvidence("awsIam", "skipped: missing kube clients")
+		return
+	}
+	cloud, reason := kube.DetectCloud(t.ctx.Clients.RestConfig)
+	if cloud != kube.CloudAWS {
+		analysis.AddEvidence("cloud", fmt.Sprintf("%s (%s)", cloud, reason))
+		analysis.AddEvidence("awsIam", "skipped: non-aws cluster")
 		return
 	}
 	result, err := t.ctx.CallTool(ctx, req.User, "aws.iam.get_role", map[string]any{

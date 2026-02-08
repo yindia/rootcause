@@ -8,6 +8,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8sfake "k8s.io/client-go/kubernetes/fake"
+	"k8s.io/client-go/rest"
 
 	"rootcause/internal/config"
 	"rootcause/internal/evidence"
@@ -128,7 +129,7 @@ func TestAddAWSRoleEvidenceSuccess(t *testing.T) {
 	toolset := New()
 	toolCtx := mcp.ToolsetContext{
 		Config:   &cfg,
-		Clients:  &kube.Clients{},
+		Clients:  &kube.Clients{RestConfig: &rest.Config{Host: "https://cluster.eks.amazonaws.com"}},
 		Registry: reg,
 		Policy:   policy.NewAuthorizer(),
 		Renderer: render.NewRenderer(),

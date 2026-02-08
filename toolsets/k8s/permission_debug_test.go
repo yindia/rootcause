@@ -8,6 +8,7 @@ import (
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
+	"k8s.io/client-go/rest"
 
 	"rootcause/internal/config"
 	"rootcause/internal/evidence"
@@ -109,7 +110,7 @@ func TestAddAWSRoleEvidenceWithTool(t *testing.T) {
 	toolset := New()
 	ctx := mcp.ToolsetContext{
 		Config:   &cfg,
-		Clients:  &kube.Clients{},
+		Clients:  &kube.Clients{RestConfig: &rest.Config{Host: "https://cluster.eks.amazonaws.com"}},
 		Registry: reg,
 		Policy:   policy.NewAuthorizer(),
 		Renderer: render.NewRenderer(),
@@ -124,6 +125,41 @@ func TestAddAWSRoleEvidenceWithTool(t *testing.T) {
 	}
 	if len(analysis.LikelyRootCauses) == 0 {
 		t.Fatalf("expected IAM trust policy cause")
+	}
+}
+
+func TestAddAWSRoleEvidenceNonAWSCluster(t *testing.T) {
+	cfg := config.DefaultConfig()
+	reg := mcp.NewRegistry(&cfg)
+	called := false
+	_ = reg.Add(mcp.ToolSpec{
+		Name:      "aws.iam.get_role",
+		ToolsetID: "aws",
+		Safety:    mcp.SafetyReadOnly,
+		Handler: func(ctx context.Context, req mcp.ToolRequest) (mcp.ToolResult, error) {
+			called = true
+			return mcp.ToolResult{Data: map[string]any{}}, nil
+		},
+	})
+	toolset := New()
+	ctx := mcp.ToolsetContext{
+		Config:   &cfg,
+		Clients:  &kube.Clients{RestConfig: &rest.Config{Host: "https://cluster.gke.example.com"}},
+		Registry: reg,
+		Policy:   policy.NewAuthorizer(),
+		Renderer: render.NewRenderer(),
+		Redactor: redact.New(),
+	}
+	ctx.Invoker = mcp.NewToolInvoker(reg, mcp.ToolContext(ctx))
+	_ = toolset.Init(ctx)
+
+	analysis := render.NewAnalysis()
+	toolset.addAWSRoleEvidence(context.Background(), mcp.ToolRequest{User: policy.User{Role: policy.RoleCluster}}, &analysis, "demo", "", "default", "sa")
+	if called {
+		t.Fatalf("expected AWS role lookup to be skipped")
+	}
+	if len(analysis.Evidence) == 0 {
+		t.Fatalf("expected evidence for cloud detection")
 	}
 }
 
