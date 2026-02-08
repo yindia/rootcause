@@ -11,6 +11,7 @@ This document lists all tools exposed by RootCause. For setup and usage, see `RE
 - Volume/PVC failures: `k8s.storage_debug`.
 - Missing config keys: `k8s.config_debug`.
 - Permission errors (Forbidden/AccessDenied): `k8s.permission_debug` or `k8s.debug_flow` scenario `permission`.
+- EKS auth/KMS/ECR issues: `aws.eks.debug` (include STS/KMS/ECR checks as needed).
 
 ---
 
@@ -99,6 +100,21 @@ Use `k8s.debug_flow` to run a guided flow that builds `k8s.graph` and walks the 
 - `aws.eks.list_identity_provider_configs`, `aws.eks.get_identity_provider_config`
 - `aws.eks.list_updates`, `aws.eks.get_update`
 - `aws.eks.list_nodes`
+- `aws.eks.debug` (optional STS/KMS/ECR diagnostics)
+
+### AWS ECR (`aws.ecr.*`)
+- `aws.ecr.list_repositories`, `aws.ecr.describe_repository`
+- `aws.ecr.list_images`, `aws.ecr.describe_images`
+- `aws.ecr.describe_registry`
+- `aws.ecr.get_authorization_token` (confirm required)
+
+### AWS STS (`aws.sts.*`)
+- `aws.sts.get_caller_identity`
+- `aws.sts.assume_role` (confirm required)
+
+### AWS KMS (`aws.kms.*`)
+- `aws.kms.list_keys`, `aws.kms.list_aliases`
+- `aws.kms.describe_key`, `aws.kms.get_key_policy`
 
 ---
 
