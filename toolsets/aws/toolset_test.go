@@ -34,4 +34,13 @@ func TestToolsetInitAndRegister(t *testing.T) {
 	if _, ok := reg.Get("aws.eks.list_clusters"); !ok {
 		t.Fatalf("expected aws.eks.list_clusters to be registered")
 	}
+	if _, ok := reg.Get("aws.ecr.list_repositories"); !ok {
+		t.Fatalf("expected aws.ecr.list_repositories to be registered")
+	}
+	if _, ok := reg.Get("aws.kms.list_keys"); !ok {
+		t.Fatalf("expected aws.kms.list_keys to be registered")
+	}
+	if _, ok := reg.Get("aws.sts.get_caller_identity"); !ok {
+		t.Fatalf("expected aws.sts.get_caller_identity to be registered")
+	}
 }

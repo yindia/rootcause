@@ -9,16 +9,22 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/service/autoscaling"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	"github.com/aws/aws-sdk-go-v2/service/ecr"
 	"github.com/aws/aws-sdk-go-v2/service/eks"
 	"github.com/aws/aws-sdk-go-v2/service/elasticloadbalancingv2"
 	"github.com/aws/aws-sdk-go-v2/service/iam"
+	"github.com/aws/aws-sdk-go-v2/service/kms"
 	"github.com/aws/aws-sdk-go-v2/service/route53resolver"
+	"github.com/aws/aws-sdk-go-v2/service/sts"
 
 	awslib "rootcause/internal/aws"
 	"rootcause/internal/mcp"
 	awsec2 "rootcause/toolsets/aws/ec2"
+	awsecr "rootcause/toolsets/aws/ecr"
 	awseks "rootcause/toolsets/aws/eks"
 	awsiam "rootcause/toolsets/aws/iam"
+	awskms "rootcause/toolsets/aws/kms"
+	awssts "rootcause/toolsets/aws/sts"
 	awsvpc "rootcause/toolsets/aws/vpc"
 )
 
@@ -36,6 +42,12 @@ type Toolset struct {
 	elbClients map[string]elbClientEntry
 	eksMu      sync.Mutex
 	eksClients map[string]eksClientEntry
+	ecrMu      sync.Mutex
+	ecrClients map[string]ecrClientEntry
+	kmsMu      sync.Mutex
+	kmsClients map[string]kmsClientEntry
+	stsMu      sync.Mutex
+	stsClients map[string]stsClientEntry
 }
 
 type iamClientEntry struct {
@@ -68,6 +80,21 @@ type eksClientEntry struct {
 	region string
 }
 
+type ecrClientEntry struct {
+	client *ecr.Client
+	region string
+}
+
+type kmsClientEntry struct {
+	client *kms.Client
+	region string
+}
+
+type stsClientEntry struct {
+	client *sts.Client
+	region string
+}
+
 func New() *Toolset {
 	return &Toolset{}
 }
@@ -97,6 +124,9 @@ func (t *Toolset) Init(ctx mcp.ToolsetContext) error {
 	t.asgClients = map[string]asgClientEntry{}
 	t.elbClients = map[string]elbClientEntry{}
 	t.eksClients = map[string]eksClientEntry{}
+	t.ecrClients = map[string]ecrClientEntry{}
+	t.kmsClients = map[string]kmsClientEntry{}
+	t.stsClients = map[string]stsClientEntry{}
 	return nil
 }
 
@@ -119,7 +149,25 @@ func (t *Toolset) Register(reg mcp.Registry) error {
 			return fmt.Errorf("register %s: %w", tool.Name, err)
 		}
 	}
-	for _, tool := range awseks.ToolSpecs(t.ctx, t.ID(), t.eksClient, t.ec2Client, t.asgClient) {
+	for _, tool := range awseks.ToolSpecs(t.ctx, t.ID(), t.eksClient, t.ec2Client, t.asgClient, t.ecrClient, t.kmsClient, t.stsClient) {
+		tool = t.wrapListCache(tool)
+		if err := reg.Add(tool); err != nil {
+			return fmt.Errorf("register %s: %w", tool.Name, err)
+		}
+	}
+	for _, tool := range awsecr.ToolSpecs(t.ctx, t.ID(), t.ecrClient) {
+		tool = t.wrapListCache(tool)
+		if err := reg.Add(tool); err != nil {
+			return fmt.Errorf("register %s: %w", tool.Name, err)
+		}
+	}
+	for _, tool := range awskms.ToolSpecs(t.ctx, t.ID(), t.kmsClient) {
+		tool = t.wrapListCache(tool)
+		if err := reg.Add(tool); err != nil {
+			return fmt.Errorf("register %s: %w", tool.Name, err)
+		}
+	}
+	for _, tool := range awssts.ToolSpecs(t.ctx, t.ID(), t.stsClient) {
 		tool = t.wrapListCache(tool)
 		if err := reg.Add(tool); err != nil {
 			return fmt.Errorf("register %s: %w", tool.Name, err)
@@ -251,6 +299,69 @@ func (t *Toolset) eksClient(ctx context.Context, region string) (*eks.Client, st
 	t.eksMu.Lock()
 	t.eksClients[cacheKey] = eksClientEntry{client: client, region: usedRegion}
 	t.eksMu.Unlock()
+	return client, usedRegion, nil
+}
+
+func (t *Toolset) ecrClient(ctx context.Context, region string) (*ecr.Client, string, error) {
+	cacheKey := t.clientCacheKey(region)
+	t.ecrMu.Lock()
+	if entry, ok := t.ecrClients[cacheKey]; ok {
+		t.ecrMu.Unlock()
+		return entry.client, entry.region, nil
+	}
+	t.ecrMu.Unlock()
+
+	cfg, err := awslib.LoadConfig(ctx, region)
+	if err != nil {
+		return nil, "", err
+	}
+	client := ecr.NewFromConfig(cfg)
+	usedRegion := strings.TrimSpace(cfg.Region)
+	t.ecrMu.Lock()
+	t.ecrClients[cacheKey] = ecrClientEntry{client: client, region: usedRegion}
+	t.ecrMu.Unlock()
+	return client, usedRegion, nil
+}
+
+func (t *Toolset) kmsClient(ctx context.Context, region string) (*kms.Client, string, error) {
+	cacheKey := t.clientCacheKey(region)
+	t.kmsMu.Lock()
+	if entry, ok := t.kmsClients[cacheKey]; ok {
+		t.kmsMu.Unlock()
+		return entry.client, entry.region, nil
+	}
+	t.kmsMu.Unlock()
+
+	cfg, err := awslib.LoadConfig(ctx, region)
+	if err != nil {
+		return nil, "", err
+	}
+	client := kms.NewFromConfig(cfg)
+	usedRegion := strings.TrimSpace(cfg.Region)
+	t.kmsMu.Lock()
+	t.kmsClients[cacheKey] = kmsClientEntry{client: client, region: usedRegion}
+	t.kmsMu.Unlock()
+	return client, usedRegion, nil
+}
+
+func (t *Toolset) stsClient(ctx context.Context, region string) (*sts.Client, string, error) {
+	cacheKey := t.clientCacheKey(region)
+	t.stsMu.Lock()
+	if entry, ok := t.stsClients[cacheKey]; ok {
+		t.stsMu.Unlock()
+		return entry.client, entry.region, nil
+	}
+	t.stsMu.Unlock()
+
+	cfg, err := awslib.LoadConfig(ctx, region)
+	if err != nil {
+		return nil, "", err
+	}
+	client := sts.NewFromConfig(cfg)
+	usedRegion := strings.TrimSpace(cfg.Region)
+	t.stsMu.Lock()
+	t.stsClients[cacheKey] = stsClientEntry{client: client, region: usedRegion}
+	t.stsMu.Unlock()
 	return client, usedRegion, nil
 }
 

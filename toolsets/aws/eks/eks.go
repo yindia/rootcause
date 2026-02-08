@@ -11,8 +11,13 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/autoscaling"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
+	"github.com/aws/aws-sdk-go-v2/service/ecr"
+	ecrtypes "github.com/aws/aws-sdk-go-v2/service/ecr/types"
 	"github.com/aws/aws-sdk-go-v2/service/eks"
 	ekstypes "github.com/aws/aws-sdk-go-v2/service/eks/types"
+	"github.com/aws/aws-sdk-go-v2/service/kms"
+	kmstypes "github.com/aws/aws-sdk-go-v2/service/kms/types"
+	"github.com/aws/aws-sdk-go-v2/service/sts"
 
 	"rootcause/internal/mcp"
 )
@@ -22,6 +27,9 @@ type Service struct {
 	eksClient func(context.Context, string) (*eks.Client, string, error)
 	ec2Client func(context.Context, string) (*ec2.Client, string, error)
 	asgClient func(context.Context, string) (*autoscaling.Client, string, error)
+	ecrClient func(context.Context, string) (*ecr.Client, string, error)
+	kmsClient func(context.Context, string) (*kms.Client, string, error)
+	stsClient func(context.Context, string) (*sts.Client, string, error)
 	toolsetID string
 }
 
@@ -31,12 +39,18 @@ func ToolSpecs(
 	eksClient func(context.Context, string) (*eks.Client, string, error),
 	ec2Client func(context.Context, string) (*ec2.Client, string, error),
 	asgClient func(context.Context, string) (*autoscaling.Client, string, error),
+	ecrClient func(context.Context, string) (*ecr.Client, string, error),
+	kmsClient func(context.Context, string) (*kms.Client, string, error),
+	stsClient func(context.Context, string) (*sts.Client, string, error),
 ) []mcp.ToolSpec {
 	svc := &Service{
 		ctx:       ctx,
 		eksClient: eksClient,
 		ec2Client: ec2Client,
 		asgClient: asgClient,
+		ecrClient: ecrClient,
+		kmsClient: kmsClient,
+		stsClient: stsClient,
 		toolsetID: toolsetID,
 	}
 	return []mcp.ToolSpec{
@@ -53,6 +67,7 @@ func ToolSpecs(
 		{Name: "aws.eks.list_updates", Description: "List EKS updates for a cluster or nodegroup.", ToolsetID: toolsetID, InputSchema: schemaEKSListUpdates(), Safety: mcp.SafetyReadOnly, Handler: svc.handleListUpdates},
 		{Name: "aws.eks.get_update", Description: "Get an EKS update by id.", ToolsetID: toolsetID, InputSchema: schemaEKSGetUpdate(), Safety: mcp.SafetyReadOnly, Handler: svc.handleGetUpdate},
 		{Name: "aws.eks.list_nodes", Description: "List EC2 instances backing EKS nodegroups.", ToolsetID: toolsetID, InputSchema: schemaEKSListNodes(), Safety: mcp.SafetyReadOnly, Handler: svc.handleListNodes},
+		{Name: "aws.eks.debug", Description: "Debug an EKS cluster with optional STS/KMS/ECR checks.", ToolsetID: toolsetID, InputSchema: schemaEKSDebug(), Safety: mcp.SafetyReadOnly, Handler: svc.handleDebug},
 	}
 }
 
@@ -87,6 +102,165 @@ func (s *Service) handleListClusters(ctx context.Context, req mcp.ToolRequest) (
 		"region":   regionOrDefault(usedRegion),
 		"clusters": clusters,
 		"count":    len(clusters),
+	}
+	return mcp.ToolResult{Data: s.ctx.Redactor.RedactValue(data)}, nil
+}
+
+func (s *Service) handleDebug(ctx context.Context, req mcp.ToolRequest) (mcp.ToolResult, error) {
+	clusterName := strings.TrimSpace(toString(req.Arguments["clusterName"]))
+	if clusterName == "" {
+		return errorResult(errors.New("clusterName is required")), errors.New("clusterName is required")
+	}
+	region := toString(req.Arguments["region"])
+	includeSts := true
+	if val, ok := req.Arguments["includeSts"].(bool); ok {
+		includeSts = val
+	}
+	includeKms := true
+	if val, ok := req.Arguments["includeKms"].(bool); ok {
+		includeKms = val
+	}
+	includeEcr := false
+	if val, ok := req.Arguments["includeEcr"].(bool); ok {
+		includeEcr = val
+	}
+	repoName := strings.TrimSpace(toString(req.Arguments["repositoryName"]))
+	if repoName != "" {
+		includeEcr = true
+	}
+	imageLimit := toInt(req.Arguments["imageLimit"], 50)
+	imageTags := toStringSlice(req.Arguments["imageTags"])
+	imageDigests := toStringSlice(req.Arguments["imageDigests"])
+
+	client, usedRegion, err := s.eksClient(ctx, region)
+	if err != nil {
+		return errorResult(err), err
+	}
+	out, err := client.DescribeCluster(ctx, &eks.DescribeClusterInput{Name: aws.String(clusterName)})
+	if err != nil {
+		return errorResult(err), err
+	}
+
+	diagnostics := map[string]any{}
+	var warnings []string
+
+	if includeSts {
+		if s.stsClient == nil {
+			warnings = append(warnings, "sts client not configured")
+		} else {
+			stsClient, _, err := s.stsClient(ctx, usedRegion)
+			if err != nil {
+				warnings = append(warnings, err.Error())
+			} else {
+				identity, err := stsClient.GetCallerIdentity(ctx, &sts.GetCallerIdentityInput{})
+				if err != nil {
+					warnings = append(warnings, err.Error())
+				} else {
+					diagnostics["sts"] = map[string]any{
+						"arn":     aws.ToString(identity.Arn),
+						"account": aws.ToString(identity.Account),
+						"userId":  aws.ToString(identity.UserId),
+					}
+				}
+			}
+		}
+	}
+
+	if includeKms {
+		keys := []map[string]any{}
+		if out.Cluster != nil {
+			for _, enc := range out.Cluster.EncryptionConfig {
+				if enc.Provider == nil || strings.TrimSpace(aws.ToString(enc.Provider.KeyArn)) == "" {
+					continue
+				}
+				keyArn := aws.ToString(enc.Provider.KeyArn)
+				if s.kmsClient == nil {
+					warnings = append(warnings, "kms client not configured")
+					break
+				}
+				kmsClient, _, err := s.kmsClient(ctx, usedRegion)
+				if err != nil {
+					warnings = append(warnings, err.Error())
+					break
+				}
+				desc, err := kmsClient.DescribeKey(ctx, &kms.DescribeKeyInput{KeyId: aws.String(keyArn)})
+				if err != nil {
+					warnings = append(warnings, err.Error())
+					continue
+				}
+				keys = append(keys, summarizeKMSKey(desc.KeyMetadata))
+			}
+		}
+		diagnostics["kmsKeys"] = keys
+	}
+
+	if includeEcr {
+		if s.ecrClient == nil {
+			warnings = append(warnings, "ecr client not configured")
+		} else {
+			ecrClient, _, err := s.ecrClient(ctx, usedRegion)
+			if err != nil {
+				warnings = append(warnings, err.Error())
+			} else {
+				registry, err := ecrClient.DescribeRegistry(ctx, &ecr.DescribeRegistryInput{})
+				if err != nil {
+					warnings = append(warnings, err.Error())
+				} else {
+					diagnostics["ecrRegistry"] = map[string]any{
+						"registryId": aws.ToString(registry.RegistryId),
+					}
+				}
+				if repoName != "" {
+					repoOut, err := ecrClient.DescribeRepositories(ctx, &ecr.DescribeRepositoriesInput{
+						RepositoryNames: []string{repoName},
+					})
+					if err != nil {
+						warnings = append(warnings, err.Error())
+					} else if len(repoOut.Repositories) > 0 {
+						diagnostics["ecrRepository"] = summarizeECRRepository(repoOut.Repositories[0])
+					}
+					if len(imageTags) > 0 || len(imageDigests) > 0 {
+						imageOut, err := ecrClient.DescribeImages(ctx, &ecr.DescribeImagesInput{
+							RepositoryName: aws.String(repoName),
+							ImageIds:       toECRImageIdentifiers(imageTags, imageDigests),
+							MaxResults:     aws.Int32(int32(imageLimit)),
+						})
+						if err != nil {
+							warnings = append(warnings, err.Error())
+						} else {
+							images := make([]map[string]any, 0, len(imageOut.ImageDetails))
+							for _, detail := range imageOut.ImageDetails {
+								images = append(images, summarizeECRImageDetail(detail))
+							}
+							diagnostics["ecrImages"] = images
+						}
+					} else {
+						imageOut, err := ecrClient.ListImages(ctx, &ecr.ListImagesInput{
+							RepositoryName: aws.String(repoName),
+							MaxResults:     aws.Int32(int32(imageLimit)),
+						})
+						if err != nil {
+							warnings = append(warnings, err.Error())
+						} else {
+							images := make([]map[string]any, 0, len(imageOut.ImageIds))
+							for _, img := range imageOut.ImageIds {
+								images = append(images, summarizeECRImageID(img))
+							}
+							diagnostics["ecrImages"] = images
+						}
+					}
+				}
+			}
+		}
+	}
+
+	data := map[string]any{
+		"region":      regionOrDefault(usedRegion),
+		"cluster":     summarizeCluster(*out.Cluster),
+		"diagnostics": diagnostics,
+	}
+	if len(warnings) > 0 {
+		data["warnings"] = warnings
 	}
 	return mcp.ToolResult{Data: s.ctx.Redactor.RedactValue(data)}, nil
 }
@@ -716,6 +890,74 @@ func summarizeInstance(inst ec2types.Instance, nodegroup string) map[string]any 
 		"launchTime":       inst.LaunchTime,
 		"tags":             tagMap(inst.Tags),
 	}
+}
+
+func summarizeKMSKey(meta *kmstypes.KeyMetadata) map[string]any {
+	if meta == nil {
+		return nil
+	}
+	return map[string]any{
+		"keyId":        aws.ToString(meta.KeyId),
+		"arn":          aws.ToString(meta.Arn),
+		"accountId":    aws.ToString(meta.AWSAccountId),
+		"description":  aws.ToString(meta.Description),
+		"keyState":     string(meta.KeyState),
+		"keyUsage":     string(meta.KeyUsage),
+		"origin":       string(meta.Origin),
+		"multiRegion":  meta.MultiRegion,
+		"creationDate": aws.ToTime(meta.CreationDate),
+		"enabled":      meta.Enabled,
+	}
+}
+
+func summarizeECRRepository(repo ecrtypes.Repository) map[string]any {
+	out := map[string]any{
+		"repositoryName": aws.ToString(repo.RepositoryName),
+		"repositoryArn":  aws.ToString(repo.RepositoryArn),
+		"registryId":     aws.ToString(repo.RegistryId),
+		"repositoryUri":  aws.ToString(repo.RepositoryUri),
+		"createdAt":      aws.ToTime(repo.CreatedAt),
+	}
+	if repo.ImageTagMutability != "" {
+		out["imageTagMutability"] = string(repo.ImageTagMutability)
+	}
+	if repo.ImageScanningConfiguration != nil {
+		out["scanOnPush"] = repo.ImageScanningConfiguration.ScanOnPush
+	}
+	return out
+}
+
+func summarizeECRImageID(id ecrtypes.ImageIdentifier) map[string]any {
+	return map[string]any{
+		"imageDigest": aws.ToString(id.ImageDigest),
+		"imageTag":    aws.ToString(id.ImageTag),
+	}
+}
+
+func summarizeECRImageDetail(detail ecrtypes.ImageDetail) map[string]any {
+	return map[string]any{
+		"imageDigest":      aws.ToString(detail.ImageDigest),
+		"imageTags":        detail.ImageTags,
+		"imagePushedAt":    aws.ToTime(detail.ImagePushedAt),
+		"imageSizeInBytes": detail.ImageSizeInBytes,
+	}
+}
+
+func toECRImageIdentifiers(tags []string, digests []string) []ecrtypes.ImageIdentifier {
+	ids := make([]ecrtypes.ImageIdentifier, 0, len(tags)+len(digests))
+	for _, tag := range tags {
+		if strings.TrimSpace(tag) == "" {
+			continue
+		}
+		ids = append(ids, ecrtypes.ImageIdentifier{ImageTag: aws.String(tag)})
+	}
+	for _, digest := range digests {
+		if strings.TrimSpace(digest) == "" {
+			continue
+		}
+		ids = append(ids, ecrtypes.ImageIdentifier{ImageDigest: aws.String(digest)})
+	}
+	return ids
 }
 
 func tagMap(tags []ec2types.Tag) map[string]string {

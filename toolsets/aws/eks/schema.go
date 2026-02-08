@@ -156,3 +156,21 @@ func schemaEKSListNodes() map[string]any {
 		"required": []string{"clusterName"},
 	}
 }
+
+func schemaEKSDebug() map[string]any {
+	return map[string]any{
+		"type": "object",
+		"properties": map[string]any{
+			"clusterName":    map[string]any{"type": "string"},
+			"includeSts":     map[string]any{"type": "boolean"},
+			"includeKms":     map[string]any{"type": "boolean"},
+			"includeEcr":     map[string]any{"type": "boolean"},
+			"repositoryName": map[string]any{"type": "string"},
+			"imageTags":      map[string]any{"type": "array", "items": map[string]any{"type": "string"}},
+			"imageDigests":   map[string]any{"type": "array", "items": map[string]any{"type": "string"}},
+			"imageLimit":     map[string]any{"type": "number"},
+			"region":         map[string]any{"type": "string"},
+		},
+		"required": []string{"clusterName"},
+	}
+}

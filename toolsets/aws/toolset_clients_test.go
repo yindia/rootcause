@@ -50,6 +50,18 @@ func TestToolsetClientCaching(t *testing.T) {
 	if err != nil {
 		t.Fatalf("eks client: %v", err)
 	}
+	_, _, err = toolset.ecrClient(context.Background(), "")
+	if err != nil {
+		t.Fatalf("ecr client: %v", err)
+	}
+	_, _, err = toolset.kmsClient(context.Background(), "")
+	if err != nil {
+		t.Fatalf("kms client: %v", err)
+	}
+	_, _, err = toolset.stsClient(context.Background(), "")
+	if err != nil {
+		t.Fatalf("sts client: %v", err)
+	}
 
 	ecOther, _, err := toolset.ec2Client(context.Background(), "us-east-1")
 	if err != nil || ecOther == nil {

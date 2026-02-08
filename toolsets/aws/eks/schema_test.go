@@ -21,6 +21,7 @@ func TestEKSSchemas(t *testing.T) {
 		schemaEKSListUpdates(),
 		schemaEKSGetUpdate(),
 		schemaEKSListNodes(),
+		schemaEKSDebug(),
 	}
 	for i, schema := range schemas {
 		if schema == nil || schema["type"] == "" {
@@ -30,7 +31,7 @@ func TestEKSSchemas(t *testing.T) {
 }
 
 func TestEKSToolSpecs(t *testing.T) {
-	specs := ToolSpecs(mcp.ToolsetContext{}, "aws", nil, nil, nil)
+	specs := ToolSpecs(mcp.ToolsetContext{}, "aws", nil, nil, nil, nil, nil, nil)
 	if len(specs) == 0 {
 		t.Fatalf("expected eks tool specs")
 	}
