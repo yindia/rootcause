@@ -57,7 +57,7 @@ func (t *Toolset) handleDebugPlan(_ context.Context, req mcp.ToolRequest) (mcp.T
 			continue
 		}
 		summary[key]++
-		if hasReplace(actions) {
+		if hasReplace(actions) && key != "replace" {
 			summary["replace"]++
 		}
 		if hasTrue(changeObj["after_unknown"]) {
