@@ -10,7 +10,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"rootcause/internal/kube"
 	"rootcause/internal/mcp"
 	"rootcause/internal/render"
 )
@@ -85,8 +84,8 @@ func (t *Toolset) addImagePullEvidence(ctx context.Context, req mcp.ToolRequest,
 	if t.ctx.Clients != nil && t.ctx.Clients.Typed != nil {
 		if sa, err := t.ctx.Clients.Typed.CoreV1().ServiceAccounts(pod.Namespace).Get(ctx, saName, metav1.GetOptions{}); err == nil {
 			analysis.AddEvidence(fmt.Sprintf("imagePullSecrets.%s", pod.Name), map[string]any{
-				"pod":               pod.Spec.ImagePullSecrets,
-				"serviceAccount":    sa.ImagePullSecrets,
+				"pod":                pod.Spec.ImagePullSecrets,
+				"serviceAccount":     sa.ImagePullSecrets,
 				"serviceAccountName": sa.Name,
 			})
 		}
@@ -96,7 +95,7 @@ func (t *Toolset) addImagePullEvidence(ctx context.Context, req mcp.ToolRequest,
 	if len(refs) == 0 {
 		return
 	}
-	analysis.AddEvidence(fmt.Sprintf("imageRefs.%s", pod.Name), refs)
+	analysis.AddEvidence(fmt.Sprintf("imageRefs.%s", pod.Name), mapImageRefs(refs))
 
 	if !isAWSCloud(cloud.provider) {
 		addCloudHints(analysis, cloud.provider, "image")
@@ -155,12 +154,12 @@ func (t *Toolset) addImagePullEvidence(ctx context.Context, req mcp.ToolRequest,
 	analysis.AddNextCheck("If using IRSA for image pulls, ensure proper imagePullSecrets or credential helper")
 }
 
-func uniqueImageRefs(pod *corev1.Pod) []map[string]any {
+func uniqueImageRefs(pod *corev1.Pod) []imageRef {
 	if pod == nil {
 		return nil
 	}
 	seen := map[string]struct{}{}
-	var refs []map[string]any
+	var refs []imageRef
 	add := func(image string) {
 		image = strings.TrimSpace(image)
 		if image == "" {
@@ -171,13 +170,7 @@ func uniqueImageRefs(pod *corev1.Pod) []map[string]any {
 		}
 		seen[image] = struct{}{}
 		ref := parseImageRef(image)
-		refs = append(refs, map[string]any{
-			"image":      ref.Full,
-			"registry":   ref.Registry,
-			"repository": ref.Repository,
-			"tag":        ref.Tag,
-			"digest":     ref.Digest,
-		})
+		refs = append(refs, ref)
 	}
 	for _, container := range pod.Spec.InitContainers {
 		add(container.Image)
@@ -186,6 +179,23 @@ func uniqueImageRefs(pod *corev1.Pod) []map[string]any {
 		add(container.Image)
 	}
 	return refs
+}
+
+func mapImageRefs(refs []imageRef) []map[string]any {
+	if len(refs) == 0 {
+		return nil
+	}
+	out := make([]map[string]any, 0, len(refs))
+	for _, ref := range refs {
+		out = append(out, map[string]any{
+			"image":      ref.Full,
+			"registry":   ref.Registry,
+			"repository": ref.Repository,
+			"tag":        ref.Tag,
+			"digest":     ref.Digest,
+		})
+	}
+	return out
 }
 
 func parseImageRef(image string) imageRef {

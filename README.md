@@ -195,6 +195,7 @@ Enabled by default:
 - `istio`
 - `helm`
 - `aws`
+- `terraform`
 
 Optional toolchains return “not detected” when the control plane is absent. Additional toolchains can be registered via the plugin SDK; see `PLUGINS.md`.
 

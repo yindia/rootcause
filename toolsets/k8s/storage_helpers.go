@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"strings"
 
-	corev1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -39,7 +38,7 @@ func (t *Toolset) addCSIDriverEvidence(ctx context.Context, analysis *render.Ana
 		if driver.Name == driverName {
 			found = true
 			analysis.AddEvidence("csiDriver", map[string]any{
-				"name":   driver.Name,
+				"name":           driver.Name,
 				"attachRequired": driver.Spec.AttachRequired,
 				"podInfoOnMount": driver.Spec.PodInfoOnMount,
 			})
@@ -61,10 +60,10 @@ func (t *Toolset) addCSIDriverEvidence(ctx context.Context, analysis *render.Ana
 			continue
 		}
 		driverPods = append(driverPods, map[string]any{
-			"name":      pod.Name,
-			"phase":     pod.Status.Phase,
-			"node":      pod.Spec.NodeName,
-			"ready":     isPodReady(&pod),
+			"name":       pod.Name,
+			"phase":      pod.Status.Phase,
+			"node":       pod.Spec.NodeName,
+			"ready":      isPodReady(&pod),
 			"containers": len(pod.Spec.Containers),
 		})
 	}

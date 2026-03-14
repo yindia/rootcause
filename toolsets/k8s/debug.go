@@ -79,7 +79,6 @@ func (t *Toolset) handleCrashloopDebug(ctx context.Context, req mcp.ToolRequest)
 	analysis := render.NewAnalysis()
 	cloud := detectCloud(t.ctx.Clients)
 	addCloudEvidence(&analysis, cloud)
-	var pendingPods []corev1.Pod
 	for _, pod := range list.Items {
 		if !hasCrashLoop(&pod) {
 			continue
@@ -114,6 +113,7 @@ func (t *Toolset) handleSchedulingDebug(ctx context.Context, req mcp.ToolRequest
 	resourceQuotas, quotaErr := t.ctx.Clients.Typed.CoreV1().ResourceQuotas(namespace).List(ctx, metav1.ListOptions{})
 	limitRanges, limitErr := t.ctx.Clients.Typed.CoreV1().LimitRanges(namespace).List(ctx, metav1.ListOptions{})
 	priorityClasses, priorityErr := t.ctx.Clients.Typed.SchedulingV1().PriorityClasses().List(ctx, metav1.ListOptions{})
+	var pendingPods []corev1.Pod
 	analysis := render.NewAnalysis()
 	cloud := detectCloud(t.ctx.Clients)
 	addCloudEvidence(&analysis, cloud)

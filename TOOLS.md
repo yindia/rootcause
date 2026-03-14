@@ -116,6 +116,13 @@ Use `k8s.debug_flow` to run a guided flow that builds `k8s.graph` and walks the 
 - `aws.kms.list_keys`, `aws.kms.list_aliases`
 - `aws.kms.describe_key`, `aws.kms.get_key_policy`
 
+### Terraform (`terraform.*`)
+- `terraform.debug_plan`
+- `terraform.list_modules`, `terraform.get_module`, `terraform.search_modules`
+- `terraform.list_providers`, `terraform.get_provider`, `terraform.search_providers`
+- `terraform.list_resources`, `terraform.get_resource`, `terraform.search_resources`
+- `terraform.list_data_sources`, `terraform.get_data_source`, `terraform.search_data_sources`
+
 ---
 
 ## Safety Allowlist (allow_destructive_tools)
