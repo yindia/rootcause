@@ -30,6 +30,8 @@ func (t *Toolset) handleStorageDebug(ctx context.Context, req mcp.ToolRequest) (
 	}
 
 	analysis := render.NewAnalysis()
+	cloud := detectCloud(t.ctx.Clients)
+	addCloudEvidence(&analysis, cloud)
 	var pvcNames []string
 	if podName != "" {
 		pod, err := t.ctx.Clients.Typed.CoreV1().Pods(namespace).Get(ctx, podName, metav1.GetOptions{})
@@ -60,7 +62,7 @@ func (t *Toolset) handleStorageDebug(ctx context.Context, req mcp.ToolRequest) (
 	}
 
 	for _, name := range pvcNames {
-		if err := t.analyzePVC(ctx, req.User, &analysis, namespace, name, includeEvents); err != nil {
+		if err := t.analyzePVC(ctx, req.User, &analysis, namespace, name, includeEvents, cloud); err != nil {
 			return errorResult(err), err
 		}
 	}
@@ -69,7 +71,7 @@ func (t *Toolset) handleStorageDebug(ctx context.Context, req mcp.ToolRequest) (
 	return mcp.ToolResult{Data: t.ctx.Renderer.Render(analysis), Metadata: mcp.ToolMetadata{Namespaces: []string{namespace}}}, nil
 }
 
-func (t *Toolset) analyzePVC(ctx context.Context, user policy.User, analysis *render.Analysis, namespace, pvcName string, includeEvents bool) error {
+func (t *Toolset) analyzePVC(ctx context.Context, user policy.User, analysis *render.Analysis, namespace, pvcName string, includeEvents bool, cloud cloudInfo) error {
 	pvc, err := t.ctx.Clients.Typed.CoreV1().PersistentVolumeClaims(namespace).Get(ctx, pvcName, metav1.GetOptions{})
 	if err != nil {
 		if apierrors.IsNotFound(err) {
@@ -176,6 +178,15 @@ func (t *Toolset) analyzePVC(ctx context.Context, user policy.User, analysis *re
 	pods := podsUsingPVC(ctx, t, namespace, pvc.Name)
 	if len(pods) > 0 {
 		analysis.AddEvidence(fmt.Sprintf("podsUsingPVC %s", pvc.Name), pods)
+	}
+	if len(pods) == 0 && pvc.Status.Phase == corev1.ClaimPending && storageClass != "" && user.Role == policy.RoleCluster {
+		sc, err := t.ctx.Clients.Typed.StorageV1().StorageClasses().Get(ctx, storageClass, metav1.GetOptions{})
+		if err == nil && sc.VolumeBindingMode != nil && *sc.VolumeBindingMode == storagev1.VolumeBindingWaitForFirstConsumer {
+			analysis.AddCause("PVC waiting for first consumer", fmt.Sprintf("PVC %s waits for a scheduled pod", pvc.Name), "medium")
+		}
+	}
+	if user.Role == policy.RoleCluster && storageClass != "" {
+		t.addCSIDriverEvidence(ctx, analysis, storageClass, cloud)
 	}
 	return nil
 }

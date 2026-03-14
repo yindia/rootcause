@@ -77,6 +77,9 @@ func (t *Toolset) handleCrashloopDebug(ctx context.Context, req mcp.ToolRequest)
 		return errorResult(err), err
 	}
 	analysis := render.NewAnalysis()
+	cloud := detectCloud(t.ctx.Clients)
+	addCloudEvidence(&analysis, cloud)
+	var pendingPods []corev1.Pod
 	for _, pod := range list.Items {
 		if !hasCrashLoop(&pod) {
 			continue
@@ -84,6 +87,9 @@ func (t *Toolset) handleCrashloopDebug(ctx context.Context, req mcp.ToolRequest)
 		analysis.AddCause("CrashLoopBackOff", fmt.Sprintf("Pod %s is crash looping", pod.Name), "high")
 		analysis.AddEvidence(pod.Name, t.ctx.Evidence.PodStatusSummary(&pod))
 		analysis.AddResource(fmt.Sprintf("pods/%s/%s", namespace, pod.Name))
+		if hasImagePullIssue(&pod) {
+			t.addImagePullEvidence(ctx, req, &analysis, &pod, cloud)
+		}
 	}
 	if len(analysis.LikelyRootCauses) == 0 {
 		analysis.AddEvidence("status", "no crash loop pods found")
@@ -109,6 +115,8 @@ func (t *Toolset) handleSchedulingDebug(ctx context.Context, req mcp.ToolRequest
 	limitRanges, limitErr := t.ctx.Clients.Typed.CoreV1().LimitRanges(namespace).List(ctx, metav1.ListOptions{})
 	priorityClasses, priorityErr := t.ctx.Clients.Typed.SchedulingV1().PriorityClasses().List(ctx, metav1.ListOptions{})
 	analysis := render.NewAnalysis()
+	cloud := detectCloud(t.ctx.Clients)
+	addCloudEvidence(&analysis, cloud)
 	if quotaErr != nil {
 		analysis.AddEvidence("resourceQuotaError", quotaErr.Error())
 	} else if len(resourceQuotas.Items) > 0 {
@@ -128,6 +136,7 @@ func (t *Toolset) handleSchedulingDebug(ctx context.Context, req mcp.ToolRequest
 		if pod.Status.Phase != corev1.PodPending {
 			continue
 		}
+		pendingPods = append(pendingPods, pod)
 		reason, message := pendingReason(&pod)
 		podEvidence := map[string]any{"reason": reason, "message": message}
 		if pod.Spec.PriorityClassName != "" {
@@ -165,6 +174,18 @@ func (t *Toolset) handleSchedulingDebug(ctx context.Context, req mcp.ToolRequest
 	analysis.AddNextCheck("Check node capacity and taints")
 	if priorityErr != nil {
 		analysis.AddEvidence("priorityClassError", priorityErr.Error())
+	}
+	if req.User.Role == policy.RoleCluster {
+		utilization, utilWarn := t.nodeUtilizationEvidence(ctx)
+		if utilWarn != "" {
+			analysis.AddEvidence("nodeUtilizationWarning", utilWarn)
+		} else if len(utilization) > 0 {
+			analysis.AddEvidence("nodeUtilization", utilization)
+			if len(pendingPods) > 0 && nodesOverutilized(utilization, 0.9) {
+				analysis.AddCause("Node capacity pressure", "Requested resources near allocatable on one or more nodes", "medium")
+				analysis.AddNextCheck("Scale node group or reduce pod requests/limits")
+			}
+		}
 	}
 	return mcp.ToolResult{Data: t.ctx.Renderer.Render(analysis), Metadata: mcp.ToolMetadata{Namespaces: []string{namespace}}}, nil
 }
@@ -212,6 +233,7 @@ func (t *Toolset) handleHPADebug(ctx context.Context, req mcp.ToolRequest) (mcp.
 func (t *Toolset) handleNetworkDebug(ctx context.Context, req mcp.ToolRequest) (mcp.ToolResult, error) {
 	namespace := toString(req.Arguments["namespace"])
 	serviceName := toString(req.Arguments["service"])
+	awsRegion := toString(req.Arguments["awsRegion"])
 	if namespace == "" || serviceName == "" {
 		return errorResult(errors.New("namespace and service are required")), errors.New("namespace and service are required")
 	}
@@ -223,6 +245,8 @@ func (t *Toolset) handleNetworkDebug(ctx context.Context, req mcp.ToolRequest) (
 		return errorResult(err), err
 	}
 	analysis := render.NewAnalysis()
+	cloud := detectCloud(t.ctx.Clients)
+	addCloudEvidence(&analysis, cloud)
 	analysis.AddResource(fmt.Sprintf("services/%s/%s", namespace, serviceName))
 	selector := labels.Set(service.Spec.Selector).AsSelector()
 	pods, err := t.ctx.Evidence.RelatedPods(ctx, namespace, selector)
@@ -277,6 +301,31 @@ func (t *Toolset) handleNetworkDebug(ctx context.Context, req mcp.ToolRequest) (
 		analysis.AddNextCheck("Review NetworkPolicy selectors and allow rules for service pods")
 	}
 	analysis.AddNextCheck("Check service selectors and pod readiness")
+
+	ingresses := ingressesForService(ctx, t, namespace, serviceName)
+	if len(ingresses) > 0 {
+		analysis.AddEvidence("ingresses", ingresses)
+	}
+
+	if !isAWSCloud(cloud.provider) {
+		addCloudHints(&analysis, cloud.provider, "network")
+		return mcp.ToolResult{Data: t.ctx.Renderer.Render(analysis), Metadata: mcp.ToolMetadata{Namespaces: []string{namespace}}}, nil
+	}
+
+	if t.ctx.Registry != nil {
+		if _, ok := t.ctx.Registry.Get("aws.ec2.list_load_balancers"); ok {
+			lbEvidence, lbWarnings := t.awsLoadBalancerEvidence(ctx, req, service, ingresses, awsRegion)
+			if len(lbEvidence) > 0 {
+				analysis.AddEvidence("loadBalancers", lbEvidence)
+			}
+			for _, warn := range lbWarnings {
+				analysis.AddEvidence("loadBalancerWarning", warn)
+			}
+		} else {
+			analysis.AddEvidence("loadBalancers", "aws toolset not enabled")
+		}
+	}
+
 	return mcp.ToolResult{Data: t.ctx.Renderer.Render(analysis), Metadata: mcp.ToolMetadata{Namespaces: []string{namespace}}}, nil
 }
 

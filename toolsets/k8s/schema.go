@@ -310,6 +310,7 @@ func schemaDiagnose() map[string]any {
 		"properties": map[string]any{
 			"keyword":   map[string]any{"type": "string"},
 			"namespace": map[string]any{"type": "string"},
+			"autoFlow":  map[string]any{"type": "boolean"},
 		},
 		"required": []string{"keyword"},
 	}
@@ -417,6 +418,7 @@ func schemaNetworkDebug() map[string]any {
 		"properties": map[string]any{
 			"namespace": map[string]any{"type": "string"},
 			"service":   map[string]any{"type": "string"},
+			"awsRegion": map[string]any{"type": "string"},
 		},
 		"required": []string{"namespace", "service"},
 	}

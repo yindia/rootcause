@@ -35,6 +35,8 @@ func (t *Toolset) handlePermissionDebug(ctx context.Context, req mcp.ToolRequest
 	}
 
 	analysis := render.NewAnalysis()
+	cloud := detectCloud(t.ctx.Clients)
+	addCloudEvidence(&analysis, cloud)
 	var pod *corev1.Pod
 	if podName != "" {
 		obj, err := t.ctx.Clients.Typed.CoreV1().Pods(namespace).Get(ctx, podName, metav1.GetOptions{})
@@ -123,6 +125,9 @@ func (t *Toolset) handlePermissionDebug(ctx context.Context, req mcp.ToolRequest
 		analysis.AddNextCheck("Verify IAM policy permissions and trust policy for the IRSA role")
 	}
 	analysis.AddNextCheck("Check pod events/logs for Forbidden or AccessDenied messages")
+	if !isAWSCloud(cloud.provider) {
+		addCloudHints(&analysis, cloud.provider, "auth")
+	}
 
 	return mcp.ToolResult{
 		Data: t.ctx.Renderer.Render(analysis),
@@ -322,9 +327,129 @@ func (t *Toolset) addAWSRoleEvidence(ctx context.Context, req mcp.ToolRequest, a
 	if !assumePolicyMentionsServiceAccount(result.Data, namespace, serviceAccount) {
 		analysis.AddCause("IAM trust policy mismatch", "Assume role policy does not reference the ServiceAccount", "high")
 	}
+	t.addAWSOIDCTrustEvidence(ctx, req, analysis, result.Data, namespace, serviceAccount)
 }
 
 func assumePolicyMentionsServiceAccount(data any, namespace, serviceAccount string) bool {
+	needle := fmt.Sprintf("system:serviceaccount:%s:%s", namespace, serviceAccount)
+	return assumePolicyContains(data, needle)
+}
+
+func (t *Toolset) addAWSOIDCTrustEvidence(ctx context.Context, req mcp.ToolRequest, analysis *render.Analysis, roleData any, namespace, serviceAccount string) {
+	if analysis == nil {
+		return
+	}
+	issuer, clusterName, err := t.findEKSOIDCIssuer(ctx, req)
+	if err != nil {
+		analysis.AddEvidence("eksOidc", err.Error())
+		return
+	}
+	if issuer == "" {
+		analysis.AddEvidence("eksOidc", "issuer not found")
+		return
+	}
+	analysis.AddEvidence("eksOidcIssuer", issuer)
+	if clusterName != "" {
+		analysis.AddEvidence("eksCluster", clusterName)
+	}
+	if !assumePolicyContains(roleData, issuer) {
+		analysis.AddCause("IAM trust policy missing OIDC issuer", "Assume role policy does not reference the cluster OIDC issuer", "high")
+	}
+	subject := fmt.Sprintf("system:serviceaccount:%s:%s", namespace, serviceAccount)
+	if !assumePolicyContains(roleData, subject) {
+		analysis.AddCause("IAM trust policy missing subject", "Assume role policy does not allow the ServiceAccount subject", "high")
+	}
+	if !assumePolicyContains(roleData, "sts.amazonaws.com") {
+		analysis.AddCause("IAM trust policy missing audience", "Assume role policy missing sts.amazonaws.com audience", "medium")
+	}
+}
+
+func (t *Toolset) findEKSOIDCIssuer(ctx context.Context, req mcp.ToolRequest) (string, string, error) {
+	if t.ctx.Registry == nil {
+		return "", "", fmt.Errorf("tool registry unavailable")
+	}
+	if _, ok := t.ctx.Registry.Get("aws.eks.list_clusters"); !ok {
+		return "", "", fmt.Errorf("aws eks toolset not enabled")
+	}
+	if t.ctx.Clients == nil || t.ctx.Clients.RestConfig == nil {
+		return "", "", fmt.Errorf("missing rest config")
+	}
+	cloud := detectCloud(t.ctx.Clients)
+	if cloud.provider != kube.CloudAWS {
+		return "", "", fmt.Errorf("non-aws cluster (%s)", cloud.provider)
+	}
+	host := hostFromURL(t.ctx.Clients.RestConfig.Host)
+	if host == "" {
+		return "", "", fmt.Errorf("missing api server host")
+	}
+
+	listResult, err := t.ctx.CallTool(ctx, req.User, "aws.eks.list_clusters", map[string]any{"limit": 100})
+	if err != nil {
+		return "", "", err
+	}
+	clusters := toStringSliceFromData(listResult.Data, "clusters")
+	for _, name := range clusters {
+		clusterResult, err := t.ctx.CallTool(ctx, req.User, "aws.eks.get_cluster", map[string]any{"name": name})
+		if err != nil {
+			continue
+		}
+		clusterData, ok := clusterResult.Data.(map[string]any)
+		if !ok {
+			continue
+		}
+		cluster, ok := clusterData["cluster"].(map[string]any)
+		if !ok {
+			continue
+		}
+		endpoint := toString(cluster["endpoint"])
+		if endpoint == "" {
+			continue
+		}
+		if hostFromURL(endpoint) != host {
+			continue
+		}
+		issuer := extractOIDCIssuer(cluster["identity"])
+		if issuer != "" {
+			return issuer, name, nil
+		}
+	}
+	return "", "", fmt.Errorf("no matching EKS cluster for host %s", host)
+}
+
+func extractOIDCIssuer(identity any) string {
+	if identity == nil {
+		return ""
+	}
+	if data, ok := identity.(map[string]any); ok {
+		if oidc, ok := data["oidc"]; ok {
+			if oidcMap, ok := oidc.(map[string]any); ok {
+				if issuer := toString(oidcMap["issuer"]); issuer != "" {
+					return issuer
+				}
+			}
+		}
+	}
+	if s, ok := identity.(string); ok && s != "" {
+		return s
+	}
+	blob, err := json.Marshal(identity)
+	if err != nil {
+		return ""
+	}
+	return extractIssuerFromJSON(string(blob))
+}
+
+func extractIssuerFromJSON(raw string) string {
+	matches := issuerRegexp.FindStringSubmatch(raw)
+	if len(matches) > 1 {
+		return matches[1]
+	}
+	return ""
+}
+
+var issuerRegexp = regexp.MustCompile(`"issuer"\s*:\s*"?([^"\\}]+)"?`)
+
+func assumePolicyContains(data any, needle string) bool {
 	if data == nil {
 		return false
 	}
@@ -336,10 +461,30 @@ func assumePolicyMentionsServiceAccount(data any, namespace, serviceAccount stri
 	if !ok {
 		return false
 	}
-	needle := fmt.Sprintf("system:serviceaccount:%s:%s", namespace, serviceAccount)
+	if s, ok := policy.(string); ok {
+		return strings.Contains(s, needle)
+	}
 	blob, err := json.Marshal(policy)
 	if err != nil {
 		return strings.Contains(fmt.Sprintf("%v", policy), needle)
 	}
 	return strings.Contains(string(blob), needle)
+}
+
+func toStringSliceFromData(data any, key string) []string {
+	payload, ok := data.(map[string]any)
+	if !ok {
+		return nil
+	}
+	list, ok := payload[key].([]any)
+	if !ok {
+		return nil
+	}
+	out := make([]string, 0, len(list))
+	for _, item := range list {
+		if s, ok := item.(string); ok && strings.TrimSpace(s) != "" {
+			out = append(out, s)
+		}
+	}
+	return out
 }

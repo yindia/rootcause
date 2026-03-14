@@ -226,7 +226,7 @@ func (t *Toolset) Register(reg mcp.Registry) error {
 		},
 		{
 			Name:        "k8s.diagnose",
-			Description: "Keyword-driven pod troubleshooting with evidence.",
+			Description: "Keyword-driven pod troubleshooting with optional debug-flow chaining.",
 			ToolsetID:   t.ID(),
 			InputSchema: schemaDiagnose(),
 			Safety:      mcp.SafetyReadOnly,
@@ -242,7 +242,7 @@ func (t *Toolset) Register(reg mcp.Registry) error {
 		},
 		{
 			Name:        "k8s.crashloop_debug",
-			Description: "Analyze CrashLoopBackOff pods with events and likely causes.",
+			Description: "Analyze CrashLoopBackOff/ImagePullBackOff pods with image pull evidence.",
 			ToolsetID:   t.ID(),
 			InputSchema: schemaCrashloopDebug(),
 			Safety:      mcp.SafetyReadOnly,
@@ -306,7 +306,7 @@ func (t *Toolset) Register(reg mcp.Registry) error {
 		},
 		{
 			Name:        "k8s.network_debug",
-			Description: "Analyze Service to Pod networking, endpoints, and NetworkPolicy blocks.",
+			Description: "Analyze Service networking, NetworkPolicy blocks, and load balancer health.",
 			ToolsetID:   t.ID(),
 			InputSchema: schemaNetworkDebug(),
 			Safety:      mcp.SafetyReadOnly,

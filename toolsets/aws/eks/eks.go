@@ -67,7 +67,7 @@ func ToolSpecs(
 		{Name: "aws.eks.list_updates", Description: "List EKS updates for a cluster or nodegroup.", ToolsetID: toolsetID, InputSchema: schemaEKSListUpdates(), Safety: mcp.SafetyReadOnly, Handler: svc.handleListUpdates},
 		{Name: "aws.eks.get_update", Description: "Get an EKS update by id.", ToolsetID: toolsetID, InputSchema: schemaEKSGetUpdate(), Safety: mcp.SafetyReadOnly, Handler: svc.handleGetUpdate},
 		{Name: "aws.eks.list_nodes", Description: "List EC2 instances backing EKS nodegroups.", ToolsetID: toolsetID, InputSchema: schemaEKSListNodes(), Safety: mcp.SafetyReadOnly, Handler: svc.handleListNodes},
-		{Name: "aws.eks.debug", Description: "Debug an EKS cluster with optional STS/KMS/ECR checks.", ToolsetID: toolsetID, InputSchema: schemaEKSDebug(), Safety: mcp.SafetyReadOnly, Handler: svc.handleDebug},
+		{Name: "aws.eks.debug", Description: "Debug an EKS cluster with optional STS/KMS/ECR/IAM checks.", ToolsetID: toolsetID, InputSchema: schemaEKSDebug(), Safety: mcp.SafetyReadOnly, Handler: svc.handleDebug},
 	}
 }
 
@@ -112,6 +112,10 @@ func (s *Service) handleDebug(ctx context.Context, req mcp.ToolRequest) (mcp.Too
 		return errorResult(errors.New("clusterName is required")), errors.New("clusterName is required")
 	}
 	region := toString(req.Arguments["region"])
+	serviceAccountNamespace := strings.TrimSpace(toString(req.Arguments["serviceAccountNamespace"]))
+	serviceAccountName := strings.TrimSpace(toString(req.Arguments["serviceAccountName"]))
+	roleArn := strings.TrimSpace(toString(req.Arguments["roleArn"]))
+	roleName := strings.TrimSpace(toString(req.Arguments["roleName"]))
 	includeSts := true
 	if val, ok := req.Arguments["includeSts"].(bool); ok {
 		includeSts = val
@@ -123,6 +127,10 @@ func (s *Service) handleDebug(ctx context.Context, req mcp.ToolRequest) (mcp.Too
 	includeEcr := false
 	if val, ok := req.Arguments["includeEcr"].(bool); ok {
 		includeEcr = val
+	}
+	includeIAM := false
+	if val, ok := req.Arguments["includeIam"].(bool); ok {
+		includeIAM = val
 	}
 	repoName := strings.TrimSpace(toString(req.Arguments["repositoryName"]))
 	if repoName != "" {
@@ -250,6 +258,45 @@ func (s *Service) handleDebug(ctx context.Context, req mcp.ToolRequest) (mcp.Too
 						}
 					}
 				}
+			}
+		}
+	}
+
+	if (includeIAM || roleArn != "" || roleName != "") && s.ctx.Registry != nil {
+		if roleName == "" && roleArn != "" {
+			roleName = roleNameFromARN(roleArn)
+		}
+		if roleName == "" {
+			warnings = append(warnings, "roleName is required for IAM checks")
+		} else if _, ok := s.ctx.Registry.Get("aws.iam.get_role"); !ok {
+			warnings = append(warnings, "aws iam toolset not enabled")
+		} else {
+			issuer := extractOIDCIssuerFromCluster(out.Cluster)
+			if issuer == "" {
+				warnings = append(warnings, "cluster oidc issuer not found")
+			}
+			result, err := s.ctx.CallTool(ctx, req.User, "aws.iam.get_role", map[string]any{
+				"roleName":        roleName,
+				"includePolicies": false,
+				"region":          region,
+			})
+			if err != nil {
+				warnings = append(warnings, fmt.Sprintf("iam role lookup failed: %v", err))
+			} else {
+				iamCheck := map[string]any{
+					"roleName": roleName,
+					"issuer":   issuer,
+				}
+				if serviceAccountNamespace != "" && serviceAccountName != "" {
+					subject := fmt.Sprintf("system:serviceaccount:%s:%s", serviceAccountNamespace, serviceAccountName)
+					iamCheck["subject"] = subject
+					iamCheck["subjectMatch"] = trustPolicyContains(result.Data, subject)
+				}
+				if issuer != "" {
+					iamCheck["issuerMatch"] = trustPolicyContains(result.Data, issuer)
+				}
+				iamCheck["audienceMatch"] = trustPolicyContains(result.Data, "sts.amazonaws.com")
+				diagnostics["iamTrust"] = iamCheck
 			}
 		}
 	}
@@ -1029,4 +1076,55 @@ func regionOrDefault(region string) string {
 		return "us-east-1"
 	}
 	return region
+}
+
+func roleNameFromARN(arn string) string {
+	if arn == "" {
+		return ""
+	}
+	if !strings.Contains(arn, ":role/") {
+		return ""
+	}
+	parts := strings.SplitN(arn, ":role/", 2)
+	if len(parts) != 2 {
+		return ""
+	}
+	name := strings.TrimSpace(parts[1])
+	if name == "" {
+		return ""
+	}
+	if strings.Contains(name, "/") {
+		segments := strings.Split(name, "/")
+		name = segments[len(segments)-1]
+	}
+	return name
+}
+
+func extractOIDCIssuerFromCluster(cluster *ekstypes.Cluster) string {
+	if cluster == nil || cluster.Identity == nil || cluster.Identity.Oidc == nil {
+		return ""
+	}
+	return aws.ToString(cluster.Identity.Oidc.Issuer)
+}
+
+func trustPolicyContains(data any, needle string) bool {
+	if data == nil || needle == "" {
+		return false
+	}
+	payload, ok := data.(map[string]any)
+	if !ok {
+		return false
+	}
+	policy, ok := payload["assumeRolePolicy"]
+	if !ok {
+		return false
+	}
+	if s, ok := policy.(string); ok {
+		return strings.Contains(s, needle)
+	}
+	blob, err := json.Marshal(policy)
+	if err != nil {
+		return strings.Contains(fmt.Sprintf("%v", policy), needle)
+	}
+	return strings.Contains(string(blob), needle)
 }

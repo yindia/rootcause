@@ -19,6 +19,7 @@ func (t *Toolset) handleDiagnose(ctx context.Context, req mcp.ToolRequest) (mcp.
 	args := req.Arguments
 	keyword := strings.TrimSpace(toString(args["keyword"]))
 	namespace := toString(args["namespace"])
+	autoFlow := toBool(args["autoFlow"], false)
 	if keyword == "" {
 		return errorResult(errors.New("keyword is required")), errors.New("keyword is required")
 	}
@@ -37,7 +38,10 @@ func (t *Toolset) handleDiagnose(ctx context.Context, req mcp.ToolRequest) (mcp.
 	}
 
 	analysis := render.NewAnalysis()
+	cloud := detectCloud(t.ctx.Clients)
+	addCloudEvidence(&analysis, cloud)
 	matchCount := 0
+	flowResults := []map[string]any{}
 	for _, ns := range namespaces {
 		pods, err := t.ctx.Clients.Typed.CoreV1().Pods(ns).List(ctx, metav1.ListOptions{})
 		if err != nil {
@@ -65,6 +69,22 @@ func (t *Toolset) handleDiagnose(ctx context.Context, req mcp.ToolRequest) (mcp.
 					analysis.AddEvidence(fmt.Sprintf("%s/%s events", ns, pod.Name), events)
 				}
 			}
+			if autoFlow && len(flowResults) < 3 {
+				if scenario := scenarioForPod(&pod); scenario != "" {
+					if flow, err := t.ctx.CallTool(ctx, req.User, "k8s.debug_flow", map[string]any{
+						"namespace": ns,
+						"kind":      "Pod",
+						"name":      pod.Name,
+						"scenario":  scenario,
+					}); err == nil {
+						flowResults = append(flowResults, map[string]any{
+							"scenario": scenario,
+							"target":   fmt.Sprintf("%s/%s", ns, pod.Name),
+							"result":   flow.Data,
+						})
+					}
+				}
+			}
 			if matchCount >= 10 {
 				break
 			}
@@ -78,8 +98,69 @@ func (t *Toolset) handleDiagnose(ctx context.Context, req mcp.ToolRequest) (mcp.
 		analysis.AddEvidence("status", "no matching pods found")
 		analysis.AddNextCheck("Verify namespace and keyword")
 	}
+	if autoFlow && len(flowResults) == 0 && keywordLooksLikeTraffic(keyword) {
+		flowResults = append(flowResults, t.autoTrafficFlows(ctx, req, namespaces, keyword)...)
+	}
+	if len(flowResults) > 0 {
+		analysis.AddEvidence("debugFlows", flowResults)
+	}
 
 	return mcp.ToolResult{Data: t.ctx.Renderer.Render(analysis), Metadata: mcp.ToolMetadata{Namespaces: sliceIf(namespace)}}, nil
+}
+
+func scenarioForPod(pod *corev1.Pod) string {
+	if pod == nil {
+		return ""
+	}
+	if hasCrashLoop(pod) {
+		if hasImagePullIssue(pod) {
+			return "crashloop"
+		}
+		return "crashloop"
+	}
+	reason, _ := pendingReason(pod)
+	if pod.Status.Phase == corev1.PodPending && reason == "Unschedulable" {
+		return "pending"
+	}
+	return ""
+}
+
+func keywordLooksLikeTraffic(keyword string) bool {
+	keyword = strings.ToLower(keyword)
+	return strings.Contains(keyword, "5xx") || strings.Contains(keyword, "timeout") || strings.Contains(keyword, "gateway") || strings.Contains(keyword, "connection")
+}
+
+func (t *Toolset) autoTrafficFlows(ctx context.Context, req mcp.ToolRequest, namespaces []string, keyword string) []map[string]any {
+	var flows []map[string]any
+	for _, ns := range namespaces {
+		services, err := t.ctx.Clients.Typed.CoreV1().Services(ns).List(ctx, metav1.ListOptions{})
+		if err != nil {
+			continue
+		}
+		for _, svc := range services.Items {
+			if !strings.Contains(svc.Name, keyword) {
+				continue
+			}
+			flow, err := t.ctx.CallTool(ctx, req.User, "k8s.debug_flow", map[string]any{
+				"namespace": ns,
+				"kind":      "Service",
+				"name":      svc.Name,
+				"scenario":  "traffic",
+			})
+			if err != nil {
+				continue
+			}
+			flows = append(flows, map[string]any{
+				"scenario": "traffic",
+				"target":   fmt.Sprintf("%s/%s", ns, svc.Name),
+				"result":   flow.Data,
+			})
+			if len(flows) >= 2 {
+				return flows
+			}
+		}
+	}
+	return flows
 }
 
 func podMatchesKeyword(pod *corev1.Pod, keyword string) bool {

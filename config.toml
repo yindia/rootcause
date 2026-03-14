@@ -4,8 +4,28 @@ disable_destructive = true
 log_level = "info"
 
 [safety]
-allow_destructive_tools = ["k8s.delete"]
+allow_destructive_tools = [
+  "k8s.delete",  
+  "helm.install",
+  "helm.upgrade",
+  "helm.uninstall"
+]
 
 [exec_readonly]
 enabled = false
 allowed_commands = ["cat", "ls", "env", "printenv", "curl", "kubectl"]
+
+[timeouts]
+default_seconds = 60
+max_seconds = 900
+
+[timeouts.per_tool]
+"k8s.port_forward" = 600
+"helm.install" = 300
+"helm.upgrade" = 300
+"helm.uninstall" = 180
+
+[cache]
+discovery_ttl_seconds = 300
+graph_ttl_seconds = 30
+aws_list_ttl_seconds = 60
