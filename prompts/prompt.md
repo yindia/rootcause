@@ -19,6 +19,56 @@ Append this line to any template for consistent responses:
 Return strict JSON only. No prose outside JSON. If data is missing, use null and include a "nextAction" field.
 ```
 
+## Low-Token Mode (High Quality)
+
+Use this block when you want minimal token usage without reducing decision quality.
+
+```text
+Low-Token High-Quality Mode (LTHQ)
+
+Goal:
+Minimize token usage while preserving decision quality and correctness.
+
+Rules:
+1) Work in two passes:
+   - Pass A (compact): gather only minimum evidence needed for a decision.
+   - Pass B (deepen): run only if confidence < 0.8, conflicting signals exist, or high-risk uncertainty remains.
+2) Default to high-signal aggregate tools before granular tool chains.
+3) Do not run broad exploration by default.
+4) Return strict structured output only (no prose outside JSON).
+5) Cap output size:
+   - maxFindings: 5
+   - maxRecommendations: 5
+   - maxEvidencePerFinding: 2
+6) Keep quality gates mandatory:
+   - include confidence (0.0-1.0)
+   - include missingEvidence[]
+   - include nextBestAction
+   - if uncertainty is material, set needsDeeperPass=true and execute Pass B.
+7) Do not repeat previously established context unless it changed.
+
+Return JSON exactly:
+{
+  "decision": "<short decision>",
+  "confidence": 0.0,
+  "needsDeeperPass": false,
+  "findings": [
+    {
+      "issue": "<finding>",
+      "severity": "high|medium|low",
+      "evidence": ["<signal-1>", "<signal-2>"]
+    }
+  ],
+  "recommendations": ["<action>", "<action>"],
+  "missingEvidence": ["<what is still needed>"],
+  "nextBestAction": "<single next action>"
+}
+```
+
+RootCause usage pattern in low-token mode:
+- Start with `rootcause.incident_bundle` as the first evidence aggregator.
+- Call additional tools only when `needsDeeperPass=true`.
+
 ## 1) RootCause Workflow
 
 ### `rootcause.incident_bundle`

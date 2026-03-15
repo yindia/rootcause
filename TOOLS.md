@@ -159,6 +159,34 @@ allow_destructive_tools = [
 ]
 ```
 
+### Mutating Tools (Explicit List)
+
+Use this section as the source of truth for tools that can mutate state.
+
+Default policy:
+- If the user does not explicitly ask for mutation, use read-only tools only.
+- Do not implicitly call mutating tools during investigation.
+
+- `write` (mutating, but not filtered by `disable_destructive`; filtered by `read_only`):
+  - `k8s.create`, `k8s.scale`, `k8s.rollout`
+  - `kubectl_create`, `kubectl_scale`, `kubectl_rollout`
+  - `helm.repo_add`, `helm.repo_update`
+
+- `risky_write` (mutating and filtered when `disable_destructive=true`; allowlist with `allow_destructive_tools`):
+  - `k8s.apply`, `k8s.patch`, `k8s.exec`, `k8s.exec_readonly`
+  - `kubectl_apply`, `kubectl_patch`
+  - `helm.install`, `helm.upgrade`, `helm.template_apply`
+  - `aws.iam.update_role`, `aws.iam.update_policy`
+  - `aws.sts.assume_role`, `aws.ecr.get_authorization_token`
+
+- `destructive` (mutating and filtered when `disable_destructive=true`; allowlist with `allow_destructive_tools`):
+  - `k8s.delete`, `k8s.cleanup_pods`, `k8s.node_management`
+  - `kubectl_delete`
+  - `helm.uninstall`, `helm.template_uninstall`
+  - `aws.iam.delete_role`, `aws.iam.delete_policy`
+
+If you want users to explicitly opt in, set `disable_destructive=true` and include only the approved `risky_write` and `destructive` tool names in `allow_destructive_tools`.
+
 ---
 
 ## Kubectl-style aliases

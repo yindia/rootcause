@@ -213,6 +213,12 @@ Prompt templates for common debugging flows are in `prompts/prompt.md`.
 
 - `--read-only`: removes apply/patch/delete/exec tools from discovery.
 - `--disable-destructive`: removes delete and risky write tools unless allowlisted (create/scale/rollout remain available).
+- For an explicit mutating-tools list (`write`, `risky_write`, `destructive`) and copy/paste allowlist names, see `TOOLS.md` -> "Mutating Tools (Explicit List)".
+
+Default safety policy:
+- If a user does not explicitly request a mutating action, treat the request as read-only diagnostics.
+- Do not run mutating tools implicitly during analysis.
+- For investigation-first workflows, prefer running RootCause in `--read-only` mode.
 
 ---
 
