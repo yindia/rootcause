@@ -6,6 +6,7 @@ import (
 	"rootcause/internal/config"
 	"rootcause/internal/kube"
 	"rootcause/internal/mcp"
+	"rootcause/internal/policy"
 )
 
 func TestToolsetInitAndRegister(t *testing.T) {
@@ -13,7 +14,7 @@ func TestToolsetInitAndRegister(t *testing.T) {
 	if err := toolset.Init(mcp.ToolsetContext{}); err == nil {
 		t.Fatalf("expected error for missing clients")
 	}
-	ctx := mcp.ToolsetContext{Clients: &kube.Clients{}}
+	ctx := mcp.ToolsetContext{Clients: &kube.Clients{}, Config: &config.Config{}, Policy: policy.NewAuthorizer()}
 	if err := toolset.Init(ctx); err != nil {
 		t.Fatalf("init: %v", err)
 	}
@@ -24,6 +25,11 @@ func TestToolsetInitAndRegister(t *testing.T) {
 	}
 	if _, ok := reg.Get("helm.list"); !ok {
 		t.Fatalf("expected helm.list to be registered")
+	}
+	for _, name := range []string{"helm.list_charts", "helm.get_chart", "helm.search_charts", "helm.diff_release", "helm.rollback_advisor"} {
+		if _, ok := reg.Get(name); !ok {
+			t.Fatalf("expected %s to be registered", name)
+		}
 	}
 }
 

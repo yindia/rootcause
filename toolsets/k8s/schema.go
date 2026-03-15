@@ -113,6 +113,20 @@ func schemaEvents() map[string]any {
 	}
 }
 
+func schemaEventsTimeline() map[string]any {
+	return map[string]any{
+		"type": "object",
+		"properties": map[string]any{
+			"namespace":          map[string]any{"type": "string"},
+			"involvedObjectName": map[string]any{"type": "string"},
+			"involvedObjectKind": map[string]any{"type": "string"},
+			"involvedObjectUID":  map[string]any{"type": "string"},
+			"limit":              map[string]any{"type": "number"},
+			"includeNormal":      map[string]any{"type": "boolean"},
+		},
+	}
+}
+
 func schemaAPIResources() map[string]any {
 	return map[string]any{
 		"type": "object",
@@ -187,6 +201,31 @@ func schemaRollout() map[string]any {
 			"confirm":    map[string]any{"type": "boolean"},
 		},
 		"required": []string{"name", "namespace", "confirm"},
+	}
+}
+
+func schemaRestartSafetyCheck() map[string]any {
+	return map[string]any{
+		"type": "object",
+		"properties": map[string]any{
+			"name":                map[string]any{"type": "string"},
+			"namespace":           map[string]any{"type": "string"},
+			"minReadyReplicas":    map[string]any{"type": "number"},
+			"maxUnavailableRatio": map[string]any{"type": "number"},
+		},
+		"required": []string{"name", "namespace"},
+	}
+}
+
+func schemaBestPractice() map[string]any {
+	return map[string]any{
+		"type": "object",
+		"properties": map[string]any{
+			"kind":      map[string]any{"type": "string", "enum": []string{"Deployment", "DaemonSet", "StatefulSet", "deployment", "daemonset", "statefulset"}},
+			"name":      map[string]any{"type": "string"},
+			"namespace": map[string]any{"type": "string"},
+		},
+		"required": []string{"kind", "name", "namespace"},
 	}
 }
 

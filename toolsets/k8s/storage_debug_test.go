@@ -6,8 +6,8 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
 
 	"rootcause/internal/config"
@@ -48,17 +48,17 @@ func TestHandleStorageDebug(t *testing.T) {
 		Status: corev1.PersistentVolumeStatus{Phase: corev1.VolumeAvailable},
 	}
 	sc := &storagev1.StorageClass{
-		ObjectMeta: metav1.ObjectMeta{Name: storageClassName},
+		ObjectMeta:  metav1.ObjectMeta{Name: storageClassName},
 		Provisioner: "kubernetes.io/mock",
 	}
 	attachment := &storagev1.VolumeAttachment{
 		ObjectMeta: metav1.ObjectMeta{Name: "attach-1"},
 		Spec: storagev1.VolumeAttachmentSpec{
-			Source: storagev1.VolumeAttachmentSource{PersistentVolumeName: func() *string { v := "pv-data"; return &v }()},
+			Source:   storagev1.VolumeAttachmentSource{PersistentVolumeName: func() *string { v := "pv-data"; return &v }()},
 			NodeName: "node-1",
 		},
 		Status: storagev1.VolumeAttachmentStatus{
-			Attached: false,
+			Attached:    false,
 			AttachError: &storagev1.VolumeError{Message: "attach failed"},
 		},
 	}

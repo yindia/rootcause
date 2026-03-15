@@ -60,6 +60,14 @@ func (t *Toolset) Register(reg mcp.Registry) error {
 			Handler:     t.handleGetModule,
 		},
 		{
+			Name:        "terraform.list_module_versions",
+			Description: "List available Terraform versions for a module.",
+			ToolsetID:   t.ID(),
+			InputSchema: schemaListModuleVersions(),
+			Safety:      mcp.SafetyReadOnly,
+			Handler:     t.handleListModuleVersions,
+		},
+		{
 			Name:        "terraform.search_modules",
 			Description: "Search Terraform modules by query.",
 			ToolsetID:   t.ID(),
@@ -82,6 +90,22 @@ func (t *Toolset) Register(reg mcp.Registry) error {
 			InputSchema: schemaGetProvider(),
 			Safety:      mcp.SafetyReadOnly,
 			Handler:     t.handleGetProvider,
+		},
+		{
+			Name:        "terraform.list_provider_versions",
+			Description: "List available Terraform versions for a provider.",
+			ToolsetID:   t.ID(),
+			InputSchema: schemaListProviderVersions(),
+			Safety:      mcp.SafetyReadOnly,
+			Handler:     t.handleListProviderVersions,
+		},
+		{
+			Name:        "terraform.get_provider_package",
+			Description: "Get provider package download metadata for a target OS/arch.",
+			ToolsetID:   t.ID(),
+			InputSchema: schemaGetProviderPackage(),
+			Safety:      mcp.SafetyReadOnly,
+			Handler:     t.handleGetProviderPackage,
 		},
 		{
 			Name:        "terraform.search_providers",

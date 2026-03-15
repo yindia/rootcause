@@ -75,10 +75,10 @@ func TestHandleAPIResourcesLimitAndMatch(t *testing.T) {
 			"v1": {
 				GroupVersion: "v1",
 				APIResources: []metav1.APIResource{{
-					Name:        "pods",
-					Kind:        "Pod",
-					ShortNames:  []string{"po"},
-					Categories:  []string{"all"},
+					Name:         "pods",
+					Kind:         "Pod",
+					ShortNames:   []string{"po"},
+					Categories:   []string{"all"},
 					SingularName: "pod",
 				}},
 			},

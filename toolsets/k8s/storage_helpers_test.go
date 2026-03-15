@@ -33,8 +33,8 @@ func TestFindMatchingPVs(t *testing.T) {
 	pvc := &corev1.PersistentVolumeClaim{Spec: corev1.PersistentVolumeClaimSpec{AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce}, VolumeMode: &mode}}
 	pv := &corev1.PersistentVolume{
 		ObjectMeta: metav1.ObjectMeta{Name: "pv-1"},
-		Spec: corev1.PersistentVolumeSpec{StorageClassName: "standard", AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce}, VolumeMode: &mode},
-		Status: corev1.PersistentVolumeStatus{Phase: corev1.VolumeAvailable},
+		Spec:       corev1.PersistentVolumeSpec{StorageClassName: "standard", AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce}, VolumeMode: &mode},
+		Status:     corev1.PersistentVolumeStatus{Phase: corev1.VolumeAvailable},
 	}
 	client := k8sfake.NewSimpleClientset(pv)
 	cfg := config.DefaultConfig()

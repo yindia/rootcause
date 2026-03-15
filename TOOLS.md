@@ -20,7 +20,10 @@ This document lists all tools exposed by RootCause. For setup and usage, see `RE
 ### Core Kubernetes (`k8s.*` + kubectl-style aliases)
 - CRUD + discovery: `k8s.get`, `k8s.list`, `k8s.describe`, `k8s.create`, `k8s.apply`, `k8s.patch`, `k8s.delete`, `k8s.api_resources`, `k8s.crds`
 - Ops + observability: `k8s.logs`, `k8s.events`, `k8s.context`, `k8s.explain_resource`, `k8s.ping`
+- Timeline: `k8s.events_timeline`
 - Workload operations: `k8s.scale`, `k8s.rollout`
+- Restart preflight: `k8s.restart_safety_check`
+- Workload standards: `k8s.best_practice` (rollout safety, restart resilience, node-recreate spread, PVC attach/detach risk)
 - Execution and access: `k8s.exec`, `k8s.exec_readonly` (allowlisted), `k8s.port_forward`
 - Debugging: `k8s.overview`, `k8s.crashloop_debug`, `k8s.scheduling_debug`, `k8s.hpa_debug`, `k8s.vpa_debug`, `k8s.storage_debug`, `k8s.config_debug`, `k8s.permission_debug`, `k8s.network_debug`, `k8s.private_link_debug`, `k8s.debug_flow`
 - Maintenance: `k8s.cleanup_pods`, `k8s.node_management`
@@ -47,9 +50,13 @@ Use `k8s.debug_flow` to run a guided flow that builds `k8s.graph` and walks the 
 
 ### Helm (`helm.*`)
 - `helm.repo_add`, `helm.repo_list`, `helm.repo_update`
-- `helm.list`, `helm.status`
+- `helm.list_charts`, `helm.get_chart`, `helm.search_charts`
+- `helm.list`, `helm.status`, `helm.diff_release`
+- `helm.rollback_advisor`
 - `helm.install`, `helm.upgrade`, `helm.uninstall`
 - `helm.template_apply`, `helm.template_uninstall`
+
+`helm.list_charts`, `helm.get_chart`, and `helm.search_charts` use Artifact Hub by default (`https://artifacthub.io`). You can override with `artifactHubURL` when needed.
 
 ### AWS IAM (`aws.iam.*`)
 - `aws.iam.list_roles`, `aws.iam.get_role`, `aws.iam.get_instance_profile`
@@ -118,10 +125,20 @@ Use `k8s.debug_flow` to run a guided flow that builds `k8s.graph` and walks the 
 
 ### Terraform (`terraform.*`)
 - `terraform.debug_plan`
-- `terraform.list_modules`, `terraform.get_module`, `terraform.search_modules`
-- `terraform.list_providers`, `terraform.get_provider`, `terraform.search_providers`
+- `terraform.list_modules`, `terraform.get_module`, `terraform.list_module_versions`, `terraform.search_modules`
+- `terraform.list_providers`, `terraform.get_provider`, `terraform.list_provider_versions`, `terraform.get_provider_package`, `terraform.search_providers`
 - `terraform.list_resources`, `terraform.get_resource`, `terraform.search_resources`
 - `terraform.list_data_sources`, `terraform.get_data_source`, `terraform.search_data_sources`
+
+### RootCause (`rootcause.*`)
+- `rootcause.incident_bundle`
+- `rootcause.change_timeline`
+- `rootcause.rca_generate`
+- `rootcause.remediation_playbook`
+- `rootcause.postmortem_export`
+
+`rootcause.incident_bundle` supports chain orchestration via `toolChain` (array of `{tool, section, args}`), with `includeDefaultChain`, `continueOnError`, and `maxSteps` controls.
+Use `outputMode="timeline"` on `rootcause.incident_bundle` to get unified timeline output; `rootcause.change_timeline` is kept for compatibility.
 
 ---
 

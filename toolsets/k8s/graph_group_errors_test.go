@@ -21,7 +21,9 @@ import (
 
 type errorDiscoveryGroup struct{}
 
-func (d *errorDiscoveryGroup) ServerGroups() (*metav1.APIGroupList, error)            { return &metav1.APIGroupList{}, nil }
+func (d *errorDiscoveryGroup) ServerGroups() (*metav1.APIGroupList, error) {
+	return &metav1.APIGroupList{}, nil
+}
 func (d *errorDiscoveryGroup) ServerResourcesForGroupVersion(string) (*metav1.APIResourceList, error) {
 	return nil, errors.New("discovery failed")
 }
@@ -34,13 +36,13 @@ func (d *errorDiscoveryGroup) ServerPreferredResources() ([]*metav1.APIResourceL
 func (d *errorDiscoveryGroup) ServerPreferredNamespacedResources() ([]*metav1.APIResourceList, error) {
 	return nil, errors.New("discovery failed")
 }
-func (d *errorDiscoveryGroup) ServerVersion() (*version.Info, error) { return &version.Info{}, nil }
+func (d *errorDiscoveryGroup) ServerVersion() (*version.Info, error)        { return &version.Info{}, nil }
 func (d *errorDiscoveryGroup) OpenAPISchema() (*openapi_v2.Document, error) { return nil, nil }
-func (d *errorDiscoveryGroup) OpenAPIV3() openapi.Client              { return nil }
-func (d *errorDiscoveryGroup) RESTClient() rest.Interface             { return nil }
-func (d *errorDiscoveryGroup) Fresh() bool                            { return true }
-func (d *errorDiscoveryGroup) Invalidate()                            {}
-func (d *errorDiscoveryGroup) WithLegacy() discovery.DiscoveryInterface { return d }
+func (d *errorDiscoveryGroup) OpenAPIV3() openapi.Client                    { return nil }
+func (d *errorDiscoveryGroup) RESTClient() rest.Interface                   { return nil }
+func (d *errorDiscoveryGroup) Fresh() bool                                  { return true }
+func (d *errorDiscoveryGroup) Invalidate()                                  {}
+func (d *errorDiscoveryGroup) WithLegacy() discovery.DiscoveryInterface     { return d }
 
 func TestAddGroupResourcesDiscoveryError(t *testing.T) {
 	cfg := config.DefaultConfig()

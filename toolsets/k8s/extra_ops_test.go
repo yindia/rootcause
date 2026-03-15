@@ -11,9 +11,9 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	dynamicfake "k8s.io/client-go/dynamic/fake"
 	"k8s.io/client-go/discovery/cached/memory"
 	discoveryfake "k8s.io/client-go/discovery/fake"
+	dynamicfake "k8s.io/client-go/dynamic/fake"
 	k8sfake "k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/restmapper"
 	clienttesting "k8s.io/client-go/testing"
@@ -37,8 +37,8 @@ func newDynamicToolset(gvr schema.GroupVersionResource, listKind, kind string, o
 	mapper := restmapper.NewDiscoveryRESTMapper([]*restmapper.APIGroupResources{
 		{
 			Group: metav1.APIGroup{
-				Name: gvr.Group,
-				Versions: []metav1.GroupVersionForDiscovery{{GroupVersion: gvr.GroupVersion().String(), Version: gvr.Version}},
+				Name:             gvr.Group,
+				Versions:         []metav1.GroupVersionForDiscovery{{GroupVersion: gvr.GroupVersion().String(), Version: gvr.Version}},
 				PreferredVersion: metav1.GroupVersionForDiscovery{GroupVersion: gvr.GroupVersion().String(), Version: gvr.Version},
 			},
 			VersionedResources: map[string][]metav1.APIResource{
@@ -125,7 +125,7 @@ func TestHandleContextCurrent(t *testing.T) {
 	toolset := New()
 	_ = toolset.Init(mcp.ToolsetContext{Config: &cfg, Clients: &kube.Clients{}, Policy: policy.NewAuthorizer(), Renderer: render.NewRenderer(), Redactor: redact.New()})
 	result, err := toolset.handleContext(context.Background(), mcp.ToolRequest{
-		User: policy.User{Role: policy.RoleCluster},
+		User:      policy.User{Role: policy.RoleCluster},
 		Arguments: map[string]any{"action": "current"},
 	})
 	if err != nil {
@@ -147,8 +147,8 @@ func TestHandleExplainResourceInfo(t *testing.T) {
 	mapper := restmapper.NewDiscoveryRESTMapper([]*restmapper.APIGroupResources{
 		{
 			Group: metav1.APIGroup{
-				Name: "apps",
-				Versions: []metav1.GroupVersionForDiscovery{{GroupVersion: "apps/v1", Version: "v1"}},
+				Name:             "apps",
+				Versions:         []metav1.GroupVersionForDiscovery{{GroupVersion: "apps/v1", Version: "v1"}},
 				PreferredVersion: metav1.GroupVersionForDiscovery{GroupVersion: "apps/v1", Version: "v1"},
 			},
 			VersionedResources: map[string][]metav1.APIResource{
@@ -161,7 +161,7 @@ func TestHandleExplainResourceInfo(t *testing.T) {
 	toolset := New()
 	_ = toolset.Init(mcp.ToolsetContext{Config: &cfg, Clients: clients, Policy: policy.NewAuthorizer(), Renderer: render.NewRenderer(), Redactor: redact.New()})
 	result, err := toolset.handleExplain(context.Background(), mcp.ToolRequest{
-		User: policy.User{Role: policy.RoleCluster},
+		User:      policy.User{Role: policy.RoleCluster},
 		Arguments: map[string]any{"kind": "Deployment", "apiVersion": "apps/v1"},
 	})
 	if err != nil {

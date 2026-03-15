@@ -12,9 +12,9 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
-	dynamicfake "k8s.io/client-go/dynamic/fake"
 	"k8s.io/client-go/discovery/cached/memory"
 	discoveryfake "k8s.io/client-go/discovery/fake"
+	dynamicfake "k8s.io/client-go/dynamic/fake"
 	k8sfake "k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/restmapper"
 	clienttesting "k8s.io/client-go/testing"
@@ -56,8 +56,8 @@ func newGraphToolset() *Toolset {
 	replicas := int32(1)
 	rs := &appsv1.ReplicaSet{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "api-rs",
-			Namespace: namespace,
+			Name:            "api-rs",
+			Namespace:       namespace,
 			OwnerReferences: []metav1.OwnerReference{{Kind: "Deployment", Name: "api"}},
 		},
 		Spec:   appsv1.ReplicaSetSpec{Replicas: &replicas, Selector: &metav1.LabelSelector{MatchLabels: labels}},
@@ -86,7 +86,7 @@ func newGraphToolset() *Toolset {
 	}
 	ingress := &networkingv1.Ingress{
 		ObjectMeta: metav1.ObjectMeta{Name: "api", Namespace: namespace},
-		Spec: networkingv1.IngressSpec{Rules: []networkingv1.IngressRule{{IngressRuleValue: networkingv1.IngressRuleValue{HTTP: &networkingv1.HTTPIngressRuleValue{Paths: []networkingv1.HTTPIngressPath{{Backend: networkingv1.IngressBackend{Service: &networkingv1.IngressServiceBackend{Name: "api"}}}}}}}}},
+		Spec:       networkingv1.IngressSpec{Rules: []networkingv1.IngressRule{{IngressRuleValue: networkingv1.IngressRuleValue{HTTP: &networkingv1.HTTPIngressRuleValue{Paths: []networkingv1.HTTPIngressPath{{Backend: networkingv1.IngressBackend{Service: &networkingv1.IngressServiceBackend{Name: "api"}}}}}}}}},
 	}
 	netpol := &networkingv1.NetworkPolicy{
 		ObjectMeta: metav1.ObjectMeta{Name: "deny", Namespace: namespace},
@@ -111,7 +111,7 @@ func newGraphToolset() *Toolset {
 				"metadata":   map[string]any{"name": "route", "namespace": namespace},
 				"spec": map[string]any{
 					"parentRefs": []any{map[string]any{"name": "gateway"}},
-					"rules": []any{map[string]any{"backendRefs": []any{map[string]any{"name": "api"}}}},
+					"rules":      []any{map[string]any{"backendRefs": []any{map[string]any{"name": "api"}}}},
 				},
 			},
 		},
@@ -148,7 +148,7 @@ func newGraphToolset() *Toolset {
 				"metadata":   map[string]any{"name": "allow", "namespace": namespace},
 				"spec": map[string]any{
 					"selector": map[string]any{"matchLabels": map[string]any{"app": "api"}},
-					"rules": []any{map[string]any{"from": []any{map[string]any{"source": map[string]any{"principals": []any{"spiffe://cluster.local/ns/default/sa/api"}}}}}},
+					"rules":    []any{map[string]any{"from": []any{map[string]any{"source": map[string]any{"principals": []any{"spiffe://cluster.local/ns/default/sa/api"}}}}}},
 				},
 			},
 		},
@@ -177,13 +177,13 @@ func newGraphToolset() *Toolset {
 		runtimeObjects = append(runtimeObjects, obj)
 	}
 	dyn := dynamicfake.NewSimpleDynamicClientWithCustomListKinds(scheme, map[schema.GroupVersionResource]string{
-		{Group: "gateway.networking.k8s.io", Version: "v1", Resource: "gateways"}:     "GatewayList",
-		{Group: "gateway.networking.k8s.io", Version: "v1", Resource: "httproutes"}:   "HTTPRouteList",
-		{Group: "networking.istio.io", Version: "v1beta1", Resource: "virtualservices"}:  "VirtualServiceList",
-		{Group: "networking.istio.io", Version: "v1beta1", Resource: "destinationrules"}: "DestinationRuleList",
-		{Group: "networking.istio.io", Version: "v1beta1", Resource: "gateways"}:         "GatewayList",
+		{Group: "gateway.networking.k8s.io", Version: "v1", Resource: "gateways"}:           "GatewayList",
+		{Group: "gateway.networking.k8s.io", Version: "v1", Resource: "httproutes"}:         "HTTPRouteList",
+		{Group: "networking.istio.io", Version: "v1beta1", Resource: "virtualservices"}:     "VirtualServiceList",
+		{Group: "networking.istio.io", Version: "v1beta1", Resource: "destinationrules"}:    "DestinationRuleList",
+		{Group: "networking.istio.io", Version: "v1beta1", Resource: "gateways"}:            "GatewayList",
 		{Group: "security.istio.io", Version: "v1beta1", Resource: "authorizationpolicies"}: "AuthorizationPolicyList",
-		{Group: "linkerd.io", Version: "v1alpha2", Resource: "serviceprofiles"}:            "ServiceProfileList",
+		{Group: "linkerd.io", Version: "v1alpha2", Resource: "serviceprofiles"}:             "ServiceProfileList",
 		{Group: "policy.linkerd.io", Version: "v1alpha1", Resource: "serverauthorizations"}: "ServerAuthorizationList",
 	}, runtimeObjects...)
 

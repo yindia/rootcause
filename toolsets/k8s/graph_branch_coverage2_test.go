@@ -14,12 +14,12 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/version"
 	"k8s.io/client-go/discovery"
 	dynamicfake "k8s.io/client-go/dynamic/fake"
 	"k8s.io/client-go/openapi"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/restmapper"
-	"k8s.io/apimachinery/pkg/version"
 
 	"rootcause/internal/config"
 	"rootcause/internal/kube"
@@ -29,7 +29,9 @@ import (
 
 type errorDiscovery struct{}
 
-func (d *errorDiscovery) ServerGroups() (*metav1.APIGroupList, error) { return &metav1.APIGroupList{}, nil }
+func (d *errorDiscovery) ServerGroups() (*metav1.APIGroupList, error) {
+	return &metav1.APIGroupList{}, nil
+}
 func (d *errorDiscovery) ServerResourcesForGroupVersion(string) (*metav1.APIResourceList, error) {
 	return &metav1.APIResourceList{}, nil
 }
@@ -42,13 +44,13 @@ func (d *errorDiscovery) ServerPreferredResources() ([]*metav1.APIResourceList, 
 func (d *errorDiscovery) ServerPreferredNamespacedResources() ([]*metav1.APIResourceList, error) {
 	return nil, nil
 }
-func (d *errorDiscovery) ServerVersion() (*version.Info, error) { return &version.Info{}, nil }
+func (d *errorDiscovery) ServerVersion() (*version.Info, error)        { return &version.Info{}, nil }
 func (d *errorDiscovery) OpenAPISchema() (*openapi_v2.Document, error) { return nil, nil }
-func (d *errorDiscovery) OpenAPIV3() openapi.Client                 { return nil }
-func (d *errorDiscovery) RESTClient() rest.Interface                 { return nil }
-func (d *errorDiscovery) Fresh() bool                                { return true }
-func (d *errorDiscovery) Invalidate()                                {}
-func (d *errorDiscovery) WithLegacy() discovery.DiscoveryInterface   { return d }
+func (d *errorDiscovery) OpenAPIV3() openapi.Client                    { return nil }
+func (d *errorDiscovery) RESTClient() rest.Interface                   { return nil }
+func (d *errorDiscovery) Fresh() bool                                  { return true }
+func (d *errorDiscovery) Invalidate()                                  {}
+func (d *errorDiscovery) WithLegacy() discovery.DiscoveryInterface     { return d }
 
 func TestGraphNestedNilAndPrincipalParsing(t *testing.T) {
 	if got := nestedString(nil, "spec"); got != "" {
@@ -133,7 +135,7 @@ func TestAddGatewayAndIstioGraphWarnings(t *testing.T) {
 		"metadata":   map[string]any{"name": "route", "namespace": namespace},
 		"spec": map[string]any{
 			"parentRefs": []any{map[string]any{"name": "gw"}},
-			"rules": []any{map[string]any{"backendRefs": []any{map[string]any{"name": "api"}}}},
+			"rules":      []any{map[string]any{"backendRefs": []any{map[string]any{"name": "api"}}}},
 		},
 	}}
 	virtualService := &unstructured.Unstructured{Object: map[string]any{
@@ -162,9 +164,9 @@ func TestAddGatewayAndIstioGraphWarnings(t *testing.T) {
 
 	scheme := runtime.NewScheme()
 	dynamicClient := dynamicfake.NewSimpleDynamicClientWithCustomListKinds(scheme, map[schema.GroupVersionResource]string{
-		gvrGateway: "GatewayList",
-		gvrRoute: "HTTPRouteList",
-		gvrVS:    "VirtualServiceList",
+		gvrGateway:      "GatewayList",
+		gvrRoute:        "HTTPRouteList",
+		gvrVS:           "VirtualServiceList",
 		gvrIstioGateway: "GatewayList",
 		gvrDR:           "DestinationRuleList",
 	}, gateway, httpRoute, virtualService, istioGateway, destinationRule)

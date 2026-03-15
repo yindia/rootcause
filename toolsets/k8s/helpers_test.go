@@ -29,6 +29,15 @@ func TestToolsetInitAndRegister(t *testing.T) {
 	if _, ok := reg.Get("k8s.get"); !ok {
 		t.Fatalf("expected k8s.get to be registered")
 	}
+	if _, ok := reg.Get("k8s.events_timeline"); !ok {
+		t.Fatalf("expected k8s.events_timeline to be registered")
+	}
+	if _, ok := reg.Get("k8s.restart_safety_check"); !ok {
+		t.Fatalf("expected k8s.restart_safety_check to be registered")
+	}
+	if _, ok := reg.Get("k8s.best_practice"); !ok {
+		t.Fatalf("expected k8s.best_practice to be registered")
+	}
 }
 
 func TestToolsetRegisterExecReadonly(t *testing.T) {

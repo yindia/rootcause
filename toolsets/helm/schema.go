@@ -34,6 +34,47 @@ func schemaRepoUpdate() map[string]any {
 	}
 }
 
+func schemaListCharts() map[string]any {
+	return map[string]any{
+		"type": "object",
+		"properties": map[string]any{
+			"artifactHubURL":    map[string]any{"type": "string"},
+			"repo":              map[string]any{"type": "string"},
+			"limit":             map[string]any{"type": "number"},
+			"offset":            map[string]any{"type": "number"},
+			"includeDeprecated": map[string]any{"type": "boolean"},
+		},
+	}
+}
+
+func schemaSearchCharts() map[string]any {
+	return map[string]any{
+		"type": "object",
+		"properties": map[string]any{
+			"artifactHubURL":    map[string]any{"type": "string"},
+			"query":             map[string]any{"type": "string"},
+			"repo":              map[string]any{"type": "string"},
+			"limit":             map[string]any{"type": "number"},
+			"offset":            map[string]any{"type": "number"},
+			"includeDeprecated": map[string]any{"type": "boolean"},
+		},
+		"required": []string{"query"},
+	}
+}
+
+func schemaGetChart() map[string]any {
+	return map[string]any{
+		"type": "object",
+		"properties": map[string]any{
+			"artifactHubURL": map[string]any{"type": "string"},
+			"repo":           map[string]any{"type": "string"},
+			"chart":          map[string]any{"type": "string"},
+			"version":        map[string]any{"type": "string"},
+		},
+		"required": []string{"repo", "chart"},
+	}
+}
+
 func schemaList() map[string]any {
 	return map[string]any{
 		"type": "object",
@@ -52,6 +93,44 @@ func schemaStatus() map[string]any {
 		"properties": map[string]any{
 			"release":   map[string]any{"type": "string"},
 			"namespace": map[string]any{"type": "string"},
+		},
+		"required": []string{"release", "namespace"},
+	}
+}
+
+func schemaDiffRelease() map[string]any {
+	return map[string]any{
+		"type": "object",
+		"properties": map[string]any{
+			"release":               map[string]any{"type": "string"},
+			"namespace":             map[string]any{"type": "string"},
+			"chart":                 map[string]any{"type": "string"},
+			"version":               map[string]any{"type": "string"},
+			"repoURL":               map[string]any{"type": "string"},
+			"username":              map[string]any{"type": "string"},
+			"password":              map[string]any{"type": "string"},
+			"caFile":                map[string]any{"type": "string"},
+			"certFile":              map[string]any{"type": "string"},
+			"keyFile":               map[string]any{"type": "string"},
+			"insecureSkipTLSVerify": map[string]any{"type": "boolean"},
+			"passCredentialsAll":    map[string]any{"type": "boolean"},
+			"includeCRDs":           map[string]any{"type": "boolean"},
+			"values":                map[string]any{"type": "object"},
+			"valuesYAML":            map[string]any{"type": "string"},
+			"valuesFiles":           map[string]any{"type": "array", "items": map[string]any{"type": "string"}},
+			"includeUnchanged":      map[string]any{"type": "boolean"},
+		},
+		"required": []string{"release", "namespace"},
+	}
+}
+
+func schemaRollbackAdvisor() map[string]any {
+	return map[string]any{
+		"type": "object",
+		"properties": map[string]any{
+			"release":      map[string]any{"type": "string"},
+			"namespace":    map[string]any{"type": "string"},
+			"historyLimit": map[string]any{"type": "number"},
 		},
 		"required": []string{"release", "namespace"},
 	}

@@ -10,13 +10,13 @@ import (
 )
 
 type nodeUtilization struct {
-	Node                string
-	CPURequestedMilli   int64
-	CPUAllocatableMilli int64
-	MemoryRequestedBytes int64
+	Node                   string
+	CPURequestedMilli      int64
+	CPUAllocatableMilli    int64
+	MemoryRequestedBytes   int64
 	MemoryAllocatableBytes int64
-	CPUPct              float64
-	MemoryPct           float64
+	CPUPct                 float64
+	MemoryPct              float64
 }
 
 func (t *Toolset) nodeUtilizationEvidence(ctx context.Context) ([]map[string]any, string) {
@@ -35,8 +35,8 @@ func (t *Toolset) nodeUtilizationEvidence(ctx context.Context) ([]map[string]any
 	nodeUsage := map[string]*nodeUtilization{}
 	for _, node := range nodes.Items {
 		nodeUsage[node.Name] = &nodeUtilization{
-			Node:                  node.Name,
-			CPUAllocatableMilli:   quantityMilli(node.Status.Allocatable[corev1.ResourceCPU]),
+			Node:                   node.Name,
+			CPUAllocatableMilli:    quantityMilli(node.Status.Allocatable[corev1.ResourceCPU]),
 			MemoryAllocatableBytes: quantityValue(node.Status.Allocatable[corev1.ResourceMemory]),
 		}
 	}

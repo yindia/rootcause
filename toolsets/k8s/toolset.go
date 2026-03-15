@@ -105,6 +105,14 @@ func (t *Toolset) Register(reg mcp.Registry) error {
 			Handler:     t.handleEvents,
 		},
 		{
+			Name:        "k8s.events_timeline",
+			Description: "Chronological event timeline for namespace/object filters.",
+			ToolsetID:   t.ID(),
+			InputSchema: schemaEventsTimeline(),
+			Safety:      mcp.SafetyReadOnly,
+			Handler:     t.handleEventsTimeline,
+		},
+		{
 			Name:        "k8s.api_resources",
 			Description: "Discover available API resources (including CRDs).",
 			ToolsetID:   t.ID(),
@@ -159,6 +167,22 @@ func (t *Toolset) Register(reg mcp.Registry) error {
 			InputSchema: schemaRollout(),
 			Safety:      mcp.SafetyWrite,
 			Handler:     t.handleRollout,
+		},
+		{
+			Name:        "k8s.restart_safety_check",
+			Description: "Preflight safety checks before restarting a deployment.",
+			ToolsetID:   t.ID(),
+			InputSchema: schemaRestartSafetyCheck(),
+			Safety:      mcp.SafetyReadOnly,
+			Handler:     t.handleRestartSafetyCheck,
+		},
+		{
+			Name:        "k8s.best_practice",
+			Description: "Evaluate workload best practices for resilience and security.",
+			ToolsetID:   t.ID(),
+			InputSchema: schemaBestPractice(),
+			Safety:      mcp.SafetyReadOnly,
+			Handler:     t.handleBestPractice,
 		},
 		{
 			Name:        "k8s.context",

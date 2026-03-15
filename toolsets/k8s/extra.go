@@ -11,6 +11,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/apimachinery/pkg/util/yaml"
 	"k8s.io/client-go/tools/clientcmd"
 
@@ -175,6 +176,85 @@ func (t *Toolset) handleRollout(ctx context.Context, req mcp.ToolRequest) (mcp.T
 	default:
 		return errorResult(errors.New("unsupported rollout action")), errors.New("unsupported rollout action")
 	}
+}
+
+func (t *Toolset) handleRestartSafetyCheck(ctx context.Context, req mcp.ToolRequest) (mcp.ToolResult, error) {
+	args := req.Arguments
+	name := toString(args["name"])
+	namespace := toString(args["namespace"])
+	if name == "" || namespace == "" {
+		err := errors.New("name and namespace are required")
+		return errorResult(err), err
+	}
+	if err := t.ctx.Policy.CheckNamespace(req.User, namespace, true); err != nil {
+		return errorResult(err), err
+	}
+	deployment, err := t.ctx.Clients.Typed.AppsV1().Deployments(namespace).Get(ctx, name, metav1.GetOptions{})
+	if err != nil {
+		return errorResult(err), err
+	}
+	issues := make([]map[string]any, 0)
+	checks := make([]map[string]any, 0)
+	replicas := int32(1)
+	if deployment.Spec.Replicas != nil {
+		replicas = *deployment.Spec.Replicas
+	}
+	ready := deployment.Status.ReadyReplicas
+	minReady := int32(toInt(args["minReadyReplicas"], 1))
+	if ready < minReady {
+		issues = append(issues, map[string]any{"severity": "high", "reason": "low_ready_replicas", "details": fmt.Sprintf("ready replicas %d below minimum %d", ready, minReady)})
+	}
+	checks = append(checks, map[string]any{"name": "replica-readiness", "readyReplicas": ready, "desiredReplicas": replicas, "minReadyReplicas": minReady})
+
+	if deployment.Spec.Strategy.RollingUpdate != nil && deployment.Spec.Strategy.RollingUpdate.MaxUnavailable != nil {
+		maxUnavailable, _ := intstr.GetScaledValueFromIntOrPercent(deployment.Spec.Strategy.RollingUpdate.MaxUnavailable, int(replicas), false)
+		limitRatio := 0.5
+		if raw, ok := args["maxUnavailableRatio"].(float64); ok && raw > 0 {
+			limitRatio = raw
+		}
+		ratio := float64(maxUnavailable) / float64(max(1, int(replicas)))
+		checks = append(checks, map[string]any{"name": "max-unavailable", "value": maxUnavailable, "ratio": ratio, "limitRatio": limitRatio})
+		if ratio > limitRatio {
+			issues = append(issues, map[string]any{"severity": "medium", "reason": "max_unavailable_high", "details": fmt.Sprintf("maxUnavailable ratio %.2f above %.2f", ratio, limitRatio)})
+		}
+	}
+
+	pdbList, err := t.ctx.Clients.Typed.PolicyV1().PodDisruptionBudgets(namespace).List(ctx, metav1.ListOptions{})
+	if err == nil {
+		for _, pdb := range pdbList.Items {
+			checks = append(checks, map[string]any{"name": "pdb", "pdb": pdb.Name, "currentHealthy": pdb.Status.CurrentHealthy, "desiredHealthy": pdb.Status.DesiredHealthy, "disruptionsAllowed": pdb.Status.DisruptionsAllowed})
+			if pdb.Status.DisruptionsAllowed == 0 {
+				issues = append(issues, map[string]any{"severity": "medium", "reason": "pdb_blocks_disruption", "details": fmt.Sprintf("PDB %s allows 0 disruptions", pdb.Name)})
+			}
+		}
+	}
+
+	hpaList, err := t.ctx.Clients.Typed.AutoscalingV2().HorizontalPodAutoscalers(namespace).List(ctx, metav1.ListOptions{})
+	if err == nil {
+		for _, hpa := range hpaList.Items {
+			if hpa.Spec.ScaleTargetRef.Kind == "Deployment" && hpa.Spec.ScaleTargetRef.Name == name {
+				checks = append(checks, map[string]any{"name": "hpa", "hpa": hpa.Name, "minReplicas": hpa.Spec.MinReplicas, "maxReplicas": hpa.Spec.MaxReplicas, "currentReplicas": hpa.Status.CurrentReplicas, "desiredReplicas": hpa.Status.DesiredReplicas})
+				if hpa.Status.DesiredReplicas > hpa.Status.CurrentReplicas {
+					issues = append(issues, map[string]any{"severity": "low", "reason": "hpa_scaling_up", "details": fmt.Sprintf("HPA %s currently scaling up", hpa.Name)})
+				}
+			}
+		}
+	}
+
+	recommendations := []string{"Proceed with restart only when ready replicas are stable and no blocking PDB issues exist."}
+	for _, issue := range issues {
+		if toString(issue["severity"]) == "high" {
+			recommendations = append(recommendations, "Delay restart and remediate high-severity checks first.")
+			break
+		}
+	}
+	return mcp.ToolResult{Data: map[string]any{
+		"safe":            len(issues) == 0,
+		"deployment":      fmt.Sprintf("%s/%s", namespace, name),
+		"checks":          checks,
+		"issues":          issues,
+		"recommendations": recommendations,
+	}, Metadata: mcp.ToolMetadata{Namespaces: []string{namespace}, Resources: []string{fmt.Sprintf("deployments/%s/%s", namespace, name)}}}, nil
 }
 
 func (t *Toolset) handleContext(ctx context.Context, req mcp.ToolRequest) (mcp.ToolResult, error) {

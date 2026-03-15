@@ -22,7 +22,9 @@ import (
 
 type errorVersionDiscovery struct{}
 
-func (d *errorVersionDiscovery) ServerGroups() (*metav1.APIGroupList, error) { return &metav1.APIGroupList{}, nil }
+func (d *errorVersionDiscovery) ServerGroups() (*metav1.APIGroupList, error) {
+	return &metav1.APIGroupList{}, nil
+}
 func (d *errorVersionDiscovery) ServerResourcesForGroupVersion(string) (*metav1.APIResourceList, error) {
 	return &metav1.APIResourceList{}, nil
 }
@@ -35,13 +37,15 @@ func (d *errorVersionDiscovery) ServerPreferredResources() ([]*metav1.APIResourc
 func (d *errorVersionDiscovery) ServerPreferredNamespacedResources() ([]*metav1.APIResourceList, error) {
 	return nil, nil
 }
-func (d *errorVersionDiscovery) ServerVersion() (*version.Info, error) { return nil, errors.New("boom") }
+func (d *errorVersionDiscovery) ServerVersion() (*version.Info, error) {
+	return nil, errors.New("boom")
+}
 func (d *errorVersionDiscovery) OpenAPISchema() (*openapi_v2.Document, error) { return nil, nil }
-func (d *errorVersionDiscovery) OpenAPIV3() openapi.Client                 { return nil }
-func (d *errorVersionDiscovery) RESTClient() rest.Interface                 { return nil }
-func (d *errorVersionDiscovery) Fresh() bool                                { return true }
-func (d *errorVersionDiscovery) Invalidate()                                {}
-func (d *errorVersionDiscovery) WithLegacy() discovery.DiscoveryInterface   { return d }
+func (d *errorVersionDiscovery) OpenAPIV3() openapi.Client                    { return nil }
+func (d *errorVersionDiscovery) RESTClient() rest.Interface                   { return nil }
+func (d *errorVersionDiscovery) Fresh() bool                                  { return true }
+func (d *errorVersionDiscovery) Invalidate()                                  {}
+func (d *errorVersionDiscovery) WithLegacy() discovery.DiscoveryInterface     { return d }
 
 func TestHandleCreateAndScaleErrors(t *testing.T) {
 	gvr := schema.GroupVersionResource{Group: "", Version: "v1", Resource: "configmaps"}
@@ -57,8 +61,8 @@ func TestHandleCreateAndScaleErrors(t *testing.T) {
 	if _, err := toolset.handleCreate(context.Background(), mcp.ToolRequest{
 		User: policy.User{Role: policy.RoleCluster},
 		Arguments: map[string]any{
-			"confirm":  true,
-			"manifest": "apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: demo\n  namespace: default\n",
+			"confirm":   true,
+			"manifest":  "apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: demo\n  namespace: default\n",
 			"namespace": "other",
 		},
 	}); err == nil {

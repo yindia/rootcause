@@ -64,10 +64,10 @@ func (m *meshDiscovery) ServerVersion() (*version.Info, error) { return &version
 func (m *meshDiscovery) OpenAPISchema() (*openapi_v2.Document, error) {
 	return nil, nil
 }
-func (m *meshDiscovery) OpenAPIV3() openapi.Client { return nil }
+func (m *meshDiscovery) OpenAPIV3() openapi.Client  { return nil }
 func (m *meshDiscovery) RESTClient() rest.Interface { return nil }
-func (m *meshDiscovery) Fresh() bool               { return true }
-func (m *meshDiscovery) Invalidate()               {}
+func (m *meshDiscovery) Fresh() bool                { return true }
+func (m *meshDiscovery) Invalidate()                {}
 func (m *meshDiscovery) WithLegacy() discovery.DiscoveryInterface {
 	return m
 }
@@ -94,7 +94,7 @@ func TestAddMeshGraphCoverage(t *testing.T) {
 		"metadata":   map[string]any{"name": "route", "namespace": namespace},
 		"spec": map[string]any{
 			"parentRefs": []any{map[string]any{"name": "gw"}},
-			"rules": []any{map[string]any{"backendRefs": []any{map[string]any{"name": "api"}}}},
+			"rules":      []any{map[string]any{"backendRefs": []any{map[string]any{"name": "api"}}}},
 		},
 	}}
 	virtualService := &unstructured.Unstructured{Object: map[string]any{
@@ -122,7 +122,7 @@ func TestAddMeshGraphCoverage(t *testing.T) {
 		"metadata":   map[string]any{"name": "authz", "namespace": namespace},
 		"spec": map[string]any{
 			"selector": map[string]any{"matchLabels": map[string]any{"app": "api"}},
-			"rules": []any{map[string]any{"from": []any{map[string]any{"source": map[string]any{"principals": []any{"spiffe://cluster.local/ns/default/sa/api"}}}}}},
+			"rules":    []any{map[string]any{"from": []any{map[string]any{"source": map[string]any{"principals": []any{"spiffe://cluster.local/ns/default/sa/api"}}}}}},
 		},
 	}}
 	serviceProfile := &unstructured.Unstructured{Object: map[string]any{
@@ -147,12 +147,12 @@ func TestAddMeshGraphCoverage(t *testing.T) {
 
 	scheme := runtime.NewScheme()
 	dynamicClient := dynamicfake.NewSimpleDynamicClientWithCustomListKinds(scheme, map[schema.GroupVersionResource]string{
-		gvrGateway:   "GatewayList",
-		gvrRoute:     "HTTPRouteList",
-		gvrVS:        "VirtualServiceList",
-		gvrDR:        "DestinationRuleList",
-		gvrAuthz:     "AuthorizationPolicyList",
-		gvrProfile:   "ServiceProfileList",
+		gvrGateway:    "GatewayList",
+		gvrRoute:      "HTTPRouteList",
+		gvrVS:         "VirtualServiceList",
+		gvrDR:         "DestinationRuleList",
+		gvrAuthz:      "AuthorizationPolicyList",
+		gvrProfile:    "ServiceProfileList",
 		gvrServerAuth: "ServerAuthorizationList",
 	}, gateway, httpRoute, virtualService, destinationRule, authorizationPolicy, serviceProfile, serverAuthz)
 

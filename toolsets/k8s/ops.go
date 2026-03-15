@@ -6,7 +6,9 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"sort"
 	"strings"
+	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -399,6 +401,67 @@ func (t *Toolset) handleEvents(ctx context.Context, req mcp.ToolRequest) (mcp.To
 		}
 	}
 	return mcp.ToolResult{Data: map[string]any{"events": results}, Metadata: mcp.ToolMetadata{Namespaces: sliceIf(namespace)}}, nil
+}
+
+func (t *Toolset) handleEventsTimeline(ctx context.Context, req mcp.ToolRequest) (mcp.ToolResult, error) {
+	args := req.Arguments
+	includeNormal := toBool(args["includeNormal"], false)
+	limit := toInt(args["limit"], 200)
+	if limit <= 0 {
+		limit = 200
+	}
+	baseResult, err := t.handleEvents(ctx, req)
+	if err != nil {
+		return baseResult, err
+	}
+	root, ok := baseResult.Data.(map[string]any)
+	if !ok {
+		err := errors.New("unexpected events response")
+		return errorResult(err), err
+	}
+	rawEvents, ok := root["events"].([]any)
+	if !ok {
+		return mcp.ToolResult{Data: map[string]any{"timeline": []map[string]any{}, "count": 0}}, nil
+	}
+	timeline := make([]map[string]any, 0, len(rawEvents))
+	for _, raw := range rawEvents {
+		event, ok := raw.(corev1.Event)
+		if !ok {
+			continue
+		}
+		if !includeNormal && strings.EqualFold(event.Type, "Normal") {
+			continue
+		}
+		ts := event.LastTimestamp.Time
+		if ts.IsZero() {
+			ts = event.EventTime.Time
+		}
+		if ts.IsZero() {
+			ts = event.FirstTimestamp.Time
+		}
+		timeline = append(timeline, map[string]any{
+			"time":      ts.Format(time.RFC3339),
+			"namespace": event.Namespace,
+			"type":      event.Type,
+			"reason":    event.Reason,
+			"message":   event.Message,
+			"count":     event.Count,
+			"object": map[string]any{
+				"kind":      event.InvolvedObject.Kind,
+				"name":      event.InvolvedObject.Name,
+				"namespace": event.InvolvedObject.Namespace,
+				"uid":       string(event.InvolvedObject.UID),
+			},
+		})
+	}
+	sort.Slice(timeline, func(i, j int) bool {
+		return toString(timeline[i]["time"]) < toString(timeline[j]["time"])
+	})
+	if len(timeline) > limit {
+		timeline = timeline[len(timeline)-limit:]
+	}
+	namespace := toString(args["namespace"])
+	return mcp.ToolResult{Data: map[string]any{"timeline": timeline, "count": len(timeline), "limit": limit, "includeNormal": includeNormal}, Metadata: mcp.ToolMetadata{Namespaces: sliceIf(namespace)}}, nil
 }
 
 func (t *Toolset) handleAPIResources(ctx context.Context, req mcp.ToolRequest) (mcp.ToolResult, error) {

@@ -15,6 +15,7 @@ import (
 	_ "rootcause/toolsets/k8s"
 	_ "rootcause/toolsets/karpenter"
 	_ "rootcause/toolsets/linkerd"
+	_ "rootcause/toolsets/rootcause"
 	_ "rootcause/toolsets/terraform"
 )
 

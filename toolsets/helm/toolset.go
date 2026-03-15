@@ -35,6 +35,12 @@ func (t *Toolset) Init(ctx mcp.ToolsetContext) error {
 	if ctx.Clients == nil {
 		return errors.New("missing kube clients")
 	}
+	if ctx.Config == nil {
+		return errors.New("missing config")
+	}
+	if ctx.Policy == nil {
+		return errors.New("missing policy authorizer")
+	}
 	t.ctx = ctx
 	return nil
 }
@@ -66,6 +72,30 @@ func (t *Toolset) Register(reg mcp.Registry) error {
 			Handler:     t.handleRepoUpdate,
 		},
 		{
+			Name:        "helm.list_charts",
+			Description: "List charts available from configured Helm repositories.",
+			ToolsetID:   t.ID(),
+			InputSchema: schemaListCharts(),
+			Safety:      mcp.SafetyReadOnly,
+			Handler:     t.handleListCharts,
+		},
+		{
+			Name:        "helm.get_chart",
+			Description: "Get chart details and versions from a configured Helm repository.",
+			ToolsetID:   t.ID(),
+			InputSchema: schemaGetChart(),
+			Safety:      mcp.SafetyReadOnly,
+			Handler:     t.handleGetChart,
+		},
+		{
+			Name:        "helm.search_charts",
+			Description: "Search charts across configured Helm repositories.",
+			ToolsetID:   t.ID(),
+			InputSchema: schemaSearchCharts(),
+			Safety:      mcp.SafetyReadOnly,
+			Handler:     t.handleSearchCharts,
+		},
+		{
 			Name:        "helm.list",
 			Description: "List Helm releases (optionally all namespaces).",
 			ToolsetID:   t.ID(),
@@ -80,6 +110,22 @@ func (t *Toolset) Register(reg mcp.Registry) error {
 			InputSchema: schemaStatus(),
 			Safety:      mcp.SafetyReadOnly,
 			Handler:     t.handleStatus,
+		},
+		{
+			Name:        "helm.diff_release",
+			Description: "Diff a live release manifest against a rendered target chart.",
+			ToolsetID:   t.ID(),
+			InputSchema: schemaDiffRelease(),
+			Safety:      mcp.SafetyReadOnly,
+			Handler:     t.handleDiffRelease,
+		},
+		{
+			Name:        "helm.rollback_advisor",
+			Description: "Recommend safer rollback targets from Helm release history.",
+			ToolsetID:   t.ID(),
+			InputSchema: schemaRollbackAdvisor(),
+			Safety:      mcp.SafetyReadOnly,
+			Handler:     t.handleRollbackAdvisor,
 		},
 		{
 			Name:        "helm.install",

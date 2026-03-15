@@ -21,9 +21,12 @@ func TestRegisterIncludesTerraformTools(t *testing.T) {
 		"terraform.debug_plan",
 		"terraform.list_modules",
 		"terraform.get_module",
+		"terraform.list_module_versions",
 		"terraform.search_modules",
 		"terraform.list_providers",
 		"terraform.get_provider",
+		"terraform.list_provider_versions",
+		"terraform.get_provider_package",
 		"terraform.search_providers",
 		"terraform.list_resources",
 		"terraform.get_resource",
@@ -132,6 +135,26 @@ func TestResolveProviderVersionInfoPrefersStableByDefault(t *testing.T) {
 	}
 	if id != "2" {
 		t.Fatalf("expected id 2 for latest stable, got %s", id)
+	}
+}
+
+func TestFilterProviderVersionsPayload(t *testing.T) {
+	payload := map[string]any{
+		"id": "hashicorp/aws",
+		"versions": []any{
+			map[string]any{"version": "6.0.0-beta.1"},
+			map[string]any{"version": "5.2.0"},
+			map[string]any{"version": "5.1.0"},
+		},
+	}
+	filtered := filterProviderVersionsPayload(payload, false, 1)
+	root := filtered.(map[string]any)
+	versions := root["versions"].([]any)
+	if len(versions) != 1 {
+		t.Fatalf("expected one version after limit, got %d", len(versions))
+	}
+	if got := toString(versions[0].(map[string]any)["version"]); got != "5.2.0" {
+		t.Fatalf("expected highest stable version 5.2.0, got %s", got)
 	}
 }
 

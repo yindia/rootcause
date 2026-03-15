@@ -2,9 +2,12 @@ package helm
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
+	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"sort"
@@ -36,6 +39,8 @@ import (
 )
 
 const helmDriver = "secrets"
+
+const defaultArtifactHubURL = "https://artifacthub.io"
 
 var newChartRepository = repo.NewChartRepository
 var downloadIndexFile = func(chartRepo *repo.ChartRepository) (string, error) {
@@ -223,6 +228,359 @@ func (t *Toolset) handleRepoUpdate(ctx context.Context, req mcp.ToolRequest) (mc
 	return mcp.ToolResult{Data: map[string]any{"updated": updated}}, nil
 }
 
+func (t *Toolset) handleListCharts(ctx context.Context, req mcp.ToolRequest) (mcp.ToolResult, error) {
+	args := req.Arguments
+	baseURL := artifactHubURL(args)
+	repoName := toString(args["repo"])
+	limit := toInt(args["limit"])
+	if limit <= 0 {
+		limit = 20
+	}
+	offset := toInt(args["offset"])
+	query := url.Values{}
+	query.Set("kind", "0")
+	query.Set("facets", "false")
+	query.Set("limit", fmt.Sprintf("%d", limit))
+	query.Set("offset", fmt.Sprintf("%d", max(0, offset)))
+	query.Set("sort", "last_updated")
+	if repoName != "" {
+		query.Set("repo", repoName)
+	}
+	if deprecated, ok := args["includeDeprecated"].(bool); ok {
+		query.Set("deprecated", fmt.Sprintf("%t", deprecated))
+	}
+	payload, err := t.fetchArtifactHubJSON(ctx, baseURL, "/api/v1/packages/search", query)
+	if err != nil {
+		return errorResult(err), err
+	}
+	if out, ok := payload.(map[string]any); ok {
+		out["artifactHubURL"] = baseURL
+		if repoName != "" {
+			out["repo"] = repoName
+		}
+		return mcp.ToolResult{Data: out}, nil
+	}
+	return mcp.ToolResult{Data: payload}, nil
+}
+
+func (t *Toolset) handleSearchCharts(ctx context.Context, req mcp.ToolRequest) (mcp.ToolResult, error) {
+	args := req.Arguments
+	baseURL := artifactHubURL(args)
+	repoName := toString(args["repo"])
+	query := strings.TrimSpace(toString(args["query"]))
+	if query == "" {
+		err := errors.New("query is required")
+		return errorResult(err), err
+	}
+	limit := toInt(args["limit"])
+	if limit <= 0 {
+		limit = 20
+	}
+	offset := toInt(args["offset"])
+	params := url.Values{}
+	params.Set("kind", "0")
+	params.Set("facets", "false")
+	params.Set("ts_query_web", query)
+	params.Set("limit", fmt.Sprintf("%d", limit))
+	params.Set("offset", fmt.Sprintf("%d", max(0, offset)))
+	params.Set("sort", "relevance")
+	if repoName != "" {
+		params.Set("repo", repoName)
+	}
+	if deprecated, ok := args["includeDeprecated"].(bool); ok {
+		params.Set("deprecated", fmt.Sprintf("%t", deprecated))
+	}
+	payload, err := t.fetchArtifactHubJSON(ctx, baseURL, "/api/v1/packages/search", params)
+	if err != nil {
+		return errorResult(err), err
+	}
+	if out, ok := payload.(map[string]any); ok {
+		out["artifactHubURL"] = baseURL
+		out["query"] = query
+		if repoName != "" {
+			out["repo"] = repoName
+		}
+		return mcp.ToolResult{Data: out}, nil
+	}
+	return mcp.ToolResult{Data: payload}, nil
+}
+
+func (t *Toolset) handleGetChart(ctx context.Context, req mcp.ToolRequest) (mcp.ToolResult, error) {
+	args := req.Arguments
+	baseURL := artifactHubURL(args)
+	repoName := toString(args["repo"])
+	chartName := toString(args["chart"])
+	version := strings.TrimSpace(toString(args["version"]))
+	if repoName == "" || chartName == "" {
+		err := errors.New("repo and chart are required")
+		return errorResult(err), err
+	}
+	path := fmt.Sprintf("/api/v1/packages/helm/%s/%s", url.PathEscape(repoName), url.PathEscape(chartName))
+	if version != "" {
+		path += "/" + url.PathEscape(version)
+	}
+	payload, err := t.fetchArtifactHubJSON(ctx, baseURL, path, nil)
+	if err != nil {
+		return errorResult(err), err
+	}
+	if out, ok := payload.(map[string]any); ok {
+		out["artifactHubURL"] = baseURL
+		out["repo"] = repoName
+		out["chartName"] = chartName
+		if version != "" {
+			out["requestedVersion"] = version
+		}
+		return mcp.ToolResult{Data: out}, nil
+	}
+	return mcp.ToolResult{Data: payload}, nil
+}
+
+func artifactHubURL(args map[string]any) string {
+	if override := strings.TrimSpace(toString(args["artifactHubURL"])); override != "" {
+		return strings.TrimRight(override, "/")
+	}
+	return defaultArtifactHubURL
+}
+
+func (t *Toolset) fetchArtifactHubJSON(ctx context.Context, baseURL, endpointPath string, query url.Values) (any, error) {
+	endpoint := strings.TrimRight(baseURL, "/") + endpointPath
+	if len(query) > 0 {
+		endpoint += "?" + query.Encode()
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
+	if err != nil {
+		return nil, err
+	}
+	resp, err := t.httpClient().Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return nil, fmt.Errorf("artifact hub request failed (%d): %s", resp.StatusCode, strings.TrimSpace(string(body)))
+	}
+	var payload any
+	if err := json.Unmarshal(body, &payload); err != nil {
+		return nil, err
+	}
+	return payload, nil
+}
+
+func (t *Toolset) httpClient() *http.Client {
+	timeout := 60 * time.Second
+	if t.ctx.Config != nil && t.ctx.Config.Timeouts.DefaultSeconds > 0 {
+		timeout = time.Duration(t.ctx.Config.Timeouts.DefaultSeconds) * time.Second
+	}
+	return &http.Client{Timeout: timeout}
+}
+
+func (t *Toolset) loadChartsCatalog(repoName string, includeDeprecated bool) ([]map[string]any, error) {
+	settings := t.helmSettings()
+	file, err := loadRepoFile(settings.RepositoryConfig)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return []map[string]any{}, nil
+		}
+		return nil, err
+	}
+	charts := make([]map[string]any, 0)
+	for _, entry := range file.Repositories {
+		if repoName != "" && entry.Name != repoName {
+			continue
+		}
+		indexPath := chartRepoIndexPath(settings.RepositoryCache, entry.Name)
+		index, err := repo.LoadIndexFile(indexPath)
+		if err != nil {
+			if os.IsNotExist(err) {
+				continue
+			}
+			return nil, err
+		}
+		for name, versions := range index.Entries {
+			for _, chartVersion := range versions {
+				if chartVersion == nil || chartVersion.Metadata == nil {
+					continue
+				}
+				if chartVersion.Metadata.Deprecated && !includeDeprecated {
+					continue
+				}
+				charts = append(charts, map[string]any{
+					"repo":        entry.Name,
+					"repoURL":     entry.URL,
+					"name":        name,
+					"version":     chartVersion.Metadata.Version,
+					"appVersion":  chartVersion.Metadata.AppVersion,
+					"description": chartVersion.Metadata.Description,
+					"home":        chartVersion.Metadata.Home,
+					"keywords":    chartVersion.Metadata.Keywords,
+					"sources":     chartVersion.Metadata.Sources,
+					"deprecated":  chartVersion.Metadata.Deprecated,
+					"created":     chartVersion.Created,
+					"digest":      chartVersion.Digest,
+					"urls":        chartVersion.URLs,
+				})
+			}
+		}
+	}
+	sort.Slice(charts, func(i, j int) bool {
+		leftRepo := toString(charts[i]["repo"])
+		rightRepo := toString(charts[j]["repo"])
+		if leftRepo != rightRepo {
+			return leftRepo < rightRepo
+		}
+		leftName := toString(charts[i]["name"])
+		rightName := toString(charts[j]["name"])
+		if leftName != rightName {
+			return leftName < rightName
+		}
+		return toString(charts[i]["version"]) > toString(charts[j]["version"])
+	})
+	return charts, nil
+}
+
+func flattenIndex(repoName string, index *repo.IndexFile, includeDeprecated bool) []map[string]any {
+	if index == nil {
+		return []map[string]any{}
+	}
+	charts := make([]map[string]any, 0)
+	for name, versions := range index.Entries {
+		for _, chartVersion := range versions {
+			if chartVersion == nil || chartVersion.Metadata == nil {
+				continue
+			}
+			if chartVersion.Metadata.Deprecated && !includeDeprecated {
+				continue
+			}
+			charts = append(charts, map[string]any{
+				"repo":        repoName,
+				"name":        name,
+				"version":     chartVersion.Metadata.Version,
+				"appVersion":  chartVersion.Metadata.AppVersion,
+				"description": chartVersion.Metadata.Description,
+				"home":        chartVersion.Metadata.Home,
+				"keywords":    chartVersion.Metadata.Keywords,
+				"sources":     chartVersion.Metadata.Sources,
+				"deprecated":  chartVersion.Metadata.Deprecated,
+				"created":     chartVersion.Created,
+				"digest":      chartVersion.Digest,
+				"urls":        chartVersion.URLs,
+			})
+		}
+	}
+	sort.Slice(charts, func(i, j int) bool {
+		leftName := toString(charts[i]["name"])
+		rightName := toString(charts[j]["name"])
+		if leftName != rightName {
+			return leftName < rightName
+		}
+		return toString(charts[i]["version"]) > toString(charts[j]["version"])
+	})
+	return charts
+}
+
+func filterCharts(charts []map[string]any, query string) []map[string]any {
+	normalized := strings.ToLower(strings.TrimSpace(query))
+	if normalized == "" {
+		return charts
+	}
+	out := make([]map[string]any, 0)
+	for _, chart := range charts {
+		if containsAny(normalized,
+			toString(chart["repo"]),
+			toString(chart["name"]),
+			toString(chart["description"]),
+			strings.Join(toStringSlice(chart["keywords"]), " "),
+		) {
+			out = append(out, chart)
+		}
+	}
+	return out
+}
+
+func paginateCharts(charts []map[string]any, offset, limit int) ([]map[string]any, int) {
+	total := len(charts)
+	if offset < 0 {
+		offset = 0
+	}
+	if offset >= total {
+		return []map[string]any{}, total
+	}
+	if limit <= 0 {
+		limit = 50
+	}
+	end := offset + limit
+	if end > total {
+		end = total
+	}
+	return charts[offset:end], total
+}
+
+func containsAny(query string, values ...string) bool {
+	for _, value := range values {
+		if strings.Contains(strings.ToLower(value), query) {
+			return true
+		}
+	}
+	return false
+}
+
+func buildArtifactoryIndexURL(baseURL, repoName string) string {
+	base := strings.TrimRight(strings.TrimSpace(baseURL), "/")
+	repo := strings.Trim(strings.TrimSpace(repoName), "/")
+	if strings.HasSuffix(base, "/artifactory") {
+		return base + "/" + repo + "/index.yaml"
+	}
+	if strings.Contains(base, "/artifactory/") {
+		return base + "/index.yaml"
+	}
+	return base + "/artifactory/" + repo + "/index.yaml"
+}
+
+func applyArtifactoryAuth(req *http.Request, args map[string]any) {
+	if req == nil {
+		return
+	}
+	if token := strings.TrimSpace(toString(args["accessToken"])); token != "" {
+		req.Header.Set("Authorization", "Bearer "+token)
+		return
+	}
+	if apiKey := strings.TrimSpace(toString(args["apiKey"])); apiKey != "" {
+		req.Header.Set("X-JFrog-Art-Api", apiKey)
+		return
+	}
+	username := strings.TrimSpace(toString(args["username"]))
+	password := toString(args["password"])
+	if username != "" {
+		req.SetBasicAuth(username, password)
+	}
+}
+
+func limitOrDefault(limit int) int {
+	if limit > 0 {
+		return limit
+	}
+	return 50
+}
+
+func chartRepoIndexPath(repoCacheDir, repoName string) string {
+	if repoCacheDir != "" {
+		sanitized := strings.ReplaceAll(repoName, "/", "-")
+		return filepath.Join(repoCacheDir, sanitized+"-index.yaml")
+	}
+	return repoName + "-index.yaml"
+}
+
+func max(a, b int) int {
+	if a > b {
+		return a
+	}
+	return b
+}
+
 func (t *Toolset) handleList(ctx context.Context, req mcp.ToolRequest) (mcp.ToolResult, error) {
 	args := req.Arguments
 	namespace := toString(args["namespace"])
@@ -292,6 +650,134 @@ func (t *Toolset) handleStatus(ctx context.Context, req mcp.ToolRequest) (mcp.To
 		return errorResult(err), err
 	}
 	return mcp.ToolResult{Data: summarizeRelease(rel)}, nil
+}
+
+func (t *Toolset) handleDiffRelease(ctx context.Context, req mcp.ToolRequest) (mcp.ToolResult, error) {
+	args := req.Arguments
+	namespace := toString(args["namespace"])
+	releaseName := toString(args["release"])
+	if releaseName == "" || namespace == "" {
+		err := errors.New("release and namespace are required")
+		return errorResult(err), err
+	}
+	if err := t.ctx.Policy.CheckNamespace(req.User, namespace, true); err != nil {
+		return errorResult(err), err
+	}
+	cfg, err := t.actionConfig(namespace)
+	if err != nil {
+		return errorResult(err), err
+	}
+	get := action.NewGet(cfg)
+	currentRelease, err := get.Run(releaseName)
+	if err != nil {
+		return errorResult(err), err
+	}
+	currentManifest := currentRelease.Manifest
+	desiredManifest := currentManifest
+	targetChart := strings.TrimSpace(toString(args["chart"]))
+	if targetChart != "" {
+		desiredManifest, err = t.renderManifest(namespace, releaseName, targetChart, args)
+		if err != nil {
+			return errorResult(err), err
+		}
+	}
+	currentObjects, err := decodeManifest(currentManifest)
+	if err != nil {
+		return errorResult(err), err
+	}
+	desiredObjects, err := decodeManifest(desiredManifest)
+	if err != nil {
+		return errorResult(err), err
+	}
+	added, removed, changed, unchanged := diffManifestObjects(currentObjects, desiredObjects)
+	result := map[string]any{
+		"release":   releaseName,
+		"namespace": namespace,
+		"summary": map[string]any{
+			"added":     len(added),
+			"removed":   len(removed),
+			"changed":   len(changed),
+			"unchanged": len(unchanged),
+		},
+		"added":   added,
+		"removed": removed,
+		"changed": changed,
+	}
+	if toBool(args["includeUnchanged"]) {
+		result["unchanged"] = unchanged
+	}
+	if targetChart != "" {
+		result["targetChart"] = targetChart
+	}
+	return mcp.ToolResult{Data: result, Metadata: mcp.ToolMetadata{Namespaces: []string{namespace}}}, nil
+}
+
+func (t *Toolset) handleRollbackAdvisor(ctx context.Context, req mcp.ToolRequest) (mcp.ToolResult, error) {
+	args := req.Arguments
+	namespace := toString(args["namespace"])
+	releaseName := toString(args["release"])
+	if releaseName == "" || namespace == "" {
+		err := errors.New("release and namespace are required")
+		return errorResult(err), err
+	}
+	if err := t.ctx.Policy.CheckNamespace(req.User, namespace, true); err != nil {
+		return errorResult(err), err
+	}
+	cfg, err := t.actionConfig(namespace)
+	if err != nil {
+		return errorResult(err), err
+	}
+	status := action.NewStatus(cfg)
+	current, err := status.Run(releaseName)
+	if err != nil {
+		return errorResult(err), err
+	}
+	history := action.NewHistory(cfg)
+	history.Max = toInt(args["historyLimit"])
+	if history.Max <= 0 {
+		history.Max = 20
+	}
+	revisions, err := history.Run(releaseName)
+	if err != nil {
+		return errorResult(err), err
+	}
+	recommendations := make([]map[string]any, 0)
+	for _, rel := range revisions {
+		if rel == nil || rel.Version >= current.Version {
+			continue
+		}
+		if rel.Info == nil {
+			continue
+		}
+		if rel.Info.Status == release.StatusDeployed || rel.Info.Status == release.StatusSuperseded {
+			severity := "low"
+			if rel.Info.Status == release.StatusSuperseded {
+				severity = "medium"
+			}
+			recommendations = append(recommendations, map[string]any{
+				"version":     rel.Version,
+				"status":      rel.Info.Status.String(),
+				"description": fmt.Sprintf("Rollback candidate revision %d (%s)", rel.Version, rel.Info.Status.String()),
+				"risk":        severity,
+			})
+		}
+	}
+	sort.Slice(recommendations, func(i, j int) bool {
+		return toInt(recommendations[i]["version"]) > toInt(recommendations[j]["version"])
+	})
+	if len(recommendations) > 5 {
+		recommendations = recommendations[:5]
+	}
+	next := []string{"Validate selected revision with helm.diff_release before rollback.", "Run smoke checks after rollback to confirm service recovery."}
+	return mcp.ToolResult{Data: map[string]any{
+		"release":             releaseName,
+		"namespace":           namespace,
+		"currentRevision":     current.Version,
+		"currentStatus":       current.Info.Status.String(),
+		"recommendations":     recommendations,
+		"recommendationCount": len(recommendations),
+		"nextChecks":          next,
+	}, Metadata: mcp.ToolMetadata{Namespaces: []string{namespace}}}, nil
 }
 
 func (t *Toolset) handleInstall(ctx context.Context, req mcp.ToolRequest) (mcp.ToolResult, error) {
@@ -637,6 +1123,76 @@ func decodeManifest(manifest string) ([]*unstructured.Unstructured, error) {
 		out = append(out, &unstructured.Unstructured{Object: raw})
 	}
 	return out, nil
+}
+
+func diffManifestObjects(current, desired []*unstructured.Unstructured) ([]string, []string, []map[string]any, []string) {
+	currentIndex := indexManifestObjects(current)
+	desiredIndex := indexManifestObjects(desired)
+	added := make([]string, 0)
+	removed := make([]string, 0)
+	changed := make([]map[string]any, 0)
+	unchanged := make([]string, 0)
+
+	for key, target := range desiredIndex {
+		live, ok := currentIndex[key]
+		if !ok {
+			added = append(added, key)
+			continue
+		}
+		if live != target {
+			changed = append(changed, map[string]any{"resource": key, "current": live, "desired": target})
+		} else {
+			unchanged = append(unchanged, key)
+		}
+	}
+	for key := range currentIndex {
+		if _, ok := desiredIndex[key]; !ok {
+			removed = append(removed, key)
+		}
+	}
+	sort.Strings(added)
+	sort.Strings(removed)
+	sort.Strings(unchanged)
+	sort.Slice(changed, func(i, j int) bool {
+		return toString(changed[i]["resource"]) < toString(changed[j]["resource"])
+	})
+	return added, removed, changed, unchanged
+}
+
+func indexManifestObjects(items []*unstructured.Unstructured) map[string]string {
+	index := make(map[string]string, len(items))
+	for _, item := range items {
+		if item == nil {
+			continue
+		}
+		key := manifestObjectKey(item)
+		if key == "" {
+			continue
+		}
+		buf, err := sigsyaml.Marshal(item.Object)
+		if err != nil {
+			continue
+		}
+		index[key] = strings.TrimSpace(string(buf))
+	}
+	return index
+}
+
+func manifestObjectKey(item *unstructured.Unstructured) string {
+	if item == nil {
+		return ""
+	}
+	kind := item.GetKind()
+	apiVersion := item.GetAPIVersion()
+	name := item.GetName()
+	namespace := item.GetNamespace()
+	if kind == "" || name == "" {
+		return ""
+	}
+	if namespace == "" {
+		return fmt.Sprintf("%s/%s/%s", apiVersion, kind, name)
+	}
+	return fmt.Sprintf("%s/%s/%s/%s", apiVersion, kind, namespace, name)
 }
 
 func summarizeRelease(rel *release.Release) map[string]any {

@@ -196,6 +196,7 @@ Enabled by default:
 - `helm`
 - `aws`
 - `terraform`
+- `rootcause`
 
 Optional toolchains return “not detected” when the control plane is absent. Additional toolchains can be registered via the plugin SDK; see `PLUGINS.md`.
 
@@ -204,6 +205,7 @@ Optional toolchains return “not detected” when the control plane is absent. 
 ## Tools
 
 See `TOOLS.md` for the full tool catalog, quick picker, and graph-first debugging flow references.
+Prompt templates for common debugging flows are in `prompts/prompt.md`.
 
 ---
 

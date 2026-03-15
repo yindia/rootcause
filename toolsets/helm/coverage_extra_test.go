@@ -12,18 +12,18 @@ import (
 	"helm.sh/helm/v3/pkg/chart"
 	"helm.sh/helm/v3/pkg/cli"
 	"helm.sh/helm/v3/pkg/getter"
+	kubefake "helm.sh/helm/v3/pkg/kube/fake"
 	"helm.sh/helm/v3/pkg/release"
 	"helm.sh/helm/v3/pkg/repo"
 	"helm.sh/helm/v3/pkg/storage"
 	"helm.sh/helm/v3/pkg/storage/driver"
-	kubefake "helm.sh/helm/v3/pkg/kube/fake"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	dynamicfake "k8s.io/client-go/dynamic/fake"
 	k8sfake "k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/rest"
@@ -387,10 +387,10 @@ func TestHandleInstallReadValuesError(t *testing.T) {
 	if _, err := toolset.handleInstall(context.Background(), mcp.ToolRequest{
 		User: policy.User{Role: policy.RoleCluster},
 		Arguments: map[string]any{
-			"confirm":   true,
-			"namespace": "default",
-			"release":   "demo",
-			"chart":     "missing",
+			"confirm":    true,
+			"namespace":  "default",
+			"release":    "demo",
+			"chart":      "missing",
 			"valuesYAML": "invalid: [",
 		},
 	}); err == nil {

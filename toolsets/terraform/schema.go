@@ -28,6 +28,19 @@ func schemaGetModule() map[string]any {
 	}
 }
 
+func schemaListModuleVersions() map[string]any {
+	return map[string]any{
+		"type": "object",
+		"properties": map[string]any{
+			"registryURL": map[string]any{"type": "string"},
+			"namespace":   map[string]any{"type": "string"},
+			"name":        map[string]any{"type": "string"},
+			"provider":    map[string]any{"type": "string"},
+		},
+		"required": []string{"namespace", "name", "provider"},
+	}
+}
+
 func schemaSearchModules() map[string]any {
 	return map[string]any{
 		"type": "object",
@@ -69,6 +82,35 @@ func schemaGetProvider() map[string]any {
 			"allowPrerelease": map[string]any{"type": "boolean"},
 		},
 		"required": []string{"namespace", "type"},
+	}
+}
+
+func schemaListProviderVersions() map[string]any {
+	return map[string]any{
+		"type": "object",
+		"properties": map[string]any{
+			"registryURL":     map[string]any{"type": "string"},
+			"namespace":       map[string]any{"type": "string"},
+			"type":            map[string]any{"type": "string"},
+			"allowPrerelease": map[string]any{"type": "boolean"},
+			"limit":           map[string]any{"type": "number"},
+		},
+		"required": []string{"namespace", "type"},
+	}
+}
+
+func schemaGetProviderPackage() map[string]any {
+	return map[string]any{
+		"type": "object",
+		"properties": map[string]any{
+			"registryURL": map[string]any{"type": "string"},
+			"namespace":   map[string]any{"type": "string"},
+			"type":        map[string]any{"type": "string"},
+			"version":     map[string]any{"type": "string"},
+			"os":          map[string]any{"type": "string"},
+			"arch":        map[string]any{"type": "string"},
+		},
+		"required": []string{"namespace", "type", "version", "os", "arch"},
 	}
 }
 

@@ -27,7 +27,7 @@ func newRestClientset(t *testing.T) (*kubernetes.Clientset, *rest.Config) {
 			GroupVersion:         &schema.GroupVersion{Version: "v1"},
 			NegotiatedSerializer: scheme.Codecs.WithoutConversion(),
 		},
-		Timeout: 200 * time.Millisecond,
+		Timeout:         200 * time.Millisecond,
 		TLSClientConfig: rest.TLSClientConfig{Insecure: true},
 	}
 	clientset, err := kubernetes.NewForConfig(cfg)

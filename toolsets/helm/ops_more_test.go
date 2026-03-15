@@ -10,8 +10,8 @@ import (
 
 	"helm.sh/helm/v3/pkg/action"
 	"helm.sh/helm/v3/pkg/chart"
-	"helm.sh/helm/v3/pkg/release"
 	kubefake "helm.sh/helm/v3/pkg/kube/fake"
+	"helm.sh/helm/v3/pkg/release"
 	"helm.sh/helm/v3/pkg/repo"
 	"helm.sh/helm/v3/pkg/storage"
 	"helm.sh/helm/v3/pkg/storage/driver"
@@ -20,12 +20,12 @@ import (
 	openapi_v2 "github.com/google/gnostic-models/openapiv2"
 
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/api/meta"
-	"k8s.io/apimachinery/pkg/version"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/version"
 	"k8s.io/client-go/discovery"
 	dynamicfake "k8s.io/client-go/dynamic/fake"
 	k8sfake "k8s.io/client-go/kubernetes/fake"
@@ -354,13 +354,13 @@ func TestHandleInstallUpgradeUninstall(t *testing.T) {
 	if _, err := toolset.handleInstall(context.Background(), mcp.ToolRequest{
 		User: policy.User{Role: policy.RoleCluster},
 		Arguments: map[string]any{
-			"release":   "demo",
-			"namespace": "default",
-			"chart":     chartDir,
-			"confirm":   true,
-			"wait":      true,
-			"atomic":    true,
-			"timeoutSeconds": 10,
+			"release":         "demo",
+			"namespace":       "default",
+			"chart":           chartDir,
+			"confirm":         true,
+			"wait":            true,
+			"atomic":          true,
+			"timeoutSeconds":  10,
 			"createNamespace": true,
 			"includeCRDs":     true,
 			"valuesYAML":      "replicaCount: 2\n",
@@ -372,11 +372,11 @@ func TestHandleInstallUpgradeUninstall(t *testing.T) {
 	if _, err := toolset.handleUpgrade(context.Background(), mcp.ToolRequest{
 		User: policy.User{Role: policy.RoleCluster},
 		Arguments: map[string]any{
-			"release":   "demo",
-			"namespace": "default",
-			"chart":     chartDir,
-			"confirm":   true,
-			"install":   true,
+			"release":        "demo",
+			"namespace":      "default",
+			"chart":          chartDir,
+			"confirm":        true,
+			"install":        true,
 			"timeoutSeconds": 5,
 		},
 	}); err != nil {
@@ -386,9 +386,9 @@ func TestHandleInstallUpgradeUninstall(t *testing.T) {
 	if _, err := toolset.handleUninstall(context.Background(), mcp.ToolRequest{
 		User: policy.User{Role: policy.RoleCluster},
 		Arguments: map[string]any{
-			"release":   "demo",
-			"namespace": "default",
-			"confirm":   true,
+			"release":        "demo",
+			"namespace":      "default",
+			"confirm":        true,
 			"keepHistory":    true,
 			"timeoutSeconds": 5,
 		},

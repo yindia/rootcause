@@ -157,6 +157,24 @@ func (t *Toolset) handleGetModule(ctx context.Context, req mcp.ToolRequest) (mcp
 	return mcp.ToolResult{Data: map[string]any{"module": modulePayload, "versions": versionsPayload}}, nil
 }
 
+func (t *Toolset) handleListModuleVersions(ctx context.Context, req mcp.ToolRequest) (mcp.ToolResult, error) {
+	args := req.Arguments
+	namespace := toString(args["namespace"])
+	name := toString(args["name"])
+	provider := toString(args["provider"])
+	if namespace == "" || name == "" || provider == "" {
+		err := errors.New("namespace, name, and provider are required")
+		return errorResult(err), err
+	}
+	registry := registryURL(args)
+	versionsURL := fmt.Sprintf("%s/v1/modules/%s/%s/%s/versions", registry, namespace, name, provider)
+	versionsPayload, err := t.getJSON(ctx, versionsURL)
+	if err != nil {
+		return errorResult(err), err
+	}
+	return mcp.ToolResult{Data: versionsPayload}, nil
+}
+
 func (t *Toolset) handleListProviders(ctx context.Context, req mcp.ToolRequest) (mcp.ToolResult, error) {
 	args := req.Arguments
 	registry := registryURL(args)
@@ -230,6 +248,45 @@ func (t *Toolset) handleGetProvider(ctx context.Context, req mcp.ToolRequest) (m
 		return errorResult(err), err
 	}
 	return mcp.ToolResult{Data: map[string]any{"provider": payload, "version": chooseVersion(version, latestVersion), "providerVersionID": providerVersionID}}, nil
+}
+
+func (t *Toolset) handleListProviderVersions(ctx context.Context, req mcp.ToolRequest) (mcp.ToolResult, error) {
+	args := req.Arguments
+	namespace := toString(args["namespace"])
+	providerType := toString(args["type"])
+	if namespace == "" || providerType == "" {
+		err := errors.New("namespace and type are required")
+		return errorResult(err), err
+	}
+	registry := registryURL(args)
+	versionsURL := fmt.Sprintf("%s/v1/providers/%s/%s/versions", registry, namespace, providerType)
+	payload, err := t.getJSON(ctx, versionsURL)
+	if err != nil {
+		return errorResult(err), err
+	}
+	allowPrerelease := toBool(args["allowPrerelease"])
+	limit := toInt(args["limit"])
+	return mcp.ToolResult{Data: filterProviderVersionsPayload(payload, allowPrerelease, limit)}, nil
+}
+
+func (t *Toolset) handleGetProviderPackage(ctx context.Context, req mcp.ToolRequest) (mcp.ToolResult, error) {
+	args := req.Arguments
+	namespace := toString(args["namespace"])
+	providerType := toString(args["type"])
+	version := toString(args["version"])
+	osName := toString(args["os"])
+	arch := toString(args["arch"])
+	if namespace == "" || providerType == "" || version == "" || osName == "" || arch == "" {
+		err := errors.New("namespace, type, version, os, and arch are required")
+		return errorResult(err), err
+	}
+	registry := registryURL(args)
+	endpoint := fmt.Sprintf("%s/v1/providers/%s/%s/%s/download/%s/%s", registry, namespace, providerType, version, osName, arch)
+	payload, err := t.getJSON(ctx, endpoint)
+	if err != nil {
+		return errorResult(err), err
+	}
+	return mcp.ToolResult{Data: payload}, nil
 }
 
 func (t *Toolset) handleListResources(ctx context.Context, req mcp.ToolRequest) (mcp.ToolResult, error) {
@@ -692,6 +749,53 @@ func chooseVersion(requested, latest string) string {
 		return requested
 	}
 	return latest
+}
+
+func filterProviderVersionsPayload(payload any, allowPrerelease bool, limit int) any {
+	root, ok := payload.(map[string]any)
+	if !ok {
+		return payload
+	}
+	versionsRaw, ok := root["versions"].([]any)
+	if !ok {
+		return payload
+	}
+	filtered := make([]any, 0, len(versionsRaw))
+	for _, item := range versionsRaw {
+		versionEntry, ok := item.(map[string]any)
+		if !ok {
+			continue
+		}
+		version := toString(versionEntry["version"])
+		if version == "" {
+			continue
+		}
+		parsed, err := semver.NewVersion(version)
+		if err != nil {
+			filtered = append(filtered, versionEntry)
+			continue
+		}
+		if len(parsed.Prerelease()) > 0 && !allowPrerelease {
+			continue
+		}
+		filtered = append(filtered, versionEntry)
+	}
+	sort.Slice(filtered, func(i, j int) bool {
+		left := toString(filtered[i].(map[string]any)["version"])
+		right := toString(filtered[j].(map[string]any)["version"])
+		lv, le := semver.NewVersion(left)
+		rv, re := semver.NewVersion(right)
+		if le != nil || re != nil {
+			return left > right
+		}
+		return lv.GreaterThan(rv)
+	})
+	if limit > 0 && len(filtered) > limit {
+		filtered = filtered[:limit]
+	}
+	root["versions"] = filtered
+	root["count"] = len(filtered)
+	return root
 }
 
 func applyLimit(payload any, limit int) any {
