@@ -2,6 +2,8 @@
 
 Reusable agent skills for Kubernetes and RootCause workflows. Each skill gives your AI assistant structured guidance: triggers, priority rules, tool quick reference, workflow steps, troubleshooting, and output contracts.
 
+Skills are defined by a schema-versioned manifest embedded in the CLI: `internal/skills/catalog/manifest.json`.
+
 ## Quick Install
 
 ```bash
@@ -20,6 +22,11 @@ rootcause sync-skills --list-agents
 
 # Sync using project-local default directory for one agent
 rootcause sync-skills --agent opencode --project-dir .
+
+# UX helpers
+rootcause sync-skills --all-agents --dry-run
+rootcause sync-skills --agent claude --skill k8s-incident --skill rootcause-rca
+rootcause sync-skills --list-skills
 ```
 
 | Agent | Format | Project Directory |
@@ -42,7 +49,7 @@ rootcause sync-skills --agent opencode --project-dir .
 skills/claude/<skill-name>/SKILL.md
 ```
 
-## All Skills (20 total)
+## All Skills (21 total)
 
 ### Incident Response
 
@@ -93,6 +100,7 @@ skills/claude/<skill-name>/SKILL.md
 |---|---|
 | `k8s-security` | RBAC, ServiceAccount permissions, IRSA, and security audit workflows |
 | `k8s-policy` | Kyverno policy readiness, report failures, and admission control diagnostics |
+| `k8s-gatekeeper` | Gatekeeper constraint/template diagnostics and admission-denial analysis |
 | `k8s-certs` | cert-manager certificate and issuer readiness, renewal failures |
 
 ### Cost & Scaling
@@ -138,5 +146,15 @@ npx skills add owner/repo -a claude-code -a codex
 
 
 Supported agents include Claude, Cursor, Codex, Gemini CLI, GitHub Copilot, Goose, Windsurf, Roo, Amp, and more.
+
+## Auto-generated Catalog
+
+Generate and verify skills docs:
+
+```bash
+go run ./cmd/cataloggen
+```
+
+Output file: `skills/CATALOG.md`
 
 Tip: keep this file and `README.md` in sync whenever skills are added or renamed.

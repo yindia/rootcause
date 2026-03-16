@@ -185,6 +185,14 @@ func (t *Toolset) Register(reg mcp.Registry) error {
 			Handler:     t.handleCiliumDetect,
 		},
 		{
+			Name:        "k8s.gatekeeper_detect",
+			Description: "Detect Gatekeeper API groups, resources, and control-plane namespaces.",
+			ToolsetID:   t.ID(),
+			InputSchema: schemaEcosystemDetect(),
+			Safety:      mcp.SafetyReadOnly,
+			Handler:     t.handleGatekeeperDetect,
+		},
+		{
 			Name:        "k8s.diagnose_argocd",
 			Description: "Diagnose ArgoCD resource health, sync drift, and warning events.",
 			ToolsetID:   t.ID(),
@@ -223,6 +231,14 @@ func (t *Toolset) Register(reg mcp.Registry) error {
 			InputSchema: schemaEcosystemDiagnose(),
 			Safety:      mcp.SafetyReadOnly,
 			Handler:     t.handleDiagnoseCilium,
+		},
+		{
+			Name:        "k8s.diagnose_gatekeeper",
+			Description: "Diagnose Gatekeeper constraints/templates and warning events.",
+			ToolsetID:   t.ID(),
+			InputSchema: schemaEcosystemDiagnose(),
+			Safety:      mcp.SafetyReadOnly,
+			Handler:     t.handleDiagnoseGatekeeper,
 		},
 		{
 			Name:        "k8s.safe_mutation_preflight",

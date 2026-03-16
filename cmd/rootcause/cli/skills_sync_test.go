@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"rootcause/internal/skills/catalog"
 	"rootcause/pkg/server"
 )
 
@@ -33,8 +34,9 @@ func TestSyncSkillsForTargetCopiesFiles(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(source, "k8s-incident", "SKILL.md"), content, 0o644); err != nil {
 		t.Fatalf("write source skill: %v", err)
 	}
+	skills := []catalog.Skill{{Name: "k8s-incident", Path: "skills/claude/k8s-incident/SKILL.md"}}
 
-	count, dest, err := syncSkillsForTarget(source, projectDir, agentTargets["claude"], true)
+	count, dest, err := syncSkillsForTarget(source, projectDir, agentTargets["claude"], skills, true, false)
 	if err != nil {
 		t.Fatalf("syncSkillsForTarget: %v", err)
 	}
@@ -45,7 +47,7 @@ func TestSyncSkillsForTargetCopiesFiles(t *testing.T) {
 		t.Fatalf("expected copied SKILL.md: %v", err)
 	}
 
-	count, dest, err = syncSkillsForTarget(source, projectDir, agentTargets["cursor"], true)
+	count, dest, err = syncSkillsForTarget(source, projectDir, agentTargets["cursor"], skills, true, false)
 	if err != nil {
 		t.Fatalf("sync cursor: %v", err)
 	}
@@ -56,7 +58,7 @@ func TestSyncSkillsForTargetCopiesFiles(t *testing.T) {
 		t.Fatalf("expected copied .mdc: %v", err)
 	}
 
-	count, dest, err = syncSkillsForTarget(source, projectDir, agentTargets["copilot"], true)
+	count, dest, err = syncSkillsForTarget(source, projectDir, agentTargets["copilot"], skills, true, false)
 	if err != nil {
 		t.Fatalf("sync copilot: %v", err)
 	}
@@ -77,6 +79,7 @@ func TestSyncSkillsForTargetNoOverwrite(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(source, "k8s-incident", "SKILL.md"), []byte("new"), 0o644); err != nil {
 		t.Fatalf("write source: %v", err)
 	}
+	skills := []catalog.Skill{{Name: "k8s-incident", Path: "skills/claude/k8s-incident/SKILL.md"}}
 	dest := filepath.Join(projectDir, ".claude", "skills", "k8s-incident")
 	if err := os.MkdirAll(dest, 0o755); err != nil {
 		t.Fatalf("mkdir dest: %v", err)
@@ -86,7 +89,7 @@ func TestSyncSkillsForTargetNoOverwrite(t *testing.T) {
 		t.Fatalf("write existing dest: %v", err)
 	}
 
-	count, _, err := syncSkillsForTarget(source, projectDir, agentTargets["claude"], false)
+	count, _, err := syncSkillsForTarget(source, projectDir, agentTargets["claude"], skills, false, false)
 	if err != nil {
 		t.Fatalf("sync: %v", err)
 	}
@@ -99,6 +102,20 @@ func TestSyncSkillsForTargetNoOverwrite(t *testing.T) {
 	}
 	if string(data) != "old" {
 		t.Fatalf("expected existing file untouched, got %q", string(data))
+	}
+}
+
+func TestSelectedSkillsFromFilter(t *testing.T) {
+	m, err := catalog.Load()
+	if err != nil {
+		t.Fatalf("load catalog: %v", err)
+	}
+	skills, err := selectedSkills(m, []string{"k8s-incident", "k8s-helm"})
+	if err != nil {
+		t.Fatalf("selectedSkills: %v", err)
+	}
+	if len(skills) != 2 {
+		t.Fatalf("expected 2 skills, got %d", len(skills))
 	}
 }
 

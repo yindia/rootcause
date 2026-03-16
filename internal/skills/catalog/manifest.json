@@ -1,0 +1,28 @@
+{
+  "schemaVersion": "1.0.0",
+  "version": "2026.03.16",
+  "sourceFormat": "SKILL.md",
+  "skills": [
+    {"name": "k8s-incident", "category": "Incident Response", "description": "Active incident triage with blast-radius and evidence-first analysis.", "path": "skills/claude/k8s-incident/SKILL.md"},
+    {"name": "rootcause-rca", "category": "Incident Response", "description": "RCA workflow with timeline, remediation playbook, and postmortem export.", "path": "skills/claude/rootcause-rca/SKILL.md"},
+    {"name": "k8s-core", "category": "Core and Operations", "description": "Core Kubernetes CRUD, logs, events, and discovery workflows.", "path": "skills/claude/k8s-core/SKILL.md"},
+    {"name": "k8s-operations", "category": "Core and Operations", "description": "Safe operations: restart checks, best-practice scoring, mutation preflight.", "path": "skills/claude/k8s-operations/SKILL.md"},
+    {"name": "k8s-diagnostics", "category": "Diagnostics and Debugging", "description": "Deep workload debugging for crashloop, scheduling, config, HPA, VPA.", "path": "skills/claude/k8s-diagnostics/SKILL.md"},
+    {"name": "k8s-troubleshoot", "category": "Diagnostics and Debugging", "description": "Keyword-driven and graph-driven debug flows for unknown failures.", "path": "skills/claude/k8s-troubleshoot/SKILL.md"},
+    {"name": "k8s-deploy", "category": "Deployment and Delivery", "description": "Deployment workflows for rollout, scale, and restart with safety gates.", "path": "skills/claude/k8s-deploy/SKILL.md"},
+    {"name": "k8s-helm", "category": "Deployment and Delivery", "description": "Helm lifecycle: search, install, diff, upgrade, rollback advisor.", "path": "skills/claude/k8s-helm/SKILL.md"},
+    {"name": "k8s-rollouts", "category": "Deployment and Delivery", "description": "Progressive delivery patterns: canary, blue-green, rollout verification.", "path": "skills/claude/k8s-rollouts/SKILL.md"},
+    {"name": "k8s-gitops", "category": "GitOps", "description": "ArgoCD and Flux detect/diagnose workflows for drift and reconciliation.", "path": "skills/claude/k8s-gitops/SKILL.md"},
+    {"name": "k8s-networking", "category": "Networking and Mesh", "description": "Service networking, NetworkPolicy analysis, ingress and private-link debugging.", "path": "skills/claude/k8s-networking/SKILL.md"},
+    {"name": "k8s-service-mesh", "category": "Networking and Mesh", "description": "Istio and Linkerd proxy, routing, and policy diagnostics.", "path": "skills/claude/k8s-service-mesh/SKILL.md"},
+    {"name": "k8s-cilium", "category": "Networking and Mesh", "description": "Cilium endpoint, policy, and node health diagnostics.", "path": "skills/claude/k8s-cilium/SKILL.md"},
+    {"name": "k8s-security", "category": "Security and Policy", "description": "RBAC, ServiceAccount, IRSA, and security audit workflows.", "path": "skills/claude/k8s-security/SKILL.md"},
+    {"name": "k8s-policy", "category": "Security and Policy", "description": "Kyverno policy readiness, report failures, and admission diagnostics.", "path": "skills/claude/k8s-policy/SKILL.md"},
+    {"name": "k8s-gatekeeper", "category": "Security and Policy", "description": "Gatekeeper constraint/template health and admission denial diagnostics.", "path": "skills/claude/k8s-gatekeeper/SKILL.md"},
+    {"name": "k8s-certs", "category": "Security and Policy", "description": "cert-manager issuer and certificate renewal diagnostics.", "path": "skills/claude/k8s-certs/SKILL.md"},
+    {"name": "k8s-cost", "category": "Cost and Scaling", "description": "Resource usage analysis and right-sizing recommendations.", "path": "skills/claude/k8s-cost/SKILL.md"},
+    {"name": "k8s-autoscaling", "category": "Cost and Scaling", "description": "HPA, VPA, and Karpenter provisioning diagnostics.", "path": "skills/claude/k8s-autoscaling/SKILL.md"},
+    {"name": "k8s-storage", "category": "Storage", "description": "PVC/PV/VolumeAttachment and storage class troubleshooting.", "path": "skills/claude/k8s-storage/SKILL.md"},
+    {"name": "k8s-browser", "category": "Browser Automation", "description": "Browser-driven ingress checks, screenshots, and dashboard exports.", "path": "skills/claude/k8s-browser/SKILL.md"}
+  ]
+}

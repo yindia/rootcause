@@ -73,6 +73,16 @@ var (
 		},
 		EventKeywords: []string{"kyverno", "policy", "violation", "admission"},
 	}
+	gatekeeperSpec = ecosystemSpec{
+		Name:   "gatekeeper",
+		Groups: []string{"templates.gatekeeper.sh", "constraints.gatekeeper.sh", "status.gatekeeper.sh", "mutations.gatekeeper.sh"},
+		Resources: []ecosystemResourceSpec{
+			{Group: "templates.gatekeeper.sh", Resource: "constrainttemplates"},
+			{Group: "constraints.gatekeeper.sh", Resource: "k8srequiredlabels"},
+			{Group: "status.gatekeeper.sh", Resource: "constraintpodstatuses"},
+		},
+		EventKeywords: []string{"gatekeeper", "constraint", "admission", "template"},
+	}
 	ciliumSpec = ecosystemSpec{
 		Name:   "cilium",
 		Groups: []string{"cilium.io"},
@@ -106,6 +116,10 @@ func (t *Toolset) handleCiliumDetect(ctx context.Context, req mcp.ToolRequest) (
 	return t.handleEcosystemDetect(ctx, req, ciliumSpec)
 }
 
+func (t *Toolset) handleGatekeeperDetect(ctx context.Context, req mcp.ToolRequest) (mcp.ToolResult, error) {
+	return t.handleEcosystemDetect(ctx, req, gatekeeperSpec)
+}
+
 func (t *Toolset) handleDiagnoseArgoCD(ctx context.Context, req mcp.ToolRequest) (mcp.ToolResult, error) {
 	return t.handleEcosystemDiagnose(ctx, req, argocdSpec)
 }
@@ -124,6 +138,10 @@ func (t *Toolset) handleDiagnoseKyverno(ctx context.Context, req mcp.ToolRequest
 
 func (t *Toolset) handleDiagnoseCilium(ctx context.Context, req mcp.ToolRequest) (mcp.ToolResult, error) {
 	return t.handleEcosystemDiagnose(ctx, req, ciliumSpec)
+}
+
+func (t *Toolset) handleDiagnoseGatekeeper(ctx context.Context, req mcp.ToolRequest) (mcp.ToolResult, error) {
+	return t.handleEcosystemDiagnose(ctx, req, gatekeeperSpec)
 }
 
 func (t *Toolset) handleEcosystemDetect(ctx context.Context, req mcp.ToolRequest, spec ecosystemSpec) (mcp.ToolResult, error) {
@@ -304,6 +322,7 @@ func (t *Toolset) detectControlPlaneNamespaces(ctx context.Context, spec ecosyst
 		"flux":         "app.kubernetes.io/part-of=flux",
 		"cert-manager": "app.kubernetes.io/name=cert-manager",
 		"kyverno":      "app.kubernetes.io/name=kyverno",
+		"gatekeeper":   "app=gatekeeper-controller-manager",
 		"cilium":       "k8s-app=cilium",
 	}
 	selector := selectors[spec.Name]
@@ -443,6 +462,18 @@ func ecosystemHealthStatus(ecosystem, resource string, obj *unstructured.Unstruc
 				issues = append(issues, "ipam operator error="+errorText)
 			}
 		}
+	case "gatekeeper":
+		issues = append(issues, collectNonReadyConditionIssues(obj)...)
+		if resource == "constrainttemplates" {
+			if created, found, _ := unstructured.NestedBool(obj.Object, "status", "created"); found && !created {
+				issues = append(issues, "status.created=false")
+			}
+		}
+		if strings.Contains(resource, "k8s") || strings.Contains(resource, "constraint") {
+			if violations, found, _ := unstructured.NestedInt64(obj.Object, "status", "totalViolations"); found && violations > 0 {
+				issues = append(issues, fmt.Sprintf("status.totalViolations=%d", violations))
+			}
+		}
 	}
 	if len(issues) == 0 {
 		return "healthy", nil
@@ -498,6 +529,8 @@ func ecosystemRecommendations(name string, degraded, warningEvents int) []string
 		return append(base, "Review failing policy reports and admission denials before rollout.")
 	case "cilium":
 		return append(base, "Review CiliumEndpoint state and policy node-level errors.")
+	case "gatekeeper":
+		return append(base, "Review failing ConstraintTemplates/Constraints and admission denials.")
 	default:
 		return base
 	}

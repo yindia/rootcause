@@ -45,11 +45,13 @@ func TestToolsetInitAndRegister(t *testing.T) {
 		"k8s.cert_manager_detect",
 		"k8s.kyverno_detect",
 		"k8s.cilium_detect",
+		"k8s.gatekeeper_detect",
 		"k8s.diagnose_argocd",
 		"k8s.diagnose_flux",
 		"k8s.diagnose_cert_manager",
 		"k8s.diagnose_kyverno",
 		"k8s.diagnose_cilium",
+		"k8s.diagnose_gatekeeper",
 		"k8s.safe_mutation_preflight",
 	} {
 		if _, ok := reg.Get(toolName); !ok {

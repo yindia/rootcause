@@ -34,7 +34,7 @@ RootCause is built for SRE/operator workflows where speed matters, but unsafe au
 |---|---|
 | "What changed and why did this break?" | `rootcause.incident_bundle`, `rootcause.change_timeline`, `rootcause.rca_generate` |
 | "Is it safe to restart or roll out now?" | `k8s.restart_safety_check`, `k8s.best_practice`, `k8s.safe_mutation_preflight` |
-| "Is my platform ecosystem healthy?" | `k8s.*_detect` + `k8s.diagnose_*` for ArgoCD/Flux/cert-manager/Kyverno/Cilium |
+| "Is my platform ecosystem healthy?" | `k8s.*_detect` + `k8s.diagnose_*` for ArgoCD/Flux/cert-manager/Kyverno/Gatekeeper/Cilium |
 | "Can I standardize SRE responses?" | Prompt templates + structured output from shared render/evidence pipeline |
 
 ## What Can You Do?
@@ -66,7 +66,7 @@ Power users can map these prompts to concrete tools in this README (`Complete Fe
 ### Ecosystem-specific health checks
 - ArgoCD: detect installation and diagnose sync/health drift
 - Flux: detect controllers and diagnose reconciliation failures
-- cert-manager / Kyverno / Cilium: detect footprint and diagnose control-plane or policy issues
+- cert-manager / Kyverno / Gatekeeper / Cilium: detect footprint and diagnose control-plane or policy issues
 
 ## Feature Highlights
 
@@ -74,7 +74,7 @@ Power users can map these prompts to concrete tools in this README (`Complete Fe
 |---|---|
 | Incident analysis | `rootcause.incident_bundle`, `rootcause.rca_generate`, `rootcause.change_timeline`, `rootcause.postmortem_export` |
 | Kubernetes resilience | `k8s.restart_safety_check`, `k8s.best_practice`, `k8s.safe_mutation_preflight` |
-| Ecosystem diagnostics | ArgoCD/Flux/cert-manager/Kyverno/Cilium via `*_detect` and `diagnose_*` tools |
+| Ecosystem diagnostics | ArgoCD/Flux/cert-manager/Kyverno/Gatekeeper/Cilium via `*_detect` and `diagnose_*` tools |
 | Deployment safety | Automatic preflight before k8s mutating operations |
 | Helm operations | Chart search/list/get, release diff, rollback advisor, template apply/uninstall flows |
 | Terraform analysis | Module/provider search + `terraform.debug_plan` for impact/risk analysis |
@@ -85,7 +85,7 @@ Power users can map these prompts to concrete tools in this README (`Complete Fe
 | Category | Representative capabilities |
 |---|---|
 | Kubernetes core (`k8s.*`) | CRUD, logs/events, graph-based debug flows, restart safety, best-practice scoring, mutation preflight |
-| Ecosystem diagnostics | ArgoCD, Flux, cert-manager, Kyverno, Cilium via `*_detect` and `diagnose_*` |
+| Ecosystem diagnostics | ArgoCD, Flux, cert-manager, Kyverno, Gatekeeper, Cilium via `*_detect` and `diagnose_*` |
 | Incident intelligence (`rootcause.*`) | Incident bundle orchestration, timeline export, RCA generation, remediation playbook, postmortem export |
 | Helm operations (`helm.*`) | Chart registry search/list/get, release status/diff, rollback advisor, install/upgrade/uninstall, template apply/uninstall |
 | Terraform analysis (`terraform.*`) | Modules/providers/resources/data source discovery + plan debugging |
@@ -97,6 +97,8 @@ Power users can map these prompts to concrete tools in this README (`Complete Fe
 ## Agent Skills
 
 Extend your AI coding agent with Kubernetes and RootCause expertise using the built-in skills library in `skills/`.
+
+Skills metadata is schema-versioned and embedded in the CLI from `internal/skills/catalog/manifest.json`.
 
 ### Quick Install
 
@@ -119,6 +121,11 @@ rootcause sync-skills --agent claude --project-dir .
 
 # Example: GitHub Copilot project files
 rootcause sync-skills --agent copilot --project-dir .
+
+# UX helpers
+rootcause sync-skills --all-agents --dry-run
+rootcause sync-skills --agent claude --skill k8s-incident --skill rootcause-rca
+rootcause sync-skills --list-skills
 ```
 
 Agent directory defaults used by `sync-skills`:
@@ -137,7 +144,7 @@ Agent directory defaults used by `sync-skills`:
 | Sourcegraph Cody | `SKILL.md` | `.cody/skills/` |
 | Amazon Q | `SKILL.md` | `.amazonq/skills/` |
 
-### Available Skills (20)
+### Available Skills (21)
 
 20 skills are currently included.
 
@@ -149,7 +156,7 @@ Agent directory defaults used by `sync-skills`:
 | Deployment and Delivery | `k8s-deploy`, `k8s-helm`, `k8s-rollouts` |
 | GitOps | `k8s-gitops` |
 | Networking and Mesh | `k8s-networking`, `k8s-service-mesh`, `k8s-cilium` |
-| Security and Policy | `k8s-security`, `k8s-policy`, `k8s-certs` |
+| Security and Policy | `k8s-security`, `k8s-policy`, `k8s-gatekeeper`, `k8s-certs` |
 | Cost and Scaling | `k8s-cost`, `k8s-autoscaling` |
 | Storage | `k8s-storage` |
 | Browser Automation | `k8s-browser` |
@@ -159,7 +166,7 @@ Supported agents include Claude, Cursor, Codex, Gemini CLI, GitHub Copilot, Goos
 
 Skills include consistent triggers, workflow steps, tool references, troubleshooting notes, and output contracts.
 
-See `skills/README.md` for full documentation.
+See `skills/README.md` for full documentation and `skills/CATALOG.md` for auto-generated catalog output.
 
 ### MCP Resources
 
@@ -665,8 +672,8 @@ Prompt templates for common debugging flows are in `prompts/prompt.md`.
 - CRUD + discovery: `k8s.get`, `k8s.list`, `k8s.describe`, `k8s.create`, `k8s.apply`, `k8s.patch`, `k8s.delete`, `k8s.api_resources`, `k8s.crds`
 - Ops + observability: `k8s.logs`, `k8s.events`, `k8s.context`, `k8s.explain_resource`, `k8s.ping`, `k8s.events_timeline`
 - Workload operations and safety: `k8s.scale`, `k8s.rollout`, `k8s.restart_safety_check`, `k8s.best_practice`, `k8s.safe_mutation_preflight`
-- Ecosystem detection: `k8s.argocd_detect`, `k8s.flux_detect`, `k8s.cert_manager_detect`, `k8s.kyverno_detect`, `k8s.cilium_detect`
-- Ecosystem diagnostics: `k8s.diagnose_argocd`, `k8s.diagnose_flux`, `k8s.diagnose_cert_manager`, `k8s.diagnose_kyverno`, `k8s.diagnose_cilium`
+- Ecosystem detection: `k8s.argocd_detect`, `k8s.flux_detect`, `k8s.cert_manager_detect`, `k8s.kyverno_detect`, `k8s.gatekeeper_detect`, `k8s.cilium_detect`
+- Ecosystem diagnostics: `k8s.diagnose_argocd`, `k8s.diagnose_flux`, `k8s.diagnose_cert_manager`, `k8s.diagnose_kyverno`, `k8s.diagnose_gatekeeper`, `k8s.diagnose_cilium`
 - Debugging: `k8s.overview`, `k8s.crashloop_debug`, `k8s.scheduling_debug`, `k8s.hpa_debug`, `k8s.vpa_debug`, `k8s.storage_debug`, `k8s.config_debug`, `k8s.permission_debug`, `k8s.network_debug`, `k8s.private_link_debug`, `k8s.debug_flow`
 - Maintenance + topology: `k8s.cleanup_pods`, `k8s.node_management`, `k8s.graph`, `k8s.resource_usage`
 

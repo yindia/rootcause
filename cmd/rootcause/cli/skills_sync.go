@@ -5,9 +5,12 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/spf13/cobra"
+
+	"rootcause/internal/skills/catalog"
 )
 
 type skillFormat string
@@ -62,16 +65,20 @@ func newSyncSkillsCmd(stderr io.Writer) *cobra.Command {
 	var sourceDir string
 	var overwrite bool
 	var listOnly bool
+	var listSkills bool
+	var allAgents bool
+	var dryRun bool
+	var skillFilters []string
 
 	cmd := &cobra.Command{
 		Use:   "sync-skills",
 		Short: "Sync skills into agent-specific project directories",
 		PreRunE: func(_ *cobra.Command, _ []string) error {
-			if listOnly {
+			if listOnly || listSkills {
 				return nil
 			}
-			if strings.TrimSpace(agent) == "" {
-				return fmt.Errorf("--agent is required unless --list-agents is set")
+			if !allAgents && strings.TrimSpace(agent) == "" {
+				return fmt.Errorf("--agent is required unless --all-agents, --list-agents, or --list-skills is set")
 			}
 			return nil
 		},
@@ -79,23 +86,51 @@ func newSyncSkillsCmd(stderr io.Writer) *cobra.Command {
 			if listOnly {
 				return listAgentTargets(stderr)
 			}
+			manifest, err := catalog.Load()
+			if err != nil {
+				return err
+			}
+			if listSkills {
+				return listSkillsCatalog(stderr, manifest)
+			}
+			skills, err := selectedSkills(manifest, skillFilters)
+			if err != nil {
+				return err
+			}
 			source := sourceDir
 			if !filepath.IsAbs(source) {
 				source = filepath.Join(projectDir, source)
 			}
-			agentKey := strings.ToLower(strings.TrimSpace(agent))
-			target, ok := agentTargets[agentKey]
-			if !ok {
-				return fmt.Errorf("unsupported agent %q; use --list-agents to view supported values", agent)
+			targetKeys := []string{strings.ToLower(strings.TrimSpace(agent))}
+			if allAgents {
+				targetKeys = append([]string{}, canonicalAgentKeys...)
 			}
-			count, dest, err := syncSkillsForTarget(source, projectDir, target, overwrite)
-			if err != nil {
-				return err
+			total := 0
+			for _, key := range targetKeys {
+				target, ok := agentTargets[key]
+				if !ok {
+					return fmt.Errorf("unsupported agent %q; use --list-agents to view supported values", key)
+				}
+				count, dest, err := syncSkillsForTarget(source, projectDir, target, skills, overwrite, dryRun)
+				if err != nil {
+					return err
+				}
+				total += count
+				if stderr == nil {
+					stderr = os.Stdout
+				}
+				action := "Synced"
+				if dryRun {
+					action = "Would sync"
+				}
+				_, _ = fmt.Fprintf(stderr, "%s %d skill(s) for %s into %s\n", action, count, target.Agent, dest)
 			}
 			if stderr == nil {
 				stderr = os.Stdout
 			}
-			_, _ = fmt.Fprintf(stderr, "Synced %d skill(s) for %s into %s\n", count, target.Agent, dest)
+			if !dryRun {
+				_, _ = fmt.Fprintf(stderr, "Total synced skill copies: %d\n", total)
+			}
 			return nil
 		},
 	}
@@ -105,6 +140,10 @@ func newSyncSkillsCmd(stderr io.Writer) *cobra.Command {
 	cmd.Flags().StringVar(&sourceDir, "source", "skills/claude", "source skills directory")
 	cmd.Flags().BoolVar(&overwrite, "overwrite", true, "overwrite existing files")
 	cmd.Flags().BoolVar(&listOnly, "list-agents", false, "list supported agent targets and exit")
+	cmd.Flags().BoolVar(&listSkills, "list-skills", false, "list embedded skills catalog and exit")
+	cmd.Flags().BoolVar(&allAgents, "all-agents", false, "sync skills to all supported agents")
+	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "show planned copies without writing files")
+	cmd.Flags().StringSliceVar(&skillFilters, "skill", nil, "sync only selected skill name(s); can be repeated")
 
 	return cmd
 }
@@ -121,48 +160,84 @@ func listAgentTargets(w io.Writer) error {
 	return nil
 }
 
-func syncSkillsForTarget(sourceDir, projectDir string, target agentTarget, overwrite bool) (int, string, error) {
+func syncSkillsForTarget(sourceDir, projectDir string, target agentTarget, skills []catalog.Skill, overwrite bool, dryRun bool) (int, string, error) {
 	absProject, err := filepath.Abs(projectDir)
 	if err != nil {
 		return 0, "", err
 	}
-	entries, err := os.ReadDir(sourceDir)
-	if err != nil {
-		return 0, "", fmt.Errorf("read source skills: %w", err)
-	}
 	destRoot := filepath.Join(absProject, filepath.FromSlash(target.Dir))
-	if err := os.MkdirAll(destRoot, 0o755); err != nil {
-		return 0, "", fmt.Errorf("create destination dir: %w", err)
+	if !dryRun {
+		if err := os.MkdirAll(destRoot, 0o755); err != nil {
+			return 0, "", fmt.Errorf("create destination dir: %w", err)
+		}
 	}
 	count := 0
-	for _, entry := range entries {
-		if !entry.IsDir() {
-			continue
-		}
-		skillName := entry.Name()
-		srcFile := filepath.Join(sourceDir, skillName, "SKILL.md")
+	for _, skill := range skills {
+		srcFile := filepath.Join(sourceDir, filepath.Base(catalog.SkillDir(skill)), "SKILL.md")
 		data, err := os.ReadFile(srcFile)
 		if err != nil {
 			if os.IsNotExist(err) {
-				continue
+				return count, destRoot, fmt.Errorf("missing source skill file: %s", srcFile)
 			}
 			return count, destRoot, fmt.Errorf("read %s: %w", srcFile, err)
 		}
-		destFile := targetFilePath(destRoot, skillName, target.Format)
-		if err := os.MkdirAll(filepath.Dir(destFile), 0o755); err != nil {
-			return count, destRoot, err
-		}
-		if !overwrite {
-			if _, err := os.Stat(destFile); err == nil {
-				continue
+		destFile := targetFilePath(destRoot, skill.Name, target.Format)
+		if !dryRun {
+			if err := os.MkdirAll(filepath.Dir(destFile), 0o755); err != nil {
+				return count, destRoot, err
 			}
-		}
-		if err := os.WriteFile(destFile, data, 0o644); err != nil {
-			return count, destRoot, fmt.Errorf("write %s: %w", destFile, err)
+			if !overwrite {
+				if _, err := os.Stat(destFile); err == nil {
+					continue
+				}
+			}
+			if err := os.WriteFile(destFile, data, 0o644); err != nil {
+				return count, destRoot, fmt.Errorf("write %s: %w", destFile, err)
+			}
 		}
 		count++
 	}
 	return count, destRoot, nil
+}
+
+func listSkillsCatalog(w io.Writer, manifest catalog.Manifest) error {
+	if w == nil {
+		w = os.Stdout
+	}
+	byCategory := catalog.ByCategory(manifest)
+	for _, cat := range catalog.Categories(manifest) {
+		_, _ = fmt.Fprintf(w, "%s:\n", cat)
+		for _, skill := range byCategory[cat] {
+			_, _ = fmt.Fprintf(w, "  - %s\t%s\n", skill.Name, skill.Description)
+		}
+	}
+	return nil
+}
+
+func selectedSkills(manifest catalog.Manifest, filters []string) ([]catalog.Skill, error) {
+	if len(filters) == 0 {
+		out := append([]catalog.Skill{}, manifest.Skills...)
+		sort.Slice(out, func(i, j int) bool { return out[i].Name < out[j].Name })
+		return out, nil
+	}
+	allowed := map[string]struct{}{}
+	for _, f := range filters {
+		trimmed := strings.TrimSpace(strings.ToLower(f))
+		if trimmed != "" {
+			allowed[trimmed] = struct{}{}
+		}
+	}
+	var out []catalog.Skill
+	for _, s := range manifest.Skills {
+		if _, ok := allowed[strings.ToLower(s.Name)]; ok {
+			out = append(out, s)
+		}
+	}
+	if len(out) == 0 {
+		return nil, fmt.Errorf("no matching skills for filters: %v", filters)
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].Name < out[j].Name })
+	return out, nil
 }
 
 func targetFilePath(destRoot, skillName string, format skillFormat) string {
