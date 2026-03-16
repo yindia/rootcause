@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 
+	"rootcause/cmd/rootcause/cli"
 	"rootcause/pkg/server"
 
 	_ "rootcause/toolsets/aws"
@@ -28,4 +29,8 @@ func main() {
 		fmt.Fprintf(os.Stderr, "%v\n", err)
 		exit(1)
 	}
+}
+
+func executeRoot(ctx context.Context) error {
+	return cli.Execute(ctx, os.Args[1:], runServer, version, os.Stderr)
 }

@@ -1,0 +1,43 @@
+{
+  "$schema": "https://glama.ai/mcp/schemas/server.json",
+  "maintainers": ["yindia"],
+  "name": "rootcause",
+  "description": "AI-native SRE MCP server for Kubernetes incidents with evidence-first diagnostics, resources, prompts, and safe operations.",
+  "repository": "https://github.com/yindia/rootcause",
+  "license": "MIT",
+  "runtime": "go",
+  "installInstructions": {
+    "go": "go install github.com/yindia/rootcause/cmd/rootcause@latest",
+    "source": "git clone https://github.com/yindia/rootcause.git && cd rootcause && go build -o rootcause ./cmd/rootcause"
+  },
+  "requirements": {
+    "go": "Required - Go 1.23+ for building from source",
+    "kubeconfig": "Required - Valid kubeconfig file with cluster access",
+    "openrouter": "Optional - OPENROUTER_API_KEY for mcp-eval workflows"
+  },
+  "categories": [
+    "kubernetes",
+    "devops",
+    "incident-response",
+    "cloud-native",
+    "SRE"
+  ],
+  "keywords": [
+    "kubernetes",
+    "k8s",
+    "mcp",
+    "rootcause",
+    "sre",
+    "incident-response",
+    "gitops",
+    "helm",
+    "istio",
+    "linkerd",
+    "karpenter",
+    "terraform",
+    "aws",
+    "cloud-native",
+    "SRE",
+    "devops"
+  ]
+}

@@ -12,7 +12,7 @@ Built in Go as a single binary, RootCause is optimized for low-friction local wo
 
 ---
 
-[🚀 Quick Start](#quick-start-) | [🌐 Client Setup](#mcp-client-setup-) | [🛠️ Tools](#tools) | [🔒 Safety](#safety-modes) | [⚙️ Config](#config-and-flags) | [🏗️ Architecture](#architecture-overview) | [🤝 Contributing](#contributing-guide-)
+[🚀 Quick Start](#quick-start-) | [🌐 Client Setup](#mcp-client-setup-) | [🛠️ Tools](#tools) | [🧩 Skills](#agent-skills) | [🔒 Safety](#safety-modes) | [⚙️ Config](#config-and-flags) | [🏗️ Architecture](#architecture-overview) | [🤝 Contributing](#contributing-guide-)
 
 ---
 
@@ -93,6 +93,57 @@ Power users can map these prompts to concrete tools in this README (`Complete Fe
 | Cluster autoscaling (`karpenter.*`) | Provisioning, nodepool/nodeclass, interruption and scheduling diagnostics |
 | Cloud context (`aws.*`) | IAM, VPC, EC2, EKS, ECR, STS, KMS diagnostics for cross-layer incident analysis |
 | Safety and controls | Read-only mode, destructive gating, explicit confirmation, auto preflight checks before mutating K8s operations |
+
+## Agent Skills
+
+Extend your AI coding agent with Kubernetes and RootCause expertise using the built-in skills library in `skills/`.
+
+### Quick Install
+
+```bash
+# Copy all skills to Claude
+cp -r skills/claude/* ~/.claude/skills/
+
+# Or install a specific skill
+cp -r skills/claude/k8s-helm ~/.claude/skills/
+```
+
+### Available Skills (20)
+
+20 skills are currently included.
+
+| Category | Skills |
+|---|---|
+| Incident Response | `k8s-incident`, `rootcause-rca` |
+| Core and Operations | `k8s-core`, `k8s-operations` |
+| Diagnostics and Debugging | `k8s-diagnostics`, `k8s-troubleshoot` |
+| Deployment and Delivery | `k8s-deploy`, `k8s-helm`, `k8s-rollouts` |
+| GitOps | `k8s-gitops` |
+| Networking and Mesh | `k8s-networking`, `k8s-service-mesh`, `k8s-cilium` |
+| Security and Policy | `k8s-security`, `k8s-policy`, `k8s-certs` |
+| Cost and Scaling | `k8s-cost`, `k8s-autoscaling` |
+| Storage | `k8s-storage` |
+| Browser Automation | `k8s-browser` |
+
+### Convert to Other Agents
+
+Use SkillKit to convert these skills to your preferred AI agent format:
+
+```bash
+npm install -g skillkit
+
+# Convert to Cursor format
+skillkit translate skills/claude --to cursor --output .cursor/rules/
+
+# Convert to Codex format
+skillkit translate skills/claude --to codex --output ./
+```
+
+Supported agents include Claude, Cursor, Codex, Gemini CLI, GitHub Copilot, Goose, Windsurf, Roo, Amp, and more.
+
+Skills include consistent triggers, workflow steps, tool references, troubleshooting notes, and output contracts.
+
+See `skills/README.md` for full documentation.
 
 ### MCP Resources
 
@@ -840,6 +891,7 @@ go test ./...
 - Contribution rules: `CONTRIBUTING.md`
 - Plugin SDK and external toolsets: `PLUGINS.md`
 - Config example: `config.toml`
+- MCP eval harness: `eval/README.md`
 
 ### PR quality checklist
 
