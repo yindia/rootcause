@@ -125,19 +125,6 @@ cp -r skills/claude/k8s-helm ~/.claude/skills/
 | Storage | `k8s-storage` |
 | Browser Automation | `k8s-browser` |
 
-### Convert to Other Agents
-
-Use SkillKit to convert these skills to your preferred AI agent format:
-
-```bash
-npm install -g skillkit
-
-# Convert to Cursor format
-skillkit translate skills/claude --to cursor --output .cursor/rules/
-
-# Convert to Codex format
-skillkit translate skills/claude --to codex --output ./
-```
 
 Supported agents include Claude, Cursor, Codex, Gemini CLI, GitHub Copilot, Goose, Windsurf, Roo, Amp, and more.
 
