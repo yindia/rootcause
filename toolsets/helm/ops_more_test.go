@@ -568,6 +568,14 @@ func TestHandleTemplateApply(t *testing.T) {
 	cfg := config.DefaultConfig()
 	reg := mcp.NewRegistry(&cfg)
 	_ = reg.Add(mcp.ToolSpec{
+		Name:      "k8s.safe_mutation_preflight",
+		ToolsetID: "k8s",
+		Safety:    mcp.SafetyReadOnly,
+		Handler: func(ctx context.Context, req mcp.ToolRequest) (mcp.ToolResult, error) {
+			return mcp.ToolResult{Data: map[string]any{"safeToProceed": true}}, nil
+		},
+	})
+	_ = reg.Add(mcp.ToolSpec{
 		Name:        "k8s.apply",
 		Description: "test apply",
 		ToolsetID:   "k8s",

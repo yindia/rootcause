@@ -62,6 +62,7 @@ func TestHandleNodeManagementDrainSkipsAndForce(t *testing.T) {
 			"action":   "drain",
 			"nodeName": "node-1",
 			"force":    true,
+			"confirm":  true,
 		},
 	}); err != nil {
 		t.Fatalf("handleNodeManagement drain: %v", err)

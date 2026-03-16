@@ -11,16 +11,18 @@ import (
 )
 
 type Config struct {
-	Kubeconfig         string        `toml:"kubeconfig"`
-	Context            string        `toml:"context"`
-	Toolsets           []string      `toml:"toolsets"`
-	ReadOnly           bool          `toml:"read_only"`
-	DisableDestructive bool          `toml:"disable_destructive"`
-	LogLevel           string        `toml:"log_level"`
-	Safety             SafetyConfig  `toml:"safety"`
-	Exec               ExecConfig    `toml:"exec_readonly"`
-	Timeouts           TimeoutConfig `toml:"timeouts"`
-	Cache              CacheConfig   `toml:"cache"`
+	Kubeconfig         string          `toml:"kubeconfig"`
+	Context            string          `toml:"context"`
+	Toolsets           []string        `toml:"toolsets"`
+	ReadOnly           bool            `toml:"read_only"`
+	DisableDestructive bool            `toml:"disable_destructive"`
+	LogLevel           string          `toml:"log_level"`
+	Safety             SafetyConfig    `toml:"safety"`
+	Exec               ExecConfig      `toml:"exec_readonly"`
+	Timeouts           TimeoutConfig   `toml:"timeouts"`
+	Cache              CacheConfig     `toml:"cache"`
+	Transport          TransportConfig `toml:"transport"`
+	Prompts            PromptsConfig   `toml:"prompts"`
 }
 
 type SafetyConfig struct {
@@ -44,6 +46,17 @@ type CacheConfig struct {
 	AWSListTTLSeconds   int `toml:"aws_list_ttl_seconds"`
 }
 
+type TransportConfig struct {
+	Mode string `toml:"mode"`
+	Host string `toml:"host"`
+	Port int    `toml:"port"`
+	Path string `toml:"path"`
+}
+
+type PromptsConfig struct {
+	File string `toml:"file"`
+}
+
 type Overrides struct {
 	Kubeconfig         *string
 	Context            *string
@@ -51,6 +64,10 @@ type Overrides struct {
 	ReadOnly           *bool
 	DisableDestructive *bool
 	LogLevel           *string
+	TransportMode      *string
+	TransportHost      *string
+	TransportPort      *int
+	TransportPath      *string
 }
 
 func DefaultConfig() Config {
@@ -72,6 +89,12 @@ func DefaultConfig() Config {
 			DiscoveryTTLSeconds: 300,
 			GraphTTLSeconds:     30,
 			AWSListTTLSeconds:   60,
+		},
+		Transport: TransportConfig{
+			Mode: "stdio",
+			Host: "127.0.0.1",
+			Port: 8000,
+			Path: "/mcp",
 		},
 	}
 }
@@ -186,6 +209,21 @@ func merge(dst *Config, src Config) {
 	if src.Cache.AWSListTTLSeconds > 0 {
 		dst.Cache.AWSListTTLSeconds = src.Cache.AWSListTTLSeconds
 	}
+	if src.Transport.Mode != "" {
+		dst.Transport.Mode = src.Transport.Mode
+	}
+	if src.Transport.Host != "" {
+		dst.Transport.Host = src.Transport.Host
+	}
+	if src.Transport.Port > 0 {
+		dst.Transport.Port = src.Transport.Port
+	}
+	if src.Transport.Path != "" {
+		dst.Transport.Path = src.Transport.Path
+	}
+	if src.Prompts.File != "" {
+		dst.Prompts.File = src.Prompts.File
+	}
 }
 
 func applyOverrides(cfg *Config, overrides Overrides) {
@@ -206,5 +244,17 @@ func applyOverrides(cfg *Config, overrides Overrides) {
 	}
 	if overrides.LogLevel != nil {
 		cfg.LogLevel = *overrides.LogLevel
+	}
+	if overrides.TransportMode != nil {
+		cfg.Transport.Mode = *overrides.TransportMode
+	}
+	if overrides.TransportHost != nil {
+		cfg.Transport.Host = *overrides.TransportHost
+	}
+	if overrides.TransportPort != nil {
+		cfg.Transport.Port = *overrides.TransportPort
+	}
+	if overrides.TransportPath != nil {
+		cfg.Transport.Path = *overrides.TransportPath
 	}
 }

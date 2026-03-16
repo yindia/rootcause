@@ -4,48 +4,182 @@
 [![MCP](https://img.shields.io/badge/MCP-stdio-4A90E2)](https://modelcontextprotocol.io/)
 [![codecov](https://codecov.io/gh/yindia/rootcause/graph/badge.svg?token=F85C1M50K6)](https://codecov.io/gh/yindia/rootcause)
 
-RootCause is a local-first MCP server that helps operators manage Kubernetes resources and identify the real root cause of failures through interoperable toolsets.
+**AI-native SRE for Kubernetes incidents.**
 
-Built in Go for a fast, single-binary workflow that competes with npx-based MCP servers while staying kubeconfig-native. ⚡
+RootCause is a local-first MCP server that turns natural-language requests into evidence-backed incident analysis, Kubernetes diagnostics, and safer operations.
 
-**Mission statement**: “RootCause is a local-first MCP server that helps operators manage Kubernetes resources and identify the real root cause of failures through interoperable toolsets.”
-
-Inspired by:
-- https://github.com/containers/kubernetes-mcp-server
-- https://github.com/Flux159/mcp-server-kubernetes
+Built in Go as a single binary, RootCause is optimized for low-friction local workflows using your existing kubeconfig identity.
 
 ---
 
-## Contents
-
-- [Why RootCause](#why-rootcause)
-- [Quick Start](#quick-start-)
-- [Installation](#installation)
-- [Usage](#usage)
-- [MCP Client Example (stdio)](#mcp-client-example-stdio)
-- [MCP Client Setup](#mcp-client-setup)
-- [Toolchains](#toolchains)
-- [Tools](#tools)
-- [Safety Modes](#safety-modes)
-- [Config and Flags](#config-and-flags)
-- [Kubeconfig Resolution](#kubeconfig-resolution)
-- [Architecture Overview](#architecture-overview)
-- [MCP Transport](#mcp-transport)
-- [Future Cloud Readiness](#future-cloud-readiness)
-- [Collaboration](#collaboration-)
-- [Development](#development)
+[🚀 Quick Start](#quick-start-) | [🌐 Client Setup](#mcp-client-setup-) | [🛠️ Tools](#tools) | [🔒 Safety](#safety-modes) | [⚙️ Config](#config-and-flags) | [🏗️ Architecture](#architecture-overview) | [🤝 Contributing](#contributing-guide-)
 
 ---
 
-## Why RootCause
+## Why RootCause 💡
 
-- **Local-first**: Uses your kubeconfig identity only. No API keys required.
-- **Interoperable toolchains**: K8s, Linkerd, Istio, and Karpenter share the same clients, evidence, and render logic.
-- **Fast and portable**: One static Go binary, stdio-first MCP transport.
-- **Competitive by design**: Go binary speed and distribution with parity vs npx-based MCP servers.
-- **Debugging built-in**: Structured reasoning with likely root causes, evidence, and next checks.
-- **Plugin-ready**: Clean SDK to add toolchains without duplicating K8s logic.
-- **⭐ Like it?** Star the repo to help us grow and keep shipping.
+RootCause is built for SRE/operator workflows where speed matters, but unsafe automation is unacceptable.
+
+- **🚀 Stop context-switching**: investigate incidents, rollout risk, Helm/Terraform/AWS signals, and remediation from one MCP server.
+- **🧠 AI-powered diagnostics**: evidence-first analysis with RCA, timelines, and action-oriented next checks.
+- **💸 Built-in cost optimization**: combine resource usage, workload best-practice checks, Terraform plan analysis, and cloud context for optimization decisions.
+- **🔒 Enterprise-ready guardrails**: role/namespace policy enforcement, redaction, read-only mode, destructive tool controls, and mutation preflight.
+- **⚡ Zero learning curve**: ask natural-language operational questions and use provided prompt templates for common SRE flows.
+- **🌐 Universal compatibility**: works with MCP-compatible clients across Claude, Cursor, Copilot, Codex, and more.
+- **🏭 Production-grade workflow**: single Go binary, kubeconfig-native auth, deterministic structured outputs, and broad test coverage.
+
+### Why teams choose it
+
+| Need | RootCause answer |
+|---|---|
+| "What changed and why did this break?" | `rootcause.incident_bundle`, `rootcause.change_timeline`, `rootcause.rca_generate` |
+| "Is it safe to restart or roll out now?" | `k8s.restart_safety_check`, `k8s.best_practice`, `k8s.safe_mutation_preflight` |
+| "Is my platform ecosystem healthy?" | `k8s.*_detect` + `k8s.diagnose_*` for ArgoCD/Flux/cert-manager/Kyverno/Cilium |
+| "Can I standardize SRE responses?" | Prompt templates + structured output from shared render/evidence pipeline |
+
+## What Can You Do?
+
+Ask your AI assistant in natural language:
+
+- "Why did this deployment fail after rollout?"
+- "Is this workload safe to restart right now?"
+- "Why are ArgoCD apps out of sync?"
+- "Is Flux healthy in this cluster?"
+- "Why are certs failing to renew?"
+- "Before patch/apply, is this mutation safe?"
+
+RootCause keeps its depth-first model: evidence-first diagnosis, root-cause analysis, and remediation flow instead of raw tool sprawl.
+
+Power users can map these prompts to concrete tools in `TOOLS.md`.
+
+## Use Cases
+
+### Incident response
+- Build end-to-end incident evidence with `rootcause.incident_bundle`
+- Generate probable causes with `rootcause.rca_generate`
+- Export timeline and postmortem artifacts for follow-up
+
+### Safe operations before mutation
+- Evaluate rollout/restart risk with `k8s.restart_safety_check` and `k8s.best_practice`
+- Run `k8s.safe_mutation_preflight` before apply/patch/delete/scale operations
+
+### Ecosystem-specific health checks
+- ArgoCD: detect installation and diagnose sync/health drift
+- Flux: detect controllers and diagnose reconciliation failures
+- cert-manager / Kyverno / Cilium: detect footprint and diagnose control-plane or policy issues
+
+## Feature Highlights
+
+| Area | RootCause Capability |
+|---|---|
+| Incident analysis | `rootcause.incident_bundle`, `rootcause.rca_generate`, `rootcause.change_timeline`, `rootcause.postmortem_export` |
+| Kubernetes resilience | `k8s.restart_safety_check`, `k8s.best_practice`, `k8s.safe_mutation_preflight` |
+| Ecosystem diagnostics | ArgoCD/Flux/cert-manager/Kyverno/Cilium via `*_detect` and `diagnose_*` tools |
+| Deployment safety | Automatic preflight before k8s mutating operations |
+| Helm operations | Chart search/list/get, release diff, rollback advisor, template apply/uninstall flows |
+| Terraform analysis | Module/provider search + `terraform.debug_plan` for impact/risk analysis |
+| Service mesh & scaling | Linkerd/Istio/Karpenter diagnostics with shared evidence model |
+
+## Complete Feature Set
+
+| Category | Representative capabilities |
+|---|---|
+| Kubernetes core (`k8s.*`) | CRUD, logs/events, graph-based debug flows, restart safety, best-practice scoring, mutation preflight |
+| Ecosystem diagnostics | ArgoCD, Flux, cert-manager, Kyverno, Cilium via `*_detect` and `diagnose_*` |
+| Incident intelligence (`rootcause.*`) | Incident bundle orchestration, timeline export, RCA generation, remediation playbook, postmortem export |
+| Helm operations (`helm.*`) | Chart registry search/list/get, release status/diff, rollback advisor, install/upgrade/uninstall, template apply/uninstall |
+| Terraform analysis (`terraform.*`) | Modules/providers/resources/data source discovery + plan debugging |
+| Service mesh (`istio.*`, `linkerd.*`) | Proxy/config/status diagnostics, policy/routing visibility, mesh resource health |
+| Cluster autoscaling (`karpenter.*`) | Provisioning, nodepool/nodeclass, interruption and scheduling diagnostics |
+| Cloud context (`aws.*`) | IAM, VPC, EC2, EKS, ECR, STS, KMS diagnostics for cross-layer incident analysis |
+| Safety and controls | Read-only mode, destructive gating, explicit confirmation, auto preflight checks before mutating K8s operations |
+
+### MCP Resources
+
+Access Kubernetes data as browsable resources:
+
+| Resource URI | Description |
+|---|---|
+| `kubeconfig://contexts` | List all available kubeconfig contexts |
+| `kubeconfig://current-context` | Get current active context |
+| `namespace://current` | Get current namespace |
+| `namespace://list` | List all namespaces |
+| `cluster://info` | Get cluster connection info |
+| `cluster://nodes` | Get detailed node information |
+| `cluster://version` | Get Kubernetes version |
+| `cluster://api-resources` | List available API resources |
+| `manifest://deployments/{namespace}/{name}` | Get deployment YAML |
+| `manifest://services/{namespace}/{name}` | Get service YAML |
+| `manifest://pods/{namespace}/{name}` | Get pod YAML |
+| `manifest://configmaps/{namespace}/{name}` | Get ConfigMap YAML |
+| `manifest://secrets/{namespace}/{name}` | Get secret YAML (data masked) |
+| `manifest://ingresses/{namespace}/{name}` | Get ingress YAML |
+
+### MCP Prompts
+
+Pre-built workflow prompts for common Kubernetes operations:
+
+| Prompt | Description |
+|---|---|
+| `troubleshoot_workload` | Comprehensive troubleshooting guide for pods/deployments |
+| `deploy_application` | Step-by-step deployment workflow |
+| `security_audit` | Security scanning and RBAC analysis workflow |
+| `cost_optimization` | Resource optimization and cost analysis workflow |
+| `disaster_recovery` | Backup and recovery planning workflow |
+| `debug_networking` | Network debugging for services and connectivity |
+| `scale_application` | Scaling guide with HPA/VPA best practices |
+| `upgrade_cluster` | Kubernetes cluster upgrade planning |
+
+Custom prompt overrides are also supported. Resolution order:
+1. `MCP_PROMPTS_FILE`
+2. `ROOTCAUSE_PROMPTS_FILE`
+3. `[prompts].file` in `config.toml`
+4. Default files: `~/.rootcause/prompts.toml`, `~/.config/rootcause/prompts.toml`, `./rootcause-prompts.toml`
+
+Example custom prompt file:
+
+```toml
+[[prompt]]
+name = "security_audit"
+title = "Custom Security Audit"
+description = "Org-specific security policy checks"
+template = "Run custom security audit for {{namespace|all namespaces}} with CIS and policy controls"
+
+  [[prompt.argument]]
+  name = "namespace"
+  description = "Target namespace"
+  required = false
+```
+
+Custom prompts override built-ins with the same `name`.
+
+### Key Capabilities
+
+- 🤖 **Powerful tool catalog** - Kubernetes, ecosystem diagnostics, incident workflows, Helm, Terraform, service mesh, and AWS context.
+- 🎯 **Prompt-driven workflows** - Repeatable runbook templates for incident and reliability analysis.
+- 📊 **MCP Resources support** - Readable resource URIs for kubeconfig, namespace, cluster, and manifest access.
+- 🔐 **Security first** - Non-destructive modes, policy enforcement, secret masking, and mutation preflight checks.
+- 🏥 **Advanced diagnostics** - Root-cause oriented outputs with evidence and recommended next actions.
+- 🎡 **Strong Helm + Terraform coverage** - Chart lifecycle and plan/debug analysis in one server.
+- 🔧 **CLI-first operations** - Single binary, local kubeconfig usage, and toolset-level controls.
+
+## Getting Started
+
+### 1) Run RootCause
+
+```bash
+go run ./cmd/rootcause --config config.toml
+```
+
+### 2) Connect your MCP client
+
+Use stdio transport and point your MCP client to the `rootcause` command.
+
+### 3) Try high-signal prompts
+
+- "Generate an incident bundle for namespace payments and summarize the likely root cause."
+- "Run best-practice checks for deployment payment-api and list critical findings."
+- "Run safe mutation preflight for this apply operation before execution."
 
 ## Quick Start 🚀
 
@@ -63,6 +197,8 @@ go run ./cmd/rootcause --config config.example.toml
 3) Connect your MCP client using stdio.
 
 RootCause is built for local development. No API keys are required in this version.
+
+> Safe-by-default workflow: diagnose read-only first, then run mutation preflight before any write operation.
 
 ---
 
@@ -124,45 +260,72 @@ rootcause --read-only
 
 ---
 
-## MCP Client Example (stdio)
+## MCP Client Setup 🌐
 
-```
-rootcause --config config.toml
-```
+All MCP clients use the same core values:
+- `command`: `rootcause`
+- `args`: usually `--config /path/to/config.toml`
+- `env`: optional `KUBECONFIG`
 
-Point your MCP client to run the command above and use stdio transport.
+### Universal template
 
----
-
-## MCP Client Setup
-
-All MCP clients need the same three fields:
-- `command`: the RootCause binary
-- `args`: CLI flags (`--config`, `--toolsets`, etc.)
-- `env`: optional environment variables like `KUBECONFIG`
-
-### Codex CLI
-
-Add an MCP server entry pointing to RootCause (format varies by client version). Example:
-
-```
-[mcp.servers.rootcause]
-command = "rootcause"
-args = ["--config", "/path/to/config.toml"]
-env = { KUBECONFIG = "/path/to/kubeconfig" }
-```
-
-### Claude Desktop
-
-Add RootCause to the MCP servers section (use your local config path). Example:
-
-```
+```json
 {
   "mcpServers": {
     "rootcause": {
       "command": "rootcause",
-      "args": ["--config", "/path/to/config.toml"],
-      "env": { "KUBECONFIG": "/path/to/kubeconfig" }
+      "args": ["--config", "/Users/you/.config/rootcause/config.toml"],
+      "env": { "KUBECONFIG": "/Users/you/.kube/config" }
+    }
+  }
+}
+```
+
+## All Supported AI Assistants
+
+### Claude Desktop
+
+File: `~/Library/Application Support/Claude/claude_desktop_config.json`
+
+```json
+{
+  "mcpServers": {
+    "rootcause": {
+      "command": "rootcause",
+      "args": ["--config", "/Users/you/.config/rootcause/config.toml"],
+      "env": { "KUBECONFIG": "/Users/you/.kube/config" }
+    }
+  }
+}
+```
+
+### Claude Code
+
+File: `~/.config/claude-code/mcp.json`
+
+```json
+{
+  "mcpServers": {
+    "rootcause": {
+      "command": "rootcause",
+      "args": ["--config", "/Users/you/.config/rootcause/config.toml"],
+      "env": { "KUBECONFIG": "/Users/you/.kube/config" }
+    }
+  }
+}
+```
+
+### Cursor
+
+File: `~/.cursor/mcp.json`
+
+```json
+{
+  "mcpServers": {
+    "rootcause": {
+      "command": "rootcause",
+      "args": ["--config", "/Users/you/.config/rootcause/config.toml"],
+      "env": { "KUBECONFIG": "/Users/you/.kube/config" }
     }
   }
 }
@@ -170,35 +333,194 @@ Add RootCause to the MCP servers section (use your local config path). Example:
 
 ### GitHub Copilot (VS Code)
 
-If your Copilot/VS Code build supports MCP servers, add a server entry with the RootCause command. Example:
+File: VS Code `settings.json` (MCP-enabled builds)
 
-```
-"mcp.servers": {
-  "rootcause": {
-    "command": "rootcause",
-    "args": ["--config", "/path/to/config.toml"],
-    "env": { "KUBECONFIG": "/path/to/kubeconfig" }
+```json
+{
+  "mcp.servers": {
+    "rootcause": {
+      "command": "rootcause",
+      "args": ["--config", "/Users/you/.config/rootcause/config.toml"],
+      "env": { "KUBECONFIG": "/Users/you/.kube/config" }
+    }
   }
 }
 ```
 
-If the MCP settings key differs in your client, map the fields above to its configuration format.
+### OpenAI Codex / Codex CLI
+
+Format can vary by release. Equivalent TOML entry:
+
+```toml
+[mcp.servers.rootcause]
+command = "rootcause"
+args = ["--config", "/Users/you/.config/rootcause/config.toml"]
+env = { KUBECONFIG = "/Users/you/.kube/config" }
+```
+
+### Goose
+
+File: `~/.config/goose/config.yaml`
+
+```yaml
+extensions:
+  rootcause:
+    command: rootcause
+    args:
+      - --config
+      - /Users/you/.config/rootcause/config.toml
+```
+
+### Gemini CLI
+
+File: `~/.gemini/settings.json`
+
+```json
+{
+  "mcpServers": {
+    "rootcause": {
+      "command": "rootcause",
+      "args": ["--config", "/Users/you/.config/rootcause/config.toml"],
+      "env": { "KUBECONFIG": "/Users/you/.kube/config" }
+    }
+  }
+}
+```
+
+### Roo Code / Kilo Code
+
+File: `~/.config/roo-code/mcp.json` or `~/.config/kilo-code/mcp.json`
+
+```json
+{
+  "mcpServers": {
+    "rootcause": {
+      "command": "rootcause",
+      "args": ["--config", "/Users/you/.config/rootcause/config.toml"],
+      "env": { "KUBECONFIG": "/Users/you/.kube/config" }
+    }
+  }
+}
+```
+
+### Windsurf
+
+File: `~/.config/windsurf/mcp.json`
+
+```json
+{
+  "mcpServers": {
+    "rootcause": {
+      "command": "rootcause",
+      "args": ["--config", "/Users/you/.config/rootcause/config.toml"],
+      "env": { "KUBECONFIG": "/Users/you/.kube/config" }
+    }
+  }
+}
+```
+
+### Other MCP-compatible clients
+
+Use the universal template and map keys to the client's schema.
+
+## MCP Client Compatibility
+
+Works seamlessly with MCP-compatible AI assistants:
+
+| Client | Status | Client | Status |
+|---|---|---|---|
+| Claude Desktop | ✅ Native | Claude Code | ✅ Native |
+| Cursor | ✅ Native | Windsurf | ✅ Native |
+| GitHub Copilot | ✅ Native | OpenAI Codex | ✅ Native |
+| Gemini CLI | ✅ Native | Goose | ✅ Native |
+| Roo Code | ✅ Native | Kilo Code | ✅ Native |
+| Amp | ✅ Compatible | Trae | ✅ Compatible |
+| OpenCode | ✅ Compatible | Kiro CLI | ✅ Compatible |
+| Antigravity | ✅ Compatible | Clawdbot | ✅ Compatible |
+| Droid (Factory) | ✅ Compatible | Any MCP Client | ✅ Compatible |
+
+### Validate setup (all providers)
+
+1. Restart your client after editing MCP config.
+2. Ask: "List RootCause tools".
+3. Ask: "Run `k8s.argocd_detect`".
+4. If tools are missing, verify `rootcause` path, `--toolsets`, and `KUBECONFIG`.
+
+### Suggested first prompts (RootCause context)
+
+- "Run incident bundle for namespace payments and summarize root cause."
+- "Check deployment payment-api restart safety before rollout."
+- "Diagnose ArgoCD health in namespace argocd."
+- "Preflight this patch operation before mutation."
+
+## MCP Client Example (stdio)
+
+```bash
+rootcause --config config.toml
+```
+
+Point your MCP client to run the command above and use stdio transport.
+
+---
+
+## Example Operator Flows 🧪
+
+### Incident RCA flow
+
+1. "Create incident bundle for namespace payments"
+2. "Generate RCA from latest incident bundle"
+3. "Export postmortem draft"
+
+Tools behind this flow:
+- `rootcause.incident_bundle`
+- `rootcause.rca_generate`
+- `rootcause.postmortem_export`
+
+### Safe rollout flow
+
+1. "Run restart safety check for deployment payment-api"
+2. "Run best-practice check for payment-api"
+3. "Run mutation preflight for rollout restart"
+
+Tools behind this flow:
+- `k8s.restart_safety_check`
+- `k8s.best_practice`
+- `k8s.safe_mutation_preflight`
+
+### Ecosystem diagnosis flow
+
+1. "Detect Flux in this cluster"
+2. "Diagnose Flux reconciliation health in namespace flux-system"
+3. "Summarize top issues and next actions"
+
+Tools behind this flow:
+- `k8s.flux_detect`
+- `k8s.diagnose_flux`
 
 ---
 
 ## Toolchains
 
 Enabled by default:
-- `k8s`
-- `linkerd`
-- `karpenter`
-- `istio`
-- `helm`
-- `aws`
-- `terraform`
-- `rootcause`
 
-Optional toolchains return “not detected” when the control plane is absent. Additional toolchains can be registered via the plugin SDK; see `PLUGINS.md`.
+| Toolchain | Primary Purpose | Typical Requirement |
+|---|---|---|
+| `k8s` | Core Kubernetes operations and diagnostics | Kubernetes API access |
+| `linkerd` | Linkerd health and policy diagnostics | Linkerd control plane |
+| `karpenter` | Node provisioning and scaling diagnostics | Karpenter controller |
+| `istio` | Service mesh configuration and proxy diagnostics | Istio control plane |
+| `helm` | Chart registry/release workflows and diffing | Helm 3 and cluster access |
+| `aws` | EKS/EC2/VPC/IAM/ECR/KMS/STS diagnostics | AWS credentials |
+| `terraform` | Registry and plan impact analysis | Terraform workflows |
+| `rootcause` | Incident bundles, RCA, timeline, postmortem export | Kubernetes access |
+
+Optional toolchains return "not detected" when the control plane is absent. Additional toolchains can be registered via the plugin SDK; see `PLUGINS.md`.
+
+Enable only what you need:
+
+```bash
+rootcause --toolsets k8s,helm,rootcause
+```
 
 ---
 
@@ -206,6 +528,11 @@ Optional toolchains return “not detected” when the control plane is absent. 
 
 See `TOOLS.md` for the full tool catalog, quick picker, and graph-first debugging flow references.
 Prompt templates for common debugging flows are in `prompts/prompt.md`.
+
+New ecosystem-focused capabilities:
+- Detect controllers/CRDs quickly: `k8s.argocd_detect`, `k8s.flux_detect`, `k8s.cert_manager_detect`, `k8s.kyverno_detect`, `k8s.cilium_detect`
+- Diagnose ecosystem health with actionable findings: `k8s.diagnose_argocd`, `k8s.diagnose_flux`, `k8s.diagnose_cert_manager`, `k8s.diagnose_kyverno`, `k8s.diagnose_cilium`
+- Preflight mutating changes: `k8s.safe_mutation_preflight` (also auto-invoked before k8s mutate operations)
 
 ---
 
@@ -219,6 +546,12 @@ Default safety policy:
 - If a user does not explicitly request a mutating action, treat the request as read-only diagnostics.
 - Do not run mutating tools implicitly during analysis.
 - For investigation-first workflows, prefer running RootCause in `--read-only` mode.
+- K8s mutating tools `create/apply/patch/delete/scale/rollout/cleanup_pods/node_management` run an automatic `k8s.safe_mutation_preflight` check before execution.
+
+Safety workflow recommendation:
+1. Run read-only diagnosis (`k8s.*_debug`, `k8s.*_detect`, `k8s.diagnose_*`, `rootcause.incident_bundle`)
+2. Run `k8s.safe_mutation_preflight` for intended mutation
+3. Execute mutation only after preflight passes and `confirm=true`
 
 ---
 
@@ -236,6 +569,10 @@ rootcause --config config.example.toml --toolsets k8s,linkerd,istio,karpenter,he
 - `--config`
 - `--read-only`
 - `--disable-destructive`
+- `--transport` (`stdio|http|sse`)
+- `--host` (for HTTP/SSE)
+- `--port` (for HTTP/SSE)
+- `--path` (for HTTP/SSE)
 - `--log-level`
 
 If `--config` is not set, RootCause will use the `ROOTCAUSE_CONFIG` environment variable when present.
@@ -253,6 +590,44 @@ The AWS IAM tools use the standard AWS credential chain and region resolution. S
 If `--kubeconfig` is not set, RootCause follows standard Kubernetes loading rules: it uses `KUBECONFIG` when present, otherwise defaults to `~/.kube/config`.
 
 Authentication and authorization use your kubeconfig identity only in this version.
+
+---
+
+## Troubleshooting
+
+### kubeconfig not found
+- Verify `KUBECONFIG` or `~/.kube/config`
+- Override explicitly with `--kubeconfig /path/to/config`
+
+### tools not visible in MCP client
+- Confirm server is running and client points to `rootcause`
+- Check selected toolsets with `--toolsets`
+- If using `--read-only`, mutating tools will be hidden by design
+
+### ecosystem tools return not detected
+- This usually means the ecosystem control plane is not installed in the cluster
+- Run `k8s.<ecosystem>_detect` first, then `k8s.diagnose_<ecosystem>`
+
+### mutation blocked by preflight
+- Run `k8s.safe_mutation_preflight` explicitly and inspect failed checks
+- Fix policy/namespace/resource issues, then retry with `confirm=true`
+
+---
+
+## Architecture at a Glance
+
+```text
+AI Client
+  -> MCP stdio server
+  -> Tool registry (k8s/linkerd/istio/karpenter/helm/aws/terraform/rootcause)
+  -> Shared internals (kube clients, evidence, policy, rendering, redaction)
+  -> Target APIs (Kubernetes + cloud providers)
+```
+
+Why this matters:
+- consistent evidence format across toolsets
+- reusable diagnostics instead of duplicated logic
+- safer operations through centralized policy and preflight checks
 
 ---
 
@@ -277,7 +652,25 @@ On Windows, SIGHUP is not supported; restart the process to reload config.
 
 ## MCP Transport
 
-RootCause uses MCP over stdio by default (required). HTTP/SSE is not implemented in Phase 1.
+RootCause supports MCP over `stdio` (default), `http` (streamable HTTP), and `sse`.
+
+Examples:
+
+```bash
+# stdio
+rootcause --config config.toml --transport stdio
+
+# HTTP (streamable)
+rootcause --config config.toml --transport http --host 127.0.0.1 --port 8000 --path /mcp
+
+# SSE
+rootcause --config config.toml --transport sse --host 127.0.0.1 --port 8000 --path /mcp
+```
+
+Design focus today:
+- best-in-class local reliability for AI-assisted SRE workflows
+- deterministic, auditable outputs for incident review
+- safe mutation gates instead of broad write-by-default behavior
 
 ---
 
@@ -287,19 +680,39 @@ AWS IAM support is now available. The toolset system is designed to add deeper c
 
 ---
 
-## Collaboration 🤝
+## Contributing Guide 🤝
 
-We welcome collaborators, reviewers, and plugin authors. If you want to add toolsets, improve heuristics, or build cloud integrations, open an issue or PR. Help us make RootCause the fastest, most interoperable Kubernetes MCP server in the ecosystem.
+We welcome code, docs, tests, and operational feedback.
 
----
+### Ways to contribute
 
-## Development
+- 🐛 Report bugs with reproducible steps and expected behavior
+- 💡 Propose features with concrete operator scenarios
+- 🧪 Improve tests for safety, policy, and ecosystem diagnostics
+- 🧩 Add or improve toolsets via shared SDK and internal libraries
 
-- Config example: `config.toml`
-- Plugin SDK guide: `PLUGINS.md`
+### Contributor workflow
 
-Run unit tests:
+1. Fork and create a feature branch
+2. Implement focused changes with tests
+3. Run local verification:
 
-```
+```bash
 go test ./...
 ```
+
+4. Update docs (`README.md`, `TOOLS.md`, `prompts/prompt.md`) if behavior changed
+5. Open PR with problem statement, approach, and verification notes
+
+### Development references
+
+- Contribution rules: `CONTRIBUTING.md`
+- Plugin SDK and external toolsets: `PLUGINS.md`
+- Config example: `config.toml`
+
+### PR quality checklist
+
+- [ ] Behavior matches user/operator expectations
+- [ ] Safety model preserved (`read-only`, destructive gating, preflight)
+- [ ] Tests added/updated for new behavior
+- [ ] Tool/docs consistency checked (`README.md` + `TOOLS.md`)

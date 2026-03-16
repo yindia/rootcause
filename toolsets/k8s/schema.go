@@ -325,8 +325,9 @@ func schemaCleanupPods() map[string]any {
 			"namespace":     map[string]any{"type": "string"},
 			"states":        map[string]any{"type": "array", "items": map[string]any{"type": "string"}},
 			"labelSelector": map[string]any{"type": "string"},
+			"confirm":       map[string]any{"type": "boolean"},
 		},
-		"required": []string{"namespace"},
+		"required": []string{"namespace", "confirm"},
 	}
 }
 
@@ -338,8 +339,9 @@ func schemaNodeManagement() map[string]any {
 			"nodeName":           map[string]any{"type": "string"},
 			"gracePeriodSeconds": map[string]any{"type": "number"},
 			"force":              map[string]any{"type": "boolean"},
+			"confirm":            map[string]any{"type": "boolean"},
 		},
-		"required": []string{"action", "nodeName"},
+		"required": []string{"action", "nodeName", "confirm"},
 	}
 }
 
@@ -480,5 +482,40 @@ func schemaExecReadonly() map[string]any {
 			},
 		},
 		"required": []string{"namespace", "pod", "command"},
+	}
+}
+
+func schemaEcosystemDetect() map[string]any {
+	return map[string]any{
+		"type":       "object",
+		"properties": map[string]any{},
+	}
+}
+
+func schemaEcosystemDiagnose() map[string]any {
+	return map[string]any{
+		"type": "object",
+		"properties": map[string]any{
+			"namespace": map[string]any{"type": "string"},
+			"limit":     map[string]any{"type": "number"},
+		},
+	}
+}
+
+func schemaSafeMutationPreflight() map[string]any {
+	return map[string]any{
+		"type": "object",
+		"properties": map[string]any{
+			"operation":  map[string]any{"type": "string", "enum": []string{"create", "apply", "patch", "delete", "scale", "rollout", "cleanup_pods", "node_management"}},
+			"apiVersion": map[string]any{"type": "string"},
+			"kind":       map[string]any{"type": "string"},
+			"resource":   map[string]any{"type": "string"},
+			"name":       map[string]any{"type": "string"},
+			"namespace":  map[string]any{"type": "string"},
+			"manifest":   map[string]any{"type": "string"},
+			"patch":      map[string]any{"type": "string"},
+			"replicas":   map[string]any{"type": "number"},
+		},
+		"required": []string{"operation"},
 	}
 }

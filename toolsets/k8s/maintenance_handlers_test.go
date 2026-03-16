@@ -38,7 +38,7 @@ func TestHandleCleanupPods(t *testing.T) {
 	})
 	_, err := toolset.handleCleanupPods(context.Background(), mcp.ToolRequest{
 		User:      policy.User{Role: policy.RoleCluster},
-		Arguments: map[string]any{"namespace": namespace},
+		Arguments: map[string]any{"namespace": namespace, "confirm": true},
 	})
 	if err != nil {
 		t.Fatalf("handleCleanupPods: %v", err)
@@ -74,6 +74,7 @@ func TestHandleNodeManagementDrain(t *testing.T) {
 			"nodeName":           "node-1",
 			"gracePeriodSeconds": float64(1),
 			"force":              true,
+			"confirm":            true,
 		},
 	})
 	if err != nil {
@@ -96,6 +97,7 @@ func TestHandleNodeManagementCordon(t *testing.T) {
 		Arguments: map[string]any{
 			"action":   "cordon",
 			"nodeName": "node-2",
+			"confirm":  true,
 		},
 	})
 	if err != nil {

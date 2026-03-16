@@ -26,6 +26,9 @@ var defaultCleanupStates = []string{
 
 func (t *Toolset) handleCleanupPods(ctx context.Context, req mcp.ToolRequest) (mcp.ToolResult, error) {
 	args := req.Arguments
+	if err := requireConfirm(args); err != nil {
+		return errorResult(err), err
+	}
 	namespace := toString(args["namespace"])
 	if namespace == "" {
 		return errorResult(errors.New("namespace is required")), errors.New("namespace is required")
@@ -65,6 +68,9 @@ func (t *Toolset) handleCleanupPods(ctx context.Context, req mcp.ToolRequest) (m
 }
 
 func (t *Toolset) handleNodeManagement(ctx context.Context, req mcp.ToolRequest) (mcp.ToolResult, error) {
+	if err := requireConfirm(req.Arguments); err != nil {
+		return errorResult(err), err
+	}
 	if err := t.ctx.Policy.CheckNamespace(req.User, "", false); err != nil {
 		return errorResult(err), err
 	}

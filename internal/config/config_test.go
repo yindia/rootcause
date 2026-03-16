@@ -67,6 +67,9 @@ allowed_commands = ["echo"]
 
 [safety]
 allow_destructive_tools = ["k8s.delete"]
+
+[prompts]
+file = "./rootcause-prompts.toml"
 `), 0600); err != nil {
 		t.Fatalf("write config: %v", err)
 	}
@@ -79,6 +82,9 @@ allow_destructive_tools = ["k8s.delete"]
 	}
 	if len(cfg.Safety.AllowDestructiveTools) != 1 || cfg.Safety.AllowDestructiveTools[0] != "k8s.delete" {
 		t.Fatalf("unexpected safety config: %#v", cfg.Safety)
+	}
+	if cfg.Prompts.File != "./rootcause-prompts.toml" {
+		t.Fatalf("unexpected prompts config: %#v", cfg.Prompts)
 	}
 }
 
@@ -129,6 +135,7 @@ func TestMergeTimeoutsAndCache(t *testing.T) {
 			Enabled:         true,
 			AllowedCommands: []string{"echo"},
 		},
+		Prompts: PromptsConfig{File: "/tmp/prompts.toml"},
 	}
 	merge(&dst, src)
 	if !dst.ReadOnly {
@@ -145,6 +152,9 @@ func TestMergeTimeoutsAndCache(t *testing.T) {
 	}
 	if !dst.Exec.Enabled || len(dst.Exec.AllowedCommands) != 1 {
 		t.Fatalf("unexpected exec config: %#v", dst.Exec)
+	}
+	if dst.Prompts.File != "/tmp/prompts.toml" {
+		t.Fatalf("unexpected prompts config: %#v", dst.Prompts)
 	}
 }
 

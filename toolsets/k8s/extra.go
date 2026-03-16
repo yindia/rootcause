@@ -339,21 +339,21 @@ func (t *Toolset) handleGeneric(ctx context.Context, req mcp.ToolRequest) (mcp.T
 	case "describe":
 		return t.handleDescribe(ctx, req)
 	case "create":
-		return t.handleCreate(ctx, req)
+		return errorResult(errors.New("generic create is disabled for safety; use k8s.create directly")), errors.New("generic create is disabled for safety; use k8s.create directly")
 	case "apply":
-		return t.handleApply(ctx, req)
+		return errorResult(errors.New("generic apply is disabled for safety; use k8s.apply directly")), errors.New("generic apply is disabled for safety; use k8s.apply directly")
 	case "patch":
-		return t.handlePatch(ctx, req)
+		return errorResult(errors.New("generic patch is disabled for safety; use k8s.patch directly")), errors.New("generic patch is disabled for safety; use k8s.patch directly")
 	case "delete":
-		return t.handleDelete(ctx, req)
+		return errorResult(errors.New("generic delete is disabled for safety; use k8s.delete directly")), errors.New("generic delete is disabled for safety; use k8s.delete directly")
 	case "logs":
 		return t.handleLogs(ctx, req)
 	case "events":
 		return t.handleEvents(ctx, req)
 	case "scale":
-		return t.handleScale(ctx, req)
+		return errorResult(errors.New("generic scale is disabled for safety; use k8s.scale directly")), errors.New("generic scale is disabled for safety; use k8s.scale directly")
 	case "rollout":
-		return t.handleRollout(ctx, req)
+		return errorResult(errors.New("generic rollout is disabled for safety; use k8s.rollout directly")), errors.New("generic rollout is disabled for safety; use k8s.rollout directly")
 	case "context":
 		return t.handleContext(ctx, req)
 	default:

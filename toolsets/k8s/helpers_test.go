@@ -1,6 +1,7 @@
 package k8s
 
 import (
+	"context"
 	"testing"
 
 	corev1 "k8s.io/api/core/v1"
@@ -37,6 +38,43 @@ func TestToolsetInitAndRegister(t *testing.T) {
 	}
 	if _, ok := reg.Get("k8s.best_practice"); !ok {
 		t.Fatalf("expected k8s.best_practice to be registered")
+	}
+	for _, toolName := range []string{
+		"k8s.argocd_detect",
+		"k8s.flux_detect",
+		"k8s.cert_manager_detect",
+		"k8s.kyverno_detect",
+		"k8s.cilium_detect",
+		"k8s.diagnose_argocd",
+		"k8s.diagnose_flux",
+		"k8s.diagnose_cert_manager",
+		"k8s.diagnose_kyverno",
+		"k8s.diagnose_cilium",
+		"k8s.safe_mutation_preflight",
+	} {
+		if _, ok := reg.Get(toolName); !ok {
+			t.Fatalf("expected %s to be registered", toolName)
+		}
+	}
+}
+
+func TestGenericMutationVerbsBlocked(t *testing.T) {
+	toolset := New()
+	for _, verb := range []string{"create", "apply", "patch", "delete", "scale", "rollout"} {
+		_, err := toolset.handleGeneric(context.Background(), mcp.ToolRequest{Arguments: map[string]any{"verb": verb}})
+		if err == nil {
+			t.Fatalf("expected generic %s to be blocked", verb)
+		}
+	}
+}
+
+func TestMaintenanceHandlersRequireConfirm(t *testing.T) {
+	toolset := New()
+	if _, err := toolset.handleCleanupPods(context.Background(), mcp.ToolRequest{Arguments: map[string]any{"namespace": "default"}}); err == nil {
+		t.Fatalf("expected cleanup_pods confirm requirement")
+	}
+	if _, err := toolset.handleNodeManagement(context.Background(), mcp.ToolRequest{Arguments: map[string]any{"action": "cordon", "nodeName": "node-a"}}); err == nil {
+		t.Fatalf("expected node_management confirm requirement")
 	}
 }
 

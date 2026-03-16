@@ -24,6 +24,9 @@ This document lists all tools exposed by RootCause. For setup and usage, see `RE
 - Workload operations: `k8s.scale`, `k8s.rollout`
 - Restart preflight: `k8s.restart_safety_check`
 - Workload standards: `k8s.best_practice` (rollout safety, restart resilience, node-recreate spread, PVC attach/detach risk)
+- Ecosystem detection: `k8s.argocd_detect`, `k8s.flux_detect`, `k8s.cert_manager_detect`, `k8s.kyverno_detect`, `k8s.cilium_detect`
+- Ecosystem diagnostics: `k8s.diagnose_argocd`, `k8s.diagnose_flux`, `k8s.diagnose_cert_manager`, `k8s.diagnose_kyverno`, `k8s.diagnose_cilium`
+- Mutation guardrails: `k8s.safe_mutation_preflight` (used automatically before `k8s.create`, `k8s.apply`, `k8s.patch`, `k8s.delete`, `k8s.scale`, `k8s.rollout`, `k8s.cleanup_pods`, `k8s.node_management`; also available for explicit dry-run checks)
 - Execution and access: `k8s.exec`, `k8s.exec_readonly` (allowlisted), `k8s.port_forward`
 - Debugging: `k8s.overview`, `k8s.crashloop_debug`, `k8s.scheduling_debug`, `k8s.hpa_debug`, `k8s.vpa_debug`, `k8s.storage_debug`, `k8s.config_debug`, `k8s.permission_debug`, `k8s.network_debug`, `k8s.private_link_debug`, `k8s.debug_flow`
 - Maintenance: `k8s.cleanup_pods`, `k8s.node_management`
