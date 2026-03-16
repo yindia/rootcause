@@ -3,7 +3,7 @@ project_name: rootcause
 
 builds:
   - id: rootcause
-    main: ./cmd/rootcause/main.go
+    main: ./main.go
     binary: rootcause
     env:
       - CGO_ENABLED=0

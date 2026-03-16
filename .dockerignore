@@ -1,0 +1,6 @@
+.git
+.github
+.gocache
+rootcause
+coverage.out
+*.log

@@ -108,6 +108,35 @@ cp -r skills/claude/* ~/.claude/skills/
 cp -r skills/claude/k8s-helm ~/.claude/skills/
 ```
 
+### Sync Skills into Project Agent Directories
+
+```bash
+# List supported agent targets
+rootcause sync-skills --list-agents
+
+# Sync skills for one agent into project-local defaults
+rootcause sync-skills --agent claude --project-dir .
+
+# Example: GitHub Copilot project files
+rootcause sync-skills --agent copilot --project-dir .
+```
+
+Agent directory defaults used by `sync-skills`:
+
+| Agent | Format | Project Directory |
+|---|---|---|
+| Claude Code | `SKILL.md` | `.claude/skills/` |
+| Cursor | `.mdc` | `.cursor/skills/` |
+| Codex | `SKILL.md` | `.codex/skills/` |
+| Gemini CLI | `SKILL.md` | `.gemini/skills/` |
+| OpenCode | `SKILL.md` | `.opencode/skills/` |
+| GitHub Copilot | `Markdown` | `.github/skills/` |
+| Windsurf | `Markdown` | `.windsurf/skills/` |
+| Devin | `Markdown` | `.devin/skills/` |
+| Aider | `SKILL.md` | `.aider/skills/` |
+| Sourcegraph Cody | `SKILL.md` | `.cody/skills/` |
+| Amazon Q | `SKILL.md` | `.amazonq/skills/` |
+
 ### Available Skills (20)
 
 20 skills are currently included.
@@ -213,7 +242,7 @@ Custom prompts override built-ins with the same `name`.
 ### 1) Run RootCause
 
 ```bash
-go run ./cmd/rootcause --config config.toml
+go run . --config config.toml
 ```
 
 ### 2) Connect your MCP client
@@ -231,7 +260,7 @@ Use stdio transport and point your MCP client to the `rootcause` command.
 1) Run the server:
 
 ```
-go run ./cmd/rootcause --config config.example.toml
+go run . --config config.example.toml
 ```
 
 2) Use your existing kubeconfig (default) or point to one:
@@ -264,13 +293,13 @@ curl -fsSL https://raw.githubusercontent.com/yindia/rootcause/refs/heads/main/in
 Go install:
 
 ```
-go install ./cmd/rootcause
+go install .
 ```
 
 Or build a local binary:
 
 ```
-go build -o rootcause ./cmd/rootcause
+go build -o rootcause .
 ```
 
 Supported OS: macOS, Linux, and Windows.
@@ -278,8 +307,23 @@ Supported OS: macOS, Linux, and Windows.
 Windows build example:
 
 ```
-go build -o rootcause.exe ./cmd/rootcause
+go build -o rootcause.exe .
 ```
+
+### Docker
+
+```bash
+# Build local image
+docker build -t rootcause:local .
+
+# Run stdio mode (default)
+docker run --rm -it rootcause:local
+
+# Run HTTP transport
+docker run --rm -p 8000:8000 rootcause:local --transport http --host 0.0.0.0 --port 8000 --path /mcp
+```
+
+CI image publishing is configured via GitHub Actions in `.github/workflows/docker.yml` and pushes to GHCR (`ghcr.io/<owner>/rootcause`) on `main` and release tags.
 
 ---
 
@@ -301,6 +345,12 @@ Enable read-only mode:
 
 ```
 rootcause --read-only
+```
+
+Sync skills into agent-specific project directories:
+
+```bash
+rootcause sync-skills --agent claude --project-dir .
 ```
 
 ---

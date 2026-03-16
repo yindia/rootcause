@@ -12,6 +12,30 @@ cp -r skills/claude/* ~/.claude/skills/
 cp -r skills/claude/k8s-helm ~/.claude/skills/
 ```
 
+## Sync into Project Agent Directories
+
+```bash
+# List supported targets
+rootcause sync-skills --list-agents
+
+# Sync using project-local default directory for one agent
+rootcause sync-skills --agent opencode --project-dir .
+```
+
+| Agent | Format | Project Directory |
+|---|---|---|
+| Claude Code | `SKILL.md` | `.claude/skills/` |
+| Cursor | `.mdc` | `.cursor/skills/` |
+| Codex | `SKILL.md` | `.codex/skills/` |
+| Gemini CLI | `SKILL.md` | `.gemini/skills/` |
+| OpenCode | `SKILL.md` | `.opencode/skills/` |
+| GitHub Copilot | `Markdown` | `.github/skills/` |
+| Windsurf | `Markdown` | `.windsurf/skills/` |
+| Devin | `Markdown` | `.devin/skills/` |
+| Aider | `SKILL.md` | `.aider/skills/` |
+| Sourcegraph Cody | `SKILL.md` | `.cody/skills/` |
+| Amazon Q | `SKILL.md` | `.amazonq/skills/` |
+
 ## Layout
 
 ```
@@ -100,6 +124,16 @@ cp -r skills/claude/* ~/.claude/skills/
 
 ```bash
 cp -r skills/claude/k8s-incident ~/.claude/skills/
+```
+
+## SkillKit Note
+
+If you manage skills via the SkillKit ecosystem, use `skills add` with agent targets.
+For local project repositories, `rootcause sync-skills` is the recommended path.
+
+```bash
+# Example SkillKit install from a remote skill repo
+npx skills add owner/repo -a claude-code -a codex
 ```
 
 
