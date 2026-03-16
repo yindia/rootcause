@@ -28,7 +28,8 @@ type promptFilePrompt struct {
 	Title       string               `toml:"title"`
 	Description string               `toml:"description"`
 	Template    string               `toml:"template"`
-	Arguments   []promptFileArgument `toml:"argument"`
+	Arguments   []promptFileArgument `toml:"arguments"`
+	Argument    []promptFileArgument `toml:"argument"`
 }
 
 type promptFileArgument struct {
@@ -277,6 +278,183 @@ Target: {{target_version|next supported version}}
 - Rollback strategy
 - Post-upgrade validation checklist`,
 	},
+	{
+		Name:        "sre_incident_commander",
+		Title:       "SRE Incident Commander Runbook",
+		Description: "Severity-based incident coordination and triage workflow",
+		Arguments: []sdkmcp.PromptArgument{
+			{Name: "service", Description: "Primary impacted service", Required: true},
+			{Name: "severity", Description: "sev1/sev2/sev3", Required: false},
+			{Name: "namespace", Description: "Impacted namespace", Required: false},
+		},
+		Template: `# SRE Incident Commander: {{service}}
+
+Severity: {{severity|sev2}}
+Namespace: {{namespace|default}}
+
+## Phase 1 - Triage (First 10 Minutes)
+1. Confirm blast radius and customer impact
+2. Build evidence bundle and timeline
+3. Identify current mitigation options and risk
+
+## Phase 2 - Stabilization
+1. Stop further damage (rollback/traffic shift/feature flag)
+2. Validate service recovery indicators
+3. Track residual risk and unresolved symptoms
+
+## Phase 3 - Communication + Follow-up
+1. Publish concise status updates
+2. Record root cause hypotheses with evidence
+3. Define next actions for permanent fix and postmortem
+
+## Output Contract
+- Incident status
+- Most likely root causes
+- Active mitigation steps
+- Verification and next checkpoints`,
+	},
+	{
+		Name:        "istio_mesh_diagnose",
+		Title:       "Istio Service Mesh Diagnosis",
+		Description: "Diagnose Istio control-plane and traffic policy issues",
+		Arguments: []sdkmcp.PromptArgument{
+			{Name: "namespace", Description: "Target namespace", Required: false},
+			{Name: "service", Description: "Optional service name", Required: false},
+		},
+		Template: `# Istio Mesh Diagnosis
+
+Namespace: {{namespace|all namespaces}}
+Service: {{service|all services}}
+
+## Investigation Path
+1. Verify Istio control-plane and sidecar injection health
+2. Inspect destination rules, virtual services, and gateway bindings
+3. Check mTLS policy alignment and certificate state
+4. Correlate 4xx/5xx spikes with route and policy changes
+
+## Output Contract
+- Failing mesh component or policy
+- Evidence from config/state/traffic signals
+- Safe remediation plan and validation checks`,
+	},
+	{
+		Name:        "linkerd_mesh_diagnose",
+		Title:       "Linkerd Service Mesh Diagnosis",
+		Description: "Diagnose Linkerd control-plane, proxy, and policy health",
+		Arguments: []sdkmcp.PromptArgument{
+			{Name: "namespace", Description: "Target namespace", Required: false},
+			{Name: "workload", Description: "Optional workload name", Required: false},
+		},
+		Template: `# Linkerd Mesh Diagnosis
+
+Namespace: {{namespace|all namespaces}}
+Workload: {{workload|all workloads}}
+
+## Investigation Path
+1. Validate Linkerd control-plane components and CRDs
+2. Verify proxy injection and data-plane connectivity
+3. Check policy/TLS identity status and traffic failures
+4. Correlate retries/timeouts with service behavior
+
+## Output Contract
+- Root issue location (control-plane/data-plane/policy)
+- Supporting evidence
+- Minimal-risk recovery actions`,
+	},
+	{
+		Name:        "helm_release_recovery",
+		Title:       "Helm Release Recovery",
+		Description: "Recover failed Helm installs/upgrades with safe rollback strategy",
+		Arguments: []sdkmcp.PromptArgument{
+			{Name: "release", Description: "Helm release name", Required: true},
+			{Name: "namespace", Description: "Release namespace", Required: false},
+		},
+		Template: `# Helm Release Recovery: {{release}}
+
+Namespace: {{namespace|default}}
+
+## Recovery Workflow
+1. Inspect release status/history and failed hooks
+2. Compare values/manifests against last healthy revision
+3. Identify immutable field, policy, or dependency blockers
+4. Choose forward-fix vs rollback based on risk
+
+## Output Contract
+- Failure cause with evidence
+- Recommended rollback or patch plan
+- Verification steps after remediation`,
+	},
+	{
+		Name:        "terraform_drift_triage",
+		Title:       "Terraform Drift Triage",
+		Description: "Investigate Terraform drift and plan safety",
+		Arguments: []sdkmcp.PromptArgument{
+			{Name: "workspace", Description: "Terraform workspace/env", Required: false},
+			{Name: "scope", Description: "module or stack scope", Required: false},
+		},
+		Template: `# Terraform Drift Triage
+
+Workspace: {{workspace|default}}
+Scope: {{scope|full stack}}
+
+## Triage Flow
+1. Collect plan diff and classify drift (expected/unexpected)
+2. Identify high-risk changes (delete/replace/network/security)
+3. Separate provider noise from real infrastructure drift
+4. Propose staged remediation with rollback path
+
+## Output Contract
+- Drift summary by severity
+- Unsafe plan actions
+- Recommended apply strategy`,
+	},
+	{
+		Name:        "aws_eks_operational_check",
+		Title:       "AWS EKS Operational Check",
+		Description: "EKS health, nodegroup, and IAM integration diagnostics",
+		Arguments: []sdkmcp.PromptArgument{
+			{Name: "cluster_name", Description: "EKS cluster name", Required: true},
+			{Name: "region", Description: "AWS region", Required: false},
+		},
+		Template: `# AWS EKS Operational Check: {{cluster_name}}
+
+Region: {{region|current configured region}}
+
+## Verification Flow
+1. Validate control-plane status and addon health
+2. Check managed nodegroup capacity and upgrade state
+3. Verify IAM/OIDC/IRSA dependencies for workloads
+4. Correlate cluster events with AWS-side failures
+
+## Output Contract
+- Current operational status
+- Blocking AWS/Kubernetes integration issues
+- Prioritized remediation plan`,
+	},
+	{
+		Name:        "karpenter_capacity_debug",
+		Title:       "Karpenter Capacity Debug",
+		Description: "Debug provisioning and scheduling issues in Karpenter clusters",
+		Arguments: []sdkmcp.PromptArgument{
+			{Name: "namespace", Description: "Workload namespace", Required: false},
+			{Name: "workload", Description: "Optional workload name", Required: false},
+		},
+		Template: `# Karpenter Capacity Debug
+
+Namespace: {{namespace|all namespaces}}
+Workload: {{workload|all pending workloads}}
+
+## Investigation Flow
+1. Identify unschedulable pods and exact scheduling constraints
+2. Inspect NodePool/NodeClass and capacity type requirements
+3. Validate cloud quota, subnet/SG, and instance availability constraints
+4. Check disruption/consolidation policies affecting stability
+
+## Output Contract
+- Capacity bottleneck root cause
+- Evidence (events/config constraints)
+- Fastest safe mitigation and long-term fix`,
+	},
 }
 
 func RegisterSDKPrompts(server *sdkmcp.Server, ctx ToolContext) ([]string, error) {
@@ -406,8 +584,12 @@ func loadPromptSpecsFromTOML(path string) ([]promptSpec, error) {
 		if name == "" || template == "" {
 			return nil, fmt.Errorf("invalid prompt in %s: name and template are required", path)
 		}
-		args := make([]sdkmcp.PromptArgument, 0, len(item.Arguments))
-		for _, arg := range item.Arguments {
+		fileArgs := item.Arguments
+		if len(fileArgs) == 0 && len(item.Argument) > 0 {
+			fileArgs = item.Argument
+		}
+		args := make([]sdkmcp.PromptArgument, 0, len(fileArgs))
+		for _, arg := range fileArgs {
 			argName := strings.TrimSpace(arg.Name)
 			if argName == "" {
 				return nil, fmt.Errorf("invalid prompt %s in %s: argument name is required", name, path)

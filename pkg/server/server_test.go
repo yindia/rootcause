@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"reflect"
 	"syscall"
 	"testing"
 	"time"
@@ -59,6 +60,33 @@ current-context: test
 	}
 	if len(reg.Names()) != 0 {
 		t.Fatalf("expected no tools registered")
+	}
+}
+
+func TestEffectiveToolsetsBrowserEnv(t *testing.T) {
+	t.Setenv("MCP_BROWSER_ENABLED", "true")
+	got := effectiveToolsets([]string{"k8s", "rootcause"})
+	want := []string{"k8s", "rootcause", "browser"}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("unexpected toolsets: got %#v want %#v", got, want)
+	}
+}
+
+func TestEffectiveToolsetsNoDuplicateBrowser(t *testing.T) {
+	t.Setenv("MCP_BROWSER_ENABLED", "1")
+	got := effectiveToolsets([]string{"k8s", "browser"})
+	want := []string{"k8s", "browser"}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("unexpected toolsets: got %#v want %#v", got, want)
+	}
+}
+
+func TestEffectiveToolsetsBrowserDisabled(t *testing.T) {
+	t.Setenv("MCP_BROWSER_ENABLED", "false")
+	got := effectiveToolsets([]string{"k8s"})
+	want := []string{"k8s"}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("unexpected toolsets: got %#v want %#v", got, want)
 	}
 }
 

@@ -46,8 +46,25 @@ func TestRegisterSDKPrompts(t *testing.T) {
 	if err != nil {
 		t.Fatalf("register prompts: %v", err)
 	}
-	if len(names) < 8 {
+	if len(names) < 15 {
 		t.Fatalf("expected built-in prompts to be registered")
+	}
+	required := map[string]bool{
+		"troubleshoot_workload":     false,
+		"sre_incident_commander":    false,
+		"istio_mesh_diagnose":       false,
+		"terraform_drift_triage":    false,
+		"aws_eks_operational_check": false,
+	}
+	for _, name := range names {
+		if _, ok := required[name]; ok {
+			required[name] = true
+		}
+	}
+	for name, found := range required {
+		if !found {
+			t.Fatalf("expected prompt %s to be registered", name)
+		}
 	}
 }
 
@@ -60,7 +77,7 @@ title = "Custom Incident"
 description = "Detailed incident flow"
 template = "Investigate {{service|payments}}"
 
-  [[prompt.argument]]
+  [[prompt.arguments]]
   name = "service"
   description = "Service name"
   required = false
@@ -77,6 +94,34 @@ template = "Investigate {{service|payments}}"
 	}
 	if specs[0].Name != "custom_incident" || specs[0].Title != "Custom Incident" {
 		t.Fatalf("unexpected prompt spec: %#v", specs[0])
+	}
+	if len(specs[0].Arguments) != 1 || specs[0].Arguments[0].Name != "service" {
+		t.Fatalf("unexpected prompt arguments: %#v", specs[0].Arguments)
+	}
+}
+
+func TestLoadPromptSpecsFromTOMLLegacyArgumentKey(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "prompts.toml")
+	content := `
+[[prompt]]
+name = "legacy_prompt"
+description = "Legacy argument key"
+template = "Investigate {{service|payments}}"
+
+  [[prompt.argument]]
+  name = "service"
+  description = "Service name"
+  required = false
+`
+	if err := os.WriteFile(path, []byte(content), 0600); err != nil {
+		t.Fatalf("write prompt config: %v", err)
+	}
+	specs, err := loadPromptSpecsFromTOML(path)
+	if err != nil {
+		t.Fatalf("loadPromptSpecsFromTOML: %v", err)
+	}
+	if len(specs) != 1 {
+		t.Fatalf("expected one prompt, got %d", len(specs))
 	}
 	if len(specs[0].Arguments) != 1 || specs[0].Arguments[0].Name != "service" {
 		t.Fatalf("unexpected prompt arguments: %#v", specs[0].Arguments)

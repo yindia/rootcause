@@ -50,7 +50,7 @@ Ask your AI assistant in natural language:
 
 RootCause keeps its depth-first model: evidence-first diagnosis, root-cause analysis, and remediation flow instead of raw tool sprawl.
 
-Power users can map these prompts to concrete tools in `TOOLS.md`.
+Power users can map these prompts to concrete tools in this README (`Complete Feature Set`, `Toolchains`, and `Tools` sections).
 
 ## Use Cases
 
@@ -117,7 +117,7 @@ Access Kubernetes data as browsable resources:
 
 ### MCP Prompts
 
-Pre-built workflow prompts for common Kubernetes operations:
+Pre-built workflow prompts for Kubernetes and platform operations:
 
 | Prompt | Description |
 |---|---|
@@ -129,6 +129,13 @@ Pre-built workflow prompts for common Kubernetes operations:
 | `debug_networking` | Network debugging for services and connectivity |
 | `scale_application` | Scaling guide with HPA/VPA best practices |
 | `upgrade_cluster` | Kubernetes cluster upgrade planning |
+| `sre_incident_commander` | Severity-based SRE incident coordination workflow |
+| `istio_mesh_diagnose` | Diagnose Istio control-plane and traffic policy issues |
+| `linkerd_mesh_diagnose` | Diagnose Linkerd control-plane, proxy, and policy health |
+| `helm_release_recovery` | Recover failed Helm install/upgrade with rollback strategy |
+| `terraform_drift_triage` | Investigate Terraform drift and plan safety |
+| `aws_eks_operational_check` | EKS health, nodegroup, and IAM integration diagnostics |
+| `karpenter_capacity_debug` | Debug Karpenter provisioning and scheduling issues |
 
 Custom prompt overrides are also supported. Resolution order:
 1. `MCP_PROMPTS_FILE`
@@ -145,7 +152,7 @@ title = "Custom Security Audit"
 description = "Org-specific security policy checks"
 template = "Run custom security audit for {{namespace|all namespaces}} with CIS and policy controls"
 
-  [[prompt.argument]]
+  [[prompt.arguments]]
   name = "namespace"
   description = "Target namespace"
   required = false
@@ -513,6 +520,7 @@ Enabled by default:
 | `aws` | EKS/EC2/VPC/IAM/ECR/KMS/STS diagnostics | AWS credentials |
 | `terraform` | Registry and plan impact analysis | Terraform workflows |
 | `rootcause` | Incident bundles, RCA, timeline, postmortem export | Kubernetes access |
+| `browser` (optional) | Browser automation via agent-browser | `MCP_BROWSER_ENABLED=true` + agent-browser install |
 
 Optional toolchains return "not detected" when the control plane is absent. Additional toolchains can be registered via the plugin SDK; see `PLUGINS.md`.
 
@@ -522,17 +530,140 @@ Enable only what you need:
 rootcause --toolsets k8s,helm,rootcause
 ```
 
+### Optional: Browser Automation (26 Tools)
+
+Automate web-based Kubernetes operations with [agent-browser](https://github.com/vercel-labs/agent-browser) integration.
+
+Quick setup:
+
+```bash
+# Install agent-browser
+npm install -g agent-browser
+agent-browser install
+
+# Enable browser tools
+export MCP_BROWSER_ENABLED=true
+rootcause
+```
+
+What you can do:
+
+- 🌐 Test deployed apps via Ingress URLs
+- 📸 Screenshot Grafana, ArgoCD, or any K8s dashboard
+- ☁️ Automate cloud console operations (EKS, GKE, AKS)
+- 🏥 Health check web applications
+- 📄 Export monitoring dashboards as PDF
+- 🔐 Test authentication flows with persistent sessions
+
+26 available tools: `browser_open`, `browser_screenshot`, `browser_click`, `browser_fill`, `browser_test_ingress`, `browser_screenshot_grafana`, `browser_health_check`, and 19 more.
+
+Full list: `browser_open`, `browser_screenshot`, `browser_click`, `browser_fill`, `browser_test_ingress`, `browser_screenshot_grafana`, `browser_health_check`, `browser_snapshot`, `browser_get_text`, `browser_get_html`, `browser_evaluate`, `browser_pdf`, `browser_wait_for`, `browser_wait_for_url`, `browser_press`, `browser_select`, `browser_check`, `browser_uncheck`, `browser_hover`, `browser_type`, `browser_upload`, `browser_drag`, `browser_new_tab`, `browser_switch_tab`, `browser_close_tab`, `browser_close`.
+
+Advanced features:
+
+- Cloud providers: Browserbase, Browser Use
+- Persistent browser profiles
+- Remote CDP connections
+- Session management
+
 ---
 
 ## Tools
 
-See `TOOLS.md` for the full tool catalog, quick picker, and graph-first debugging flow references.
 Prompt templates for common debugging flows are in `prompts/prompt.md`.
 
-New ecosystem-focused capabilities:
-- Detect controllers/CRDs quickly: `k8s.argocd_detect`, `k8s.flux_detect`, `k8s.cert_manager_detect`, `k8s.kyverno_detect`, `k8s.cilium_detect`
-- Diagnose ecosystem health with actionable findings: `k8s.diagnose_argocd`, `k8s.diagnose_flux`, `k8s.diagnose_cert_manager`, `k8s.diagnose_kyverno`, `k8s.diagnose_cilium`
-- Preflight mutating changes: `k8s.safe_mutation_preflight` (also auto-invoked before k8s mutate operations)
+### Core Kubernetes (`k8s.*` + kubectl-style aliases)
+
+- CRUD + discovery: `k8s.get`, `k8s.list`, `k8s.describe`, `k8s.create`, `k8s.apply`, `k8s.patch`, `k8s.delete`, `k8s.api_resources`, `k8s.crds`
+- Ops + observability: `k8s.logs`, `k8s.events`, `k8s.context`, `k8s.explain_resource`, `k8s.ping`, `k8s.events_timeline`
+- Workload operations and safety: `k8s.scale`, `k8s.rollout`, `k8s.restart_safety_check`, `k8s.best_practice`, `k8s.safe_mutation_preflight`
+- Ecosystem detection: `k8s.argocd_detect`, `k8s.flux_detect`, `k8s.cert_manager_detect`, `k8s.kyverno_detect`, `k8s.cilium_detect`
+- Ecosystem diagnostics: `k8s.diagnose_argocd`, `k8s.diagnose_flux`, `k8s.diagnose_cert_manager`, `k8s.diagnose_kyverno`, `k8s.diagnose_cilium`
+- Debugging: `k8s.overview`, `k8s.crashloop_debug`, `k8s.scheduling_debug`, `k8s.hpa_debug`, `k8s.vpa_debug`, `k8s.storage_debug`, `k8s.config_debug`, `k8s.permission_debug`, `k8s.network_debug`, `k8s.private_link_debug`, `k8s.debug_flow`
+- Maintenance + topology: `k8s.cleanup_pods`, `k8s.node_management`, `k8s.graph`, `k8s.resource_usage`
+
+### Linkerd (`linkerd.*`)
+
+- `linkerd.health`, `linkerd.proxy_status`, `linkerd.identity_issues`, `linkerd.policy_debug`, `linkerd.cr_status`, `linkerd.virtualservice_status`, `linkerd.destinationrule_status`, `linkerd.gateway_status`, `linkerd.httproute_status`
+
+### Istio (`istio.*`)
+
+- `istio.health`, `istio.proxy_status`, `istio.config_summary`, `istio.service_mesh_hosts`, `istio.discover_namespaces`, `istio.pods_by_service`, `istio.external_dependency_check`
+- `istio.proxy_clusters`, `istio.proxy_listeners`, `istio.proxy_routes`, `istio.proxy_endpoints`, `istio.proxy_bootstrap`, `istio.proxy_config_dump`
+- `istio.cr_status`, `istio.virtualservice_status`, `istio.destinationrule_status`, `istio.gateway_status`, `istio.httproute_status`
+
+### Karpenter (`karpenter.*`)
+
+- `karpenter.status`, `karpenter.node_provisioning_debug`, `karpenter.nodepool_debug`, `karpenter.nodeclass_debug`, `karpenter.interruption_debug`
+
+### Helm (`helm.*`)
+
+- Repo/registry: `helm.repo_add`, `helm.repo_list`, `helm.repo_update`, `helm.list_charts`, `helm.get_chart`, `helm.search_charts`
+- Release operations: `helm.list`, `helm.status`, `helm.diff_release`, `helm.rollback_advisor`, `helm.install`, `helm.upgrade`, `helm.uninstall`, `helm.template_apply`, `helm.template_uninstall`
+
+### AWS IAM (`aws.iam.*`)
+
+- `aws.iam.list_roles`, `aws.iam.get_role`, `aws.iam.get_instance_profile`, `aws.iam.update_role`, `aws.iam.delete_role`
+- `aws.iam.list_policies`, `aws.iam.get_policy`, `aws.iam.update_policy`, `aws.iam.delete_policy`
+
+### AWS VPC (`aws.vpc.*`)
+
+- `aws.vpc.list_vpcs`, `aws.vpc.get_vpc`, `aws.vpc.list_subnets`, `aws.vpc.get_subnet`, `aws.vpc.list_route_tables`, `aws.vpc.get_route_table`
+- `aws.vpc.list_nat_gateways`, `aws.vpc.get_nat_gateway`, `aws.vpc.list_security_groups`, `aws.vpc.get_security_group`
+- `aws.vpc.list_network_acls`, `aws.vpc.get_network_acl`, `aws.vpc.list_internet_gateways`, `aws.vpc.get_internet_gateway`
+- `aws.vpc.list_vpc_endpoints`, `aws.vpc.get_vpc_endpoint`, `aws.vpc.list_network_interfaces`, `aws.vpc.get_network_interface`
+- `aws.vpc.list_resolver_endpoints`, `aws.vpc.get_resolver_endpoint`, `aws.vpc.list_resolver_rules`, `aws.vpc.get_resolver_rule`
+
+### AWS EC2 (`aws.ec2.*`)
+
+- `aws.ec2.list_instances`, `aws.ec2.get_instance`, `aws.ec2.list_auto_scaling_groups`, `aws.ec2.get_auto_scaling_group`, `aws.ec2.list_load_balancers`, `aws.ec2.get_load_balancer`
+- `aws.ec2.list_target_groups`, `aws.ec2.get_target_group`, `aws.ec2.list_listeners`, `aws.ec2.get_listener`, `aws.ec2.get_target_health`
+- `aws.ec2.list_listener_rules`, `aws.ec2.get_listener_rule`, `aws.ec2.list_auto_scaling_policies`, `aws.ec2.get_auto_scaling_policy`, `aws.ec2.list_scaling_activities`, `aws.ec2.get_scaling_activity`
+- `aws.ec2.list_launch_templates`, `aws.ec2.get_launch_template`, `aws.ec2.list_launch_configurations`, `aws.ec2.get_launch_configuration`
+- `aws.ec2.get_instance_iam`, `aws.ec2.get_security_group_rules`, `aws.ec2.list_spot_instance_requests`, `aws.ec2.get_spot_instance_request`
+- `aws.ec2.list_capacity_reservations`, `aws.ec2.get_capacity_reservation`, `aws.ec2.list_volumes`, `aws.ec2.get_volume`, `aws.ec2.list_snapshots`, `aws.ec2.get_snapshot`, `aws.ec2.list_volume_attachments`
+- `aws.ec2.list_placement_groups`, `aws.ec2.get_placement_group`, `aws.ec2.list_instance_status`, `aws.ec2.get_instance_status`
+
+### AWS EKS (`aws.eks.*`)
+
+- `aws.eks.list_clusters`, `aws.eks.get_cluster`, `aws.eks.list_nodegroups`, `aws.eks.get_nodegroup`, `aws.eks.list_addons`, `aws.eks.get_addon`
+- `aws.eks.list_fargate_profiles`, `aws.eks.get_fargate_profile`, `aws.eks.list_identity_provider_configs`, `aws.eks.get_identity_provider_config`
+- `aws.eks.list_updates`, `aws.eks.get_update`, `aws.eks.list_nodes`, `aws.eks.debug`
+
+### AWS ECR (`aws.ecr.*`)
+
+- `aws.ecr.list_repositories`, `aws.ecr.describe_repository`, `aws.ecr.list_images`, `aws.ecr.describe_images`, `aws.ecr.describe_registry`, `aws.ecr.get_authorization_token`
+
+### AWS STS (`aws.sts.*`)
+
+- `aws.sts.get_caller_identity`, `aws.sts.assume_role`
+
+### AWS KMS (`aws.kms.*`)
+
+- `aws.kms.list_keys`, `aws.kms.list_aliases`, `aws.kms.describe_key`, `aws.kms.get_key_policy`
+
+### Terraform (`terraform.*`)
+
+- `terraform.debug_plan`
+- `terraform.list_modules`, `terraform.get_module`, `terraform.list_module_versions`, `terraform.search_modules`
+- `terraform.list_providers`, `terraform.get_provider`, `terraform.list_provider_versions`, `terraform.get_provider_package`, `terraform.search_providers`
+- `terraform.list_resources`, `terraform.get_resource`, `terraform.search_resources`
+- `terraform.list_data_sources`, `terraform.get_data_source`, `terraform.search_data_sources`
+
+### RootCause (`rootcause.*`)
+
+- `rootcause.incident_bundle`, `rootcause.change_timeline`, `rootcause.rca_generate`, `rootcause.remediation_playbook`, `rootcause.postmortem_export`
+
+### Browser (`browser_*`, optional)
+
+- `browser_open`, `browser_screenshot`, `browser_click`, `browser_fill`, `browser_test_ingress`, `browser_screenshot_grafana`, `browser_health_check`
+- `browser_snapshot`, `browser_get_text`, `browser_get_html`, `browser_evaluate`, `browser_pdf`, `browser_wait_for`, `browser_wait_for_url`
+- `browser_press`, `browser_select`, `browser_check`, `browser_uncheck`, `browser_hover`, `browser_type`, `browser_upload`, `browser_drag`
+- `browser_new_tab`, `browser_switch_tab`, `browser_close_tab`, `browser_close`
+
+### Kubectl-style aliases
+
+- `kubectl_get`, `kubectl_list`, `kubectl_describe`, `kubectl_create`, `kubectl_apply`, `kubectl_delete`, `kubectl_logs`, `kubectl_patch`, `kubectl_scale`, `kubectl_rollout`, `kubectl_context`, `kubectl_generic`, `kubectl_top`, `explain_resource`, `list_api_resources`, `ping`
 
 ---
 
@@ -540,7 +671,7 @@ New ecosystem-focused capabilities:
 
 - `--read-only`: removes apply/patch/delete/exec tools from discovery.
 - `--disable-destructive`: removes delete and risky write tools unless allowlisted (create/scale/rollout remain available).
-- For an explicit mutating-tools list (`write`, `risky_write`, `destructive`) and copy/paste allowlist names, see `TOOLS.md` -> "Mutating Tools (Explicit List)".
+- Mutating tools are documented in this README under `Complete Feature Set` and `Safety Modes`.
 
 Default safety policy:
 - If a user does not explicitly request a mutating action, treat the request as read-only diagnostics.
@@ -701,7 +832,7 @@ We welcome code, docs, tests, and operational feedback.
 go test ./...
 ```
 
-4. Update docs (`README.md`, `TOOLS.md`, `prompts/prompt.md`) if behavior changed
+4. Update docs (`README.md`, `prompts/prompt.md`) if behavior changed
 5. Open PR with problem statement, approach, and verification notes
 
 ### Development references
@@ -715,4 +846,4 @@ go test ./...
 - [ ] Behavior matches user/operator expectations
 - [ ] Safety model preserved (`read-only`, destructive gating, preflight)
 - [ ] Tests added/updated for new behavior
-- [ ] Tool/docs consistency checked (`README.md` + `TOOLS.md`)
+- [ ] Tool/docs consistency checked (`README.md`)

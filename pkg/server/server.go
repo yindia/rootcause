@@ -242,7 +242,7 @@ func buildRuntime(cfg config.Config, errOut io.Writer) (rcmcp.ToolContext, *rcmc
 	toolCtx.Invoker = rcmcp.NewToolInvoker(reg, toolCtx)
 	toolsetCtx := rcmcp.ToolsetContext(toolCtx)
 
-	for _, id := range cfg.Toolsets {
+	for _, id := range effectiveToolsets(cfg.Toolsets) {
 		factory, ok := rcmcp.ToolsetFactoryFor(id)
 		if !ok {
 			return rcmcp.ToolContext{}, nil, fmt.Errorf("unknown toolset: %s", id)
@@ -257,4 +257,27 @@ func buildRuntime(cfg config.Config, errOut io.Writer) (rcmcp.ToolContext, *rcmc
 	}
 
 	return toolCtx, reg, nil
+}
+
+func effectiveToolsets(toolsets []string) []string {
+	out := append([]string{}, toolsets...)
+	if !browserEnabledFromEnv() {
+		return out
+	}
+	for _, id := range out {
+		if id == "browser" {
+			return out
+		}
+	}
+	return append(out, "browser")
+}
+
+func browserEnabledFromEnv() bool {
+	v := strings.TrimSpace(strings.ToLower(os.Getenv("MCP_BROWSER_ENABLED")))
+	switch v {
+	case "1", "true", "yes", "on":
+		return true
+	default:
+		return false
+	}
 }
