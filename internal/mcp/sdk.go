@@ -5,12 +5,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
-	"time"
 
 	sdkjsonrpc "github.com/modelcontextprotocol/go-sdk/jsonrpc"
 	sdkmcp "github.com/modelcontextprotocol/go-sdk/mcp"
-
-	"rootcause/internal/audit"
 )
 
 func RegisterSDKTools(server *sdkmcp.Server, reg *ToolRegistry, ctx ToolContext) ([]string, error) {
@@ -43,44 +40,47 @@ func toolHandler(spec ToolSpec, ctx ToolContext) sdkmcp.ToolHandler {
 		}
 
 		apiKey := apiKeyFromRequest(req)
+		traceID := traceIDFromRequest(req)
+		if ctx.Policy == nil {
+			return nil, &sdkjsonrpc.Error{Code: -32001, Message: "policy is not configured"}
+		}
 		user, err := ctx.Policy.Authenticate(apiKey)
 		if err != nil {
-			logAudit(ctx, spec, "unknown", nil, nil, "error", err)
 			return nil, &sdkjsonrpc.Error{Code: -32001, Message: err.Error()}
 		}
-		if err := ctx.Policy.AuthorizeTool(user, spec.ToolsetID, spec.Name); err != nil {
-			logAudit(ctx, spec, user.ID, nil, nil, "error", err)
-			return nil, &sdkjsonrpc.Error{Code: -32002, Message: err.Error()}
+		if ctx.Invoker == nil {
+			return nil, &sdkjsonrpc.Error{Code: -32003, Message: "tool invoker not available"}
 		}
 
-		if ctx.Clients != nil && ctx.Config != nil {
-			ttl := time.Duration(ctx.Config.Cache.DiscoveryTTLSeconds) * time.Second
-			ctx.Clients.RefreshDiscovery(ttl)
-		}
-		execCtx, cancel := withToolTimeout(callCtx, ctx.Config, spec)
-		result, toolErr := spec.Handler(execCtx, ToolRequest{Arguments: args, User: user, Context: ctx})
-		cancel()
-		outcome := "success"
-		if toolErr != nil {
-			outcome = "error"
-		}
-		logAudit(ctx, spec, user.ID, result.Metadata.Namespaces, result.Metadata.Resources, outcome, toolErr)
+		callCtx = withTraceID(callCtx, traceID)
+		result, toolErr := ctx.Invoker.Call(callCtx, user, spec.Name, args)
 
-		return buildCallToolResult(result, toolErr), nil
+		return buildCallToolResult(callCtx, result, toolErr), nil
 	}
 }
 
-func buildCallToolResult(result ToolResult, toolErr error) *sdkmcp.CallToolResult {
+func buildCallToolResult(callCtx context.Context, result ToolResult, toolErr error) *sdkmcp.CallToolResult {
 	res := &sdkmcp.CallToolResult{}
-	if len(result.Metadata.Namespaces) > 0 || len(result.Metadata.Resources) > 0 {
-		res.Meta = sdkmcp.Meta{
-			"namespaces": result.Metadata.Namespaces,
-			"resources":  result.Metadata.Resources,
-		}
+	meta := sdkmcp.Meta{}
+	if traceID, ok := traceIDFromContext(callCtx); ok && traceID != "" {
+		meta["traceId"] = traceID
+	}
+	if len(result.Metadata.Namespaces) > 0 {
+		meta["namespaces"] = result.Metadata.Namespaces
+	}
+	if len(result.Metadata.Resources) > 0 {
+		meta["resources"] = result.Metadata.Resources
+	}
+	if len(meta) > 0 {
+		res.Meta = meta
 	}
 	if toolErr != nil {
 		res.IsError = true
-		res.StructuredContent = BuildErrorEnvelope(toolErr, result.Data)
+		if payload, ok := result.Data.(map[string]any); ok && isErrorEnvelope(payload) {
+			res.StructuredContent = payload
+		} else {
+			res.StructuredContent = BuildErrorEnvelope(toolErr, result.Data)
+		}
 		if res.Content == nil {
 			res.Content = []sdkmcp.Content{&sdkmcp.TextContent{Text: toolErr.Error()}}
 		}
@@ -89,6 +89,13 @@ func buildCallToolResult(result ToolResult, toolErr error) *sdkmcp.CallToolResul
 
 	if result.Data != nil {
 		res.StructuredContent = result.Data
+		if traceID, ok := traceIDFromContext(callCtx); ok {
+			if root, ok := res.StructuredContent.(map[string]any); ok {
+				if _, exists := root["traceId"]; !exists {
+					root["traceId"] = traceID
+				}
+			}
+		}
 		if res.Content == nil {
 			dataJSON, err := json.Marshal(result.Data)
 			if err != nil {
@@ -139,21 +146,32 @@ func apiKeyFromMeta(meta map[string]any) string {
 	return ""
 }
 
-func logAudit(ctx ToolContext, spec ToolSpec, userID string, namespaces, resources []string, outcome string, err error) {
-	if ctx.Audit == nil {
-		return
+func traceIDFromRequest(req *sdkmcp.CallToolRequest) string {
+	if req == nil {
+		return ""
 	}
-	event := audit.Event{
-		Timestamp:  time.Now().UTC(),
-		UserID:     userID,
-		Tool:       spec.Name,
-		Toolset:    spec.ToolsetID,
-		Namespaces: namespaces,
-		Resources:  resources,
-		Outcome:    outcome,
+	if req.Params != nil {
+		if traceID := traceIDFromMeta(req.Params.Meta); traceID != "" {
+			return traceID
+		}
 	}
-	if err != nil {
-		event.Error = err.Error()
+	if req.Extra != nil && req.Extra.Header != nil {
+		if traceID := strings.TrimSpace(req.Extra.Header.Get("X-Trace-Id")); traceID != "" {
+			return traceID
+		}
 	}
-	ctx.Audit.Log(event)
+	return ""
+}
+
+func traceIDFromMeta(meta map[string]any) string {
+	if meta == nil {
+		return ""
+	}
+	if value, ok := meta["traceId"].(string); ok {
+		return strings.TrimSpace(value)
+	}
+	if value, ok := meta["traceID"].(string); ok {
+		return strings.TrimSpace(value)
+	}
+	return ""
 }

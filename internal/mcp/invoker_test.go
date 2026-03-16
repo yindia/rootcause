@@ -13,9 +13,13 @@ func TestInvokerToolNotFound(t *testing.T) {
 	cfg := config.DefaultConfig()
 	reg := NewRegistry(&cfg)
 	invoker := NewToolInvoker(reg, ToolContext{})
-	_, err := invoker.Call(context.Background(), policy.User{Role: policy.RoleCluster}, "missing", nil)
+	result, err := invoker.Call(context.Background(), policy.User{Role: policy.RoleCluster}, "missing", nil)
 	if err == nil {
 		t.Fatalf("expected error for missing tool")
+	}
+	root, ok := result.Data.(map[string]any)
+	if !ok || root["error"] == nil {
+		t.Fatalf("expected error envelope in result data: %#v", result.Data)
 	}
 }
 
@@ -39,9 +43,13 @@ func TestInvokerHandlerError(t *testing.T) {
 
 func TestInvokerMissingRegistry(t *testing.T) {
 	invoker := &ToolInvoker{}
-	_, err := invoker.Call(context.Background(), policy.User{Role: policy.RoleCluster}, "demo", nil)
+	result, err := invoker.Call(context.Background(), policy.User{Role: policy.RoleCluster}, "demo", nil)
 	if err == nil {
 		t.Fatalf("expected error for missing registry")
+	}
+	root, ok := result.Data.(map[string]any)
+	if !ok || root["error"] == nil {
+		t.Fatalf("expected error envelope in result data: %#v", result.Data)
 	}
 }
 
@@ -137,5 +145,49 @@ func TestInvokerFailsWhenPreflightResponseMalformed(t *testing.T) {
 	_, err := invoker.Call(context.Background(), policy.User{Role: policy.RoleCluster}, "k8s.patch", map[string]any{"name": "x", "patch": "{}"})
 	if err == nil {
 		t.Fatalf("expected malformed preflight response error")
+	}
+}
+
+func TestInvokerChecksNamespaceForNamespaceRole(t *testing.T) {
+	cfg := config.DefaultConfig()
+	reg := NewRegistry(&cfg)
+	_ = reg.Add(ToolSpec{
+		Name:      "k8s.namespaced_demo",
+		ToolsetID: "k8s",
+		InputSchema: map[string]any{
+			"type": "object",
+			"properties": map[string]any{
+				"namespace": map[string]any{"type": "string"},
+			},
+		},
+		Handler: func(ctx context.Context, req ToolRequest) (ToolResult, error) {
+			return ToolResult{Data: map[string]any{"ok": true}}, nil
+		},
+	})
+	invoker := NewToolInvoker(reg, ToolContext{Policy: policy.NewAuthorizer(), Config: &cfg})
+	_, err := invoker.Call(context.Background(), policy.User{Role: policy.RoleNamespace, AllowedNamespaces: []string{"team-a"}}, "k8s.namespaced_demo", map[string]any{"namespace": "team-b"})
+	if err == nil {
+		t.Fatalf("expected namespace policy error")
+	}
+}
+
+func TestInvokerDeniesClusterScopedForNamespaceRole(t *testing.T) {
+	cfg := config.DefaultConfig()
+	reg := NewRegistry(&cfg)
+	_ = reg.Add(ToolSpec{
+		Name:      "cluster.info",
+		ToolsetID: "cluster",
+		InputSchema: map[string]any{
+			"type":       "object",
+			"properties": map[string]any{},
+		},
+		Handler: func(ctx context.Context, req ToolRequest) (ToolResult, error) {
+			return ToolResult{Data: map[string]any{"ok": true}}, nil
+		},
+	})
+	invoker := NewToolInvoker(reg, ToolContext{Policy: policy.NewAuthorizer(), Config: &cfg})
+	_, err := invoker.Call(context.Background(), policy.User{Role: policy.RoleNamespace, AllowedNamespaces: []string{"team-a"}}, "cluster.info", map[string]any{})
+	if err == nil {
+		t.Fatalf("expected cluster-scoped policy error")
 	}
 }

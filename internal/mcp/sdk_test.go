@@ -75,7 +75,9 @@ func TestRegisterSDKToolsAndToolHandler(t *testing.T) {
 		Renderer: render.NewRenderer(),
 		Redactor: redact.New(),
 		Audit:    audit.NewLogger(io.Discard),
+		Registry: reg,
 	}
+	toolCtx.Invoker = NewToolInvoker(reg, toolCtx)
 	tools, err := RegisterSDKTools(server, reg, toolCtx)
 	if err != nil {
 		t.Fatalf("register tools: %v", err)
@@ -109,19 +111,23 @@ func TestBuildCallToolResultSuccess(t *testing.T) {
 			Namespaces: []string{"default"},
 		},
 	}
-	out := buildCallToolResult(result, nil)
+	ctx := withTraceID(context.Background(), "trace-1")
+	out := buildCallToolResult(ctx, result, nil)
 	if out.StructuredContent == nil {
 		t.Fatalf("expected structured content")
 	}
 	if out.Meta["namespaces"] == nil {
 		t.Fatalf("expected namespaces meta")
 	}
+	if out.Meta["traceId"] == nil {
+		t.Fatalf("expected traceId in meta")
+	}
 }
 
 func TestBuildCallToolResultError(t *testing.T) {
 	err := errors.New("boom")
 	result := ToolResult{Data: map[string]any{"hint": "test"}}
-	out := buildCallToolResult(result, err)
+	out := buildCallToolResult(context.Background(), result, err)
 	if !out.IsError {
 		t.Fatalf("expected error result")
 	}
@@ -135,12 +141,12 @@ func TestBuildCallToolResultError(t *testing.T) {
 }
 
 func TestBuildCallToolResultFallbacks(t *testing.T) {
-	out := buildCallToolResult(ToolResult{}, nil)
+	out := buildCallToolResult(context.Background(), ToolResult{}, nil)
 	if out.Content == nil || len(out.Content) == 0 {
 		t.Fatalf("expected content for empty result")
 	}
 	result := ToolResult{Data: map[string]any{"bad": func() {}}}
-	out = buildCallToolResult(result, nil)
+	out = buildCallToolResult(context.Background(), result, nil)
 	if out.Content == nil || len(out.Content) == 0 {
 		t.Fatalf("expected content fallback for marshal error")
 	}
@@ -156,9 +162,11 @@ func TestToolHandlerInvalidArgs(t *testing.T) {
 		},
 	}
 	toolCtx := ToolContext{
-		Config: &cfg,
-		Policy: policy.NewAuthorizer(),
+		Config:   &cfg,
+		Policy:   policy.NewAuthorizer(),
+		Registry: NewRegistry(&cfg),
 	}
+	toolCtx.Invoker = NewToolInvoker(toolCtx.Registry.(*ToolRegistry), toolCtx)
 	handler := toolHandler(spec, toolCtx)
 	req := &sdkmcp.CallToolRequest{Params: &sdkmcp.CallToolParamsRaw{Name: "demo", Arguments: []byte("{")}}
 	_, err := handler(context.Background(), req)
@@ -180,10 +188,14 @@ func TestToolHandlerErrorResult(t *testing.T) {
 		},
 	}
 	toolCtx := ToolContext{
-		Config: &cfg,
-		Policy: policy.NewAuthorizer(),
-		Audit:  audit.NewLogger(io.Discard),
+		Config:   &cfg,
+		Policy:   policy.NewAuthorizer(),
+		Audit:    audit.NewLogger(io.Discard),
+		Registry: NewRegistry(&cfg),
 	}
+	reg := toolCtx.Registry.(*ToolRegistry)
+	_ = reg.Add(spec)
+	toolCtx.Invoker = NewToolInvoker(reg, toolCtx)
 	handler := toolHandler(spec, toolCtx)
 	req := &sdkmcp.CallToolRequest{Params: &sdkmcp.CallToolParamsRaw{Name: "demo"}}
 	result, err := handler(context.Background(), req)
@@ -199,7 +211,7 @@ func TestLogAuditWritesEvent(t *testing.T) {
 	var buf bytes.Buffer
 	logger := audit.NewLogger(&buf)
 	spec := ToolSpec{Name: "k8s.get", ToolsetID: "k8s"}
-	logAudit(ToolContext{Audit: logger}, spec, "user", []string{"default"}, []string{"pods/default/p1"}, "success", nil)
+	logAudit(context.Background(), ToolContext{Audit: logger}, spec, "user", []string{"default"}, []string{"pods/default/p1"}, "success", nil)
 	if !strings.Contains(buf.String(), `"tool":"k8s.get"`) {
 		t.Fatalf("expected audit output, got %s", buf.String())
 	}

@@ -94,7 +94,27 @@ func (t *Toolset) Register(reg mcp.Registry) error {
 	if err := reg.Add(changeTimelineSpec); err != nil {
 		return fmt.Errorf("register %s: %w", changeTimelineSpec.Name, err)
 	}
+	capabilitiesSpec := mcp.ToolSpec{
+		Name:        "rootcause.capabilities",
+		Description: "Export registered tools, toolsets, and inter-tool dependency graph.",
+		ToolsetID:   t.ID(),
+		InputSchema: schemaCapabilities(),
+		Safety:      mcp.SafetyReadOnly,
+		Handler:     t.handleCapabilities,
+	}
+	if err := reg.Add(capabilitiesSpec); err != nil {
+		return fmt.Errorf("register %s: %w", capabilitiesSpec.Name, err)
+	}
 	return nil
+}
+
+func schemaCapabilities() map[string]any {
+	return map[string]any{
+		"type": "object",
+		"properties": map[string]any{
+			"includeSchemas": map[string]any{"type": "boolean"},
+		},
+	}
 }
 
 func schemaIncidentBundle() map[string]any {

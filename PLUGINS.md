@@ -10,7 +10,8 @@ RootCause exposes a small SDK so toolsets (toolchains/plugins) can be built in-r
 mkdir rootcause-aws
 cd rootcause-aws
 go mod init github.com/acme/rootcause-aws
-go get github.com/your-org/rootcause@latest
+go mod edit -require=rootcause@v0.0.0
+go mod edit -replace=rootcause=/absolute/path/to/rootcause
 ```
 
 2. Add your toolset under `toolsets/aws`.
@@ -27,6 +28,8 @@ go get github.com/your-org/rootcause@latest
 package aws
 
 import (
+	"fmt"
+
 	"rootcause/pkg/sdk"
 )
 
@@ -44,7 +47,9 @@ func (t *Toolset) Init(ctx sdk.ToolsetContext) error {
 		return fmt.Errorf("missing kube clients")
 	}
 	// Example: register a shared client for other toolsets.
-	_ = ctx.Services.Register("aws.session", mySession)
+	if err := ctx.Services.Register("aws.session", mySession); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -60,14 +65,16 @@ func (t *Toolset) Register(reg sdk.Registry) error {
 }
 
 func init() {
-	sdk.MustRegisterToolset("aws", New)
+	sdk.MustRegisterToolset("aws", func() sdk.Toolset {
+		return New()
+	})
 }
 ```
 
 ## Cross-Tool Interaction
 
 - Shared services: `ctx.Services.Register("key", svc)` and `ctx.Services.Get("key")`.
-- Internal tool calls: `ctx.CallTool(ctx, req.User, "k8s.describe", args)` (uses policy + audit).
+- Internal tool calls (from a handler): `t.ctx.CallTool(callCtx, req.User, "k8s.describe", args)` (uses policy + audit).
 
 This keeps policy checks and audit logging consistent across toolsets.
 
@@ -97,6 +104,8 @@ func main() {
 ```
 
 Toolsets are enabled via `--toolsets` or config like usual.
+
+Note: this repository currently uses module path `rootcause` (see `go.mod`), so external modules should use a `replace` directive unless/until the module path is changed to a public VCS import path.
 
 ## Enable Your Toolchain
 

@@ -41,6 +41,9 @@ func TestToolsetInitAndRegister(t *testing.T) {
 	if _, ok := reg.Get("rootcause.change_timeline"); !ok {
 		t.Fatalf("expected rootcause.change_timeline to be registered")
 	}
+	if _, ok := reg.Get("rootcause.capabilities"); !ok {
+		t.Fatalf("expected rootcause.capabilities to be registered")
+	}
 }
 
 func TestHandleIncidentBundleAggregatesSections(t *testing.T) {
@@ -281,6 +284,31 @@ func TestHandleChangeTimeline(t *testing.T) {
 	timeline := root["timeline"].([]map[string]any)
 	if toString(timeline[0]["time"]) != "2026-03-15T00:00:01Z" {
 		t.Fatalf("expected sorted timeline, got first=%v", timeline[0]["time"])
+	}
+}
+
+func TestHandleCapabilities(t *testing.T) {
+	cfg := config.DefaultConfig()
+	reg := mcp.NewRegistry(&cfg)
+	ctx := mcp.ToolContext{Config: &cfg, Registry: reg}
+	ctx.Invoker = mcp.NewToolInvoker(reg, ctx)
+	toolset := New()
+	if err := toolset.Init(ctx); err != nil {
+		t.Fatalf("init: %v", err)
+	}
+	if err := toolset.Register(reg); err != nil {
+		t.Fatalf("register: %v", err)
+	}
+	result, err := toolset.handleCapabilities(context.Background(), mcp.ToolRequest{Arguments: map[string]any{"includeSchemas": true}})
+	if err != nil {
+		t.Fatalf("handleCapabilities: %v", err)
+	}
+	root, ok := result.Data.(map[string]any)
+	if !ok {
+		t.Fatalf("expected map response")
+	}
+	if _, ok := root["dependencyGraph"].(map[string]any); !ok {
+		t.Fatalf("expected dependencyGraph in response")
 	}
 }
 

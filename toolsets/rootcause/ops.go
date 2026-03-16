@@ -11,6 +11,50 @@ import (
 	"rootcause/internal/policy"
 )
 
+func (t *Toolset) handleCapabilities(ctx context.Context, req mcp.ToolRequest) (mcp.ToolResult, error) {
+	includeSchemas := boolOrDefault(req.Arguments["includeSchemas"], false)
+	tools := t.ctx.Registry.List()
+	toolRows := make([]map[string]any, 0, len(tools))
+	toolsets := map[string]struct{}{}
+	for _, tool := range tools {
+		name := strings.TrimSpace(tool.Name)
+		parts := strings.SplitN(name, ".", 2)
+		if len(parts) > 0 && parts[0] != "" {
+			toolsets[parts[0]] = struct{}{}
+		}
+		row := map[string]any{
+			"name":        tool.Name,
+			"description": tool.Description,
+		}
+		if includeSchemas {
+			row["inputSchema"] = tool.InputSchema
+		}
+		toolRows = append(toolRows, row)
+	}
+	deps := mcp.RequiredToolDependencies()
+	edges := make([]map[string]any, 0)
+	for _, dep := range deps {
+		for _, required := range dep.Requires {
+			edges = append(edges, map[string]any{"from": dep.Tool, "to": required, "source": "declared"})
+		}
+	}
+	observedEdges := t.ctx.CallGraph.Edges()
+	edges = append(edges, observedEdges...)
+	toolsetNames := make([]string, 0, len(toolsets))
+	for name := range toolsets {
+		toolsetNames = append(toolsetNames, name)
+	}
+	sort.Strings(toolsetNames)
+	out := map[string]any{
+		"toolCount":         len(toolRows),
+		"toolsets":          toolsetNames,
+		"tools":             toolRows,
+		"dependencyGraph":   map[string]any{"dependencies": deps, "edges": edges, "observedEdgeCount": len(observedEdges)},
+		"dependencyVersion": "v2",
+	}
+	return mcp.ToolResult{Data: out}, nil
+}
+
 type bundleChainStep struct {
 	Tool    string
 	Section string

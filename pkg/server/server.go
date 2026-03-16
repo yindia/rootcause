@@ -225,19 +225,21 @@ func buildRuntime(cfg config.Config, errOut io.Writer) (rcmcp.ToolContext, *rcmc
 	auditLogger := audit.NewLogger(errOut)
 	serviceRegistry := rcmcp.NewServiceRegistry()
 	cacheStore := cache.NewStore()
+	callGraph := rcmcp.NewCallGraph()
 	reg := rcmcp.NewRegistry(&cfg)
 
 	toolCtx := rcmcp.ToolContext{
-		Config:   &cfg,
-		Clients:  clients,
-		Policy:   authorizer,
-		Evidence: evidenceCollector,
-		Renderer: renderer,
-		Redactor: redactor,
-		Audit:    auditLogger,
-		Services: serviceRegistry,
-		Cache:    cacheStore,
-		Registry: reg,
+		Config:    &cfg,
+		Clients:   clients,
+		Policy:    authorizer,
+		Evidence:  evidenceCollector,
+		Renderer:  renderer,
+		Redactor:  redactor,
+		Audit:     auditLogger,
+		Services:  serviceRegistry,
+		Cache:     cacheStore,
+		CallGraph: callGraph,
+		Registry:  reg,
 	}
 	toolCtx.Invoker = rcmcp.NewToolInvoker(reg, toolCtx)
 	toolsetCtx := rcmcp.ToolsetContext(toolCtx)
@@ -254,6 +256,9 @@ func buildRuntime(cfg config.Config, errOut io.Writer) (rcmcp.ToolContext, *rcmc
 		if err := toolset.Register(reg); err != nil {
 			return rcmcp.ToolContext{}, nil, err
 		}
+	}
+	if err := rcmcp.ValidateToolDependencies(reg, rcmcp.RequiredToolDependencies()); err != nil {
+		return rcmcp.ToolContext{}, nil, err
 	}
 
 	return toolCtx, reg, nil

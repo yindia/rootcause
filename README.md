@@ -72,7 +72,7 @@ Power users can map these prompts to concrete tools in this README (`Complete Fe
 
 | Area | RootCause Capability |
 |---|---|
-| Incident analysis | `rootcause.incident_bundle`, `rootcause.rca_generate`, `rootcause.change_timeline`, `rootcause.postmortem_export` |
+| Incident analysis | `rootcause.incident_bundle`, `rootcause.rca_generate`, `rootcause.change_timeline`, `rootcause.postmortem_export`, `rootcause.capabilities` |
 | Kubernetes resilience | `k8s.restart_safety_check`, `k8s.best_practice`, `k8s.safe_mutation_preflight` |
 | Ecosystem diagnostics | ArgoCD/Flux/cert-manager/Kyverno/Gatekeeper/Cilium via `*_detect` and `diagnose_*` tools |
 | Deployment safety | Automatic preflight before k8s mutating operations |
@@ -747,7 +747,7 @@ Prompt templates for common debugging flows are in `prompts/prompt.md`.
 
 ### RootCause (`rootcause.*`)
 
-- `rootcause.incident_bundle`, `rootcause.change_timeline`, `rootcause.rca_generate`, `rootcause.remediation_playbook`, `rootcause.postmortem_export`
+- `rootcause.incident_bundle`, `rootcause.change_timeline`, `rootcause.rca_generate`, `rootcause.remediation_playbook`, `rootcause.postmortem_export`, `rootcause.capabilities`
 
 ### Browser (`browser_*`, optional)
 

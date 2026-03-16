@@ -56,17 +56,18 @@ type ToolMetadata struct {
 }
 
 type ToolContext struct {
-	Config   *config.Config
-	Clients  *kube.Clients
-	Policy   *policy.Authorizer
-	Evidence evidence.Collector
-	Renderer render.Renderer
-	Redactor *redact.Redactor
-	Audit    *audit.Logger
-	Services *ServiceRegistry
-	Cache    *cache.Store
-	Invoker  *ToolInvoker
-	Registry Registry
+	Config    *config.Config
+	Clients   *kube.Clients
+	Policy    *policy.Authorizer
+	Evidence  evidence.Collector
+	Renderer  render.Renderer
+	Redactor  *redact.Redactor
+	Audit     *audit.Logger
+	Services  *ServiceRegistry
+	Cache     *cache.Store
+	CallGraph *CallGraph
+	Invoker   *ToolInvoker
+	Registry  Registry
 }
 
 type ToolsetContext = ToolContext

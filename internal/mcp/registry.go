@@ -26,6 +26,9 @@ func (r *ToolRegistry) Add(spec ToolSpec) error {
 	if spec.Name == "" {
 		return errors.New("tool name required")
 	}
+	if _, exists := r.tools[spec.Name]; exists {
+		return errors.New("tool already registered")
+	}
 	if !r.allowedBySafety(spec) {
 		return nil
 	}

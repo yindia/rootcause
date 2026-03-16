@@ -19,17 +19,29 @@ func NewToolInvoker(reg *ToolRegistry, ctx ToolContext) *ToolInvoker {
 }
 
 func (i *ToolInvoker) Call(ctx context.Context, user policy.User, toolName string, args map[string]any) (ToolResult, error) {
+	ctx = ensureTraceContext(ctx)
 	if i == nil || i.reg == nil {
-		return ToolResult{Data: map[string]any{"error": "tool registry not available"}}, errors.New("tool registry not available")
+		err := errors.New("tool registry not available")
+		return ToolResult{Data: BuildErrorEnvelope(err, nil)}, err
 	}
 	spec, ok := i.reg.Get(toolName)
 	if !ok {
-		return ToolResult{Data: map[string]any{"error": "tool not found"}}, errors.New("tool not found")
+		err := errors.New("tool not found")
+		return ToolResult{Data: BuildErrorEnvelope(err, map[string]any{"tool": toolName})}, err
 	}
 	if i.ctx.Policy != nil {
 		if err := i.ctx.Policy.AuthorizeTool(user, spec.ToolsetID, spec.Name); err != nil {
-			logAudit(i.ctx, spec, user.ID, nil, nil, "error", err)
-			return ToolResult{Data: map[string]any{"error": err.Error()}}, err
+			logAudit(ctx, i.ctx, spec, user.ID, nil, nil, "error", err)
+			return ToolResult{Data: BuildErrorEnvelope(err, map[string]any{"tool": spec.Name, "toolset": spec.ToolsetID})}, err
+		}
+		namespace, namespaced := inferNamespaceScope(spec, args)
+		if err := i.ctx.Policy.CheckNamespace(user, namespace, namespaced); err != nil {
+			namespaces := []string{}
+			if namespace != "" {
+				namespaces = append(namespaces, namespace)
+			}
+			logAudit(ctx, i.ctx, spec, user.ID, namespaces, nil, "error", err)
+			return ToolResult{Data: BuildErrorEnvelope(err, map[string]any{"tool": spec.Name, "namespace": namespace, "namespaced": namespaced})}, err
 		}
 	}
 	if i.ctx.Clients != nil && i.ctx.Config != nil {
@@ -38,19 +50,60 @@ func (i *ToolInvoker) Call(ctx context.Context, user policy.User, toolName strin
 	}
 	if op, ok := preflightOperationForTool(spec.Name); ok {
 		if preflightErr := i.runMutationPreflight(ctx, user, args, op); preflightErr != nil {
-			logAudit(i.ctx, spec, user.ID, nil, nil, "error", preflightErr)
-			return ToolResult{Data: map[string]any{"error": preflightErr.Error()}}, preflightErr
+			logAudit(ctx, i.ctx, spec, user.ID, nil, nil, "error", preflightErr)
+			return ToolResult{Data: BuildErrorEnvelope(preflightErr, map[string]any{"tool": spec.Name, "operation": op})}, preflightErr
 		}
 	}
-	execCtx, cancel := withToolTimeout(ctx, i.ctx.Config, spec)
+	chain, _ := callChainFromContext(ctx)
+	if len(chain) > 0 {
+		parent := chain[len(chain)-1]
+		i.ctx.CallGraph.Record(parent, spec.Name)
+	}
+	chain = append(chain, spec.Name)
+	execCtx := withCallChain(ctx, chain)
+	execCtx, cancel := withToolTimeout(execCtx, i.ctx.Config, spec)
 	result, toolErr := spec.Handler(execCtx, ToolRequest{Arguments: args, User: user, Context: i.ctx})
 	cancel()
 	outcome := "success"
 	if toolErr != nil {
 		outcome = "error"
+		result.Data = canonicalErrorPayload(toolErr, result.Data)
 	}
-	logAudit(i.ctx, spec, user.ID, result.Metadata.Namespaces, result.Metadata.Resources, outcome, toolErr)
+	logAudit(execCtx, i.ctx, spec, user.ID, result.Metadata.Namespaces, result.Metadata.Resources, outcome, toolErr)
 	return result, toolErr
+}
+
+func canonicalErrorPayload(err error, details any) map[string]any {
+	if root, ok := details.(map[string]any); ok {
+		if isErrorEnvelope(root) {
+			return root
+		}
+	}
+	return BuildErrorEnvelope(err, details)
+}
+
+func isErrorEnvelope(payload map[string]any) bool {
+	errorObj, ok := payload["error"].(map[string]any)
+	if !ok {
+		return false
+	}
+	_, hasCode := errorObj["code"].(string)
+	_, hasMessage := errorObj["message"].(string)
+	return hasCode && hasMessage
+}
+
+func inferNamespaceScope(spec ToolSpec, args map[string]any) (string, bool) {
+	if namespace, ok := args["namespace"].(string); ok {
+		return namespace, true
+	}
+	if spec.InputSchema != nil {
+		if props, ok := spec.InputSchema["properties"].(map[string]any); ok {
+			if _, exists := props["namespace"]; exists {
+				return "", true
+			}
+		}
+	}
+	return "", false
 }
 
 func preflightOperationForTool(toolName string) (string, bool) {

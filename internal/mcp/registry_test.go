@@ -57,6 +57,16 @@ func TestRegistryAddRequiresName(t *testing.T) {
 	}
 }
 
+func TestRegistryRejectsDuplicateToolName(t *testing.T) {
+	reg := NewRegistry(nil)
+	if err := reg.Add(ToolSpec{Name: "k8s.get", Safety: SafetyReadOnly}); err != nil {
+		t.Fatalf("unexpected first add error: %v", err)
+	}
+	if err := reg.Add(ToolSpec{Name: "k8s.get", Safety: SafetyReadOnly}); err == nil {
+		t.Fatalf("expected duplicate registration error")
+	}
+}
+
 func TestRegistryListAndNames(t *testing.T) {
 	cfg := config.DefaultConfig()
 	reg := NewRegistry(&cfg)

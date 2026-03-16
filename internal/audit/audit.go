@@ -10,6 +10,9 @@ import (
 type Event struct {
 	Timestamp  time.Time `json:"timestamp"`
 	UserID     string    `json:"userId"`
+	TraceID    string    `json:"traceId,omitempty"`
+	ParentTool string    `json:"parentTool,omitempty"`
+	CallChain  []string  `json:"callChain,omitempty"`
 	Tool       string    `json:"tool"`
 	Toolset    string    `json:"toolset"`
 	Namespaces []string  `json:"namespaces,omitempty"`
