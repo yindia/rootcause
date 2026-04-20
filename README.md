@@ -4,6 +4,7 @@
 [![MCP](https://img.shields.io/badge/MCP-stdio-4A90E2)](https://modelcontextprotocol.io/)
 [![codecov](https://codecov.io/gh/yindia/rootcause/graph/badge.svg?token=F85C1M50K6)](https://codecov.io/gh/yindia/rootcause)
 
+
 **AI-native SRE for Kubernetes incidents.**
 
 RootCause is a local-first MCP server that turns natural-language requests into evidence-backed incident analysis, Kubernetes diagnostics, and safer operations.
