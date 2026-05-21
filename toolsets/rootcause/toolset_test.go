@@ -3,6 +3,8 @@ package rootcause
 import (
 	"context"
 	"fmt"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"rootcause/internal/config"
@@ -194,6 +196,52 @@ func TestHandleRCAGenerateFromBundle(t *testing.T) {
 	rca := root["rca"].(map[string]any)
 	if toString(rca["confidence"]) != "high" {
 		t.Fatalf("expected high confidence, got %v", rca["confidence"])
+	}
+}
+
+func TestHandleRCAGenerateIncludesCustomSkillGuidance(t *testing.T) {
+	customRoot := t.TempDir()
+	customDir := filepath.Join(customRoot, "team-rca")
+	if err := os.MkdirAll(customDir, 0o755); err != nil {
+		t.Fatalf("mkdir custom skill: %v", err)
+	}
+	skillContent := "---\ntags: [rca, payments]\ndescription: Team RCA standard\n---\n# Team RCA\n\nAlways check the payments dashboard before declaring database root cause.\n"
+	if err := os.WriteFile(filepath.Join(customDir, "SKILL.md"), []byte(skillContent), 0o644); err != nil {
+		t.Fatalf("write custom skill: %v", err)
+	}
+
+	cfg := config.DefaultConfig()
+	cfg.Skills.CustomDirs = []string{customRoot}
+	reg := mcp.NewRegistry(&cfg)
+	ctx := mcp.ToolContext{Config: &cfg, Policy: policy.NewAuthorizer(), Registry: reg}
+	ctx.Invoker = mcp.NewToolInvoker(reg, ctx)
+	toolset := New()
+	if err := toolset.Init(ctx); err != nil {
+		t.Fatalf("init: %v", err)
+	}
+	if err := toolset.Register(reg); err != nil {
+		t.Fatalf("register: %v", err)
+	}
+	bundle := map[string]any{
+		"generatedAt": "2026-03-15T00:00:00Z",
+		"errorCount":  0,
+		"sections":    map[string]any{},
+	}
+
+	result, err := ctx.Invoker.Call(context.Background(), policy.User{Role: policy.RoleCluster}, "rootcause.rca_generate", map[string]any{"bundle": bundle})
+	if err != nil {
+		t.Fatalf("rootcause.rca_generate: %v", err)
+	}
+	root := result.Data.(map[string]any)
+	guidance := root["customSkillGuidance"].([]mcp.SkillGuidance)
+	if len(guidance) != 1 {
+		t.Fatalf("expected one custom skill guidance entry, got %#v", guidance)
+	}
+	if guidance[0].Name != "team-rca" {
+		t.Fatalf("unexpected custom skill name: %#v", guidance[0])
+	}
+	if guidance[0].Content != skillContent {
+		t.Fatalf("custom skill content was not included: %#v", guidance[0])
 	}
 }
 

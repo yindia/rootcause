@@ -103,6 +103,9 @@ func DefaultConfig() Config {
 			Port: 8000,
 			Path: "/mcp",
 		},
+		Skills: SkillsConfig{
+			CustomDirs: []string{"~/.rootcause/skills"},
+		},
 	}
 }
 

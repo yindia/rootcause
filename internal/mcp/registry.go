@@ -2,6 +2,7 @@ package mcp
 
 import (
 	"errors"
+	"slices"
 	"sort"
 
 	"rootcause/internal/config"
@@ -39,7 +40,11 @@ func (r *ToolRegistry) Add(spec ToolSpec) error {
 func (r *ToolRegistry) List() []ToolInfo {
 	infos := make([]ToolInfo, 0, len(r.tools))
 	for _, tool := range r.tools {
-		infos = append(infos, ToolInfo{Name: tool.Name, Description: tool.Description, InputSchema: tool.InputSchema})
+		schema := tool.InputSchema
+		if schema == nil {
+			schema = map[string]any{"type": "object"}
+		}
+		infos = append(infos, ToolInfo{Name: tool.Name, Description: tool.Description, InputSchema: schemaWithGlobalSkillTags(schema)})
 	}
 	sort.Slice(infos, func(i, j int) bool {
 		return infos[i].Name < infos[j].Name
@@ -81,10 +86,8 @@ func (r *ToolRegistry) allowedBySafety(spec ToolSpec) bool {
 	}
 	if r.cfg.DisableDestructive {
 		if spec.Safety == SafetyDestructive || spec.Safety == SafetyRiskyWrite {
-			for _, allow := range r.cfg.Safety.AllowDestructiveTools {
-				if allow == spec.Name {
-					return true
-				}
+			if slices.Contains(r.cfg.Safety.AllowDestructiveTools, spec.Name) {
+				return true
 			}
 			return false
 		}

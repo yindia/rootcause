@@ -9,7 +9,7 @@ import (
 
 func TestDiscoverCustomSkills(t *testing.T) {
 	dir := t.TempDir()
-	writeCustomSkill(t, dir, "team-runbook", "# Team Runbook\n")
+	writeCustomSkill(t, dir, "team-runbook", "---\ncategory: Team\ndescription: Team incident runbook\ntags: [rootcause, rca, payments]\n---\n# Team Runbook\n")
 
 	skills, err := DiscoverCustom([]string{dir})
 	if err != nil {
@@ -25,8 +25,14 @@ func TestDiscoverCustomSkills(t *testing.T) {
 	if !skill.Custom {
 		t.Fatalf("expected custom skill flag")
 	}
-	if skill.Description != "Team Runbook" {
+	if skill.Category != "Team" {
+		t.Fatalf("unexpected category: %s", skill.Category)
+	}
+	if skill.Description != "Team incident runbook" {
 		t.Fatalf("unexpected description: %s", skill.Description)
+	}
+	if len(skill.Tags) != 3 || skill.Tags[0] != "payments" || skill.Tags[1] != "rca" || skill.Tags[2] != "rootcause" {
+		t.Fatalf("unexpected tags: %#v", skill.Tags)
 	}
 	if !filepath.IsAbs(skill.Path) {
 		t.Fatalf("expected absolute path, got %s", skill.Path)

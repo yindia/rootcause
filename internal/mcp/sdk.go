@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"maps"
 	"strings"
 
 	sdkjsonrpc "github.com/modelcontextprotocol/go-sdk/jsonrpc"
@@ -20,6 +21,7 @@ func RegisterSDKTools(server *sdkmcp.Server, reg *ToolRegistry, ctx ToolContext)
 		if schema == nil {
 			schema = map[string]any{"type": "object"}
 		}
+		schema = schemaWithGlobalSkillTags(schema)
 		tool := &sdkmcp.Tool{
 			Name:        spec.Name,
 			Description: spec.Description,
@@ -28,6 +30,31 @@ func RegisterSDKTools(server *sdkmcp.Server, reg *ToolRegistry, ctx ToolContext)
 		server.AddTool(tool, toolHandler(spec, ctx))
 	}
 	return toolNames, nil
+}
+
+func schemaWithGlobalSkillTags(schema map[string]any) map[string]any {
+	out := map[string]any{}
+	maps.Copy(out, schema)
+	props := map[string]any{}
+	if existing, ok := schema["properties"].(map[string]any); ok {
+		maps.Copy(props, existing)
+	}
+	props["skillTags"] = map[string]any{
+		"description": "Optional custom skill tags to include for this call.",
+		"oneOf": []map[string]any{
+			{"type": "string"},
+			{"type": "array", "items": map[string]any{"type": "string"}},
+		},
+	}
+	props["customSkillTags"] = map[string]any{
+		"description": "Alias for skillTags; matches configured custom skills by tag.",
+		"oneOf": []map[string]any{
+			{"type": "string"},
+			{"type": "array", "items": map[string]any{"type": "string"}},
+		},
+	}
+	out["properties"] = props
+	return out
 }
 
 func toolHandler(spec ToolSpec, ctx ToolContext) sdkmcp.ToolHandler {
@@ -70,6 +97,12 @@ func buildCallToolResult(callCtx context.Context, result ToolResult, toolErr err
 	}
 	if len(result.Metadata.Resources) > 0 {
 		meta["resources"] = result.Metadata.Resources
+	}
+	if len(result.Metadata.CustomSkills) > 0 {
+		meta["customSkillGuidance"] = result.Metadata.CustomSkills
+	}
+	if result.Metadata.CustomSkillError != "" {
+		meta["customSkillError"] = result.Metadata.CustomSkillError
 	}
 	if len(meta) > 0 {
 		res.Meta = meta

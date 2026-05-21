@@ -31,5 +31,5 @@ graph_ttl_seconds = 30
 aws_list_ttl_seconds = 60
 
 [skills]
-custom_dirs = []
+custom_dirs = ["~/.rootcause/skills"]
 allow_custom_overrides = false

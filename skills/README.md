@@ -41,6 +41,28 @@ Users can add their own skills in any folder that follows the same directory sha
     SKILL.md
 ```
 
+Each custom `SKILL.md` can include standard YAML front matter. `tags` control which MCP tool calls receive that skill as guidance:
+
+```markdown
+---
+category: Root Cause Analysis
+description: Team-specific RCA checklist
+tags: [rootcause, rca, payments]
+---
+# Team RCA
+
+Always check the payments dashboard before declaring database root cause.
+```
+
+Tag matching is automatic for every tool call:
+
+- toolset tags: `rootcause`, `k8s`, `helm`, `aws`, etc.
+- exact tool tags: `rootcause.rca_generate`, `k8s.events_timeline`
+- tool-name tokens: `rca`, `generate`, `events`, `timeline`
+- caller-provided tags: pass `skillTags` or `customSkillTags` as a string or string array in tool arguments
+
+Only tagged custom skills are injected into tool call results as `customSkillGuidance`; untagged skills remain available for sync and `skill://...` resources.
+
 Sync custom skills into agent skill folders with:
 
 ```bash
@@ -62,6 +84,8 @@ MCP clients can then read:
 
 - `skill://catalog` for the merged built-in/custom skill list
 - `skill://team-runbook` for a custom skill's `SKILL.md` content
+
+All tool calls include matching configured custom skills in their response metadata/payload as `customSkillGuidance`, allowing MCP agents to evaluate incidents with team-specific instructions and runbooks.
 
 | Agent | Format | Project Directory |
 |---|---|---|

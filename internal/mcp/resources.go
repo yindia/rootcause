@@ -150,11 +150,12 @@ func jsonResourceResult(uri string, data any) (*sdkmcp.ReadResourceResult, error
 }
 
 type skillResourceInfo struct {
-	Name        string `json:"name"`
-	Category    string `json:"category"`
-	Description string `json:"description"`
-	Custom      bool   `json:"custom"`
-	URI         string `json:"uri"`
+	Name        string   `json:"name"`
+	Category    string   `json:"category"`
+	Description string   `json:"description"`
+	Tags        []string `json:"tags,omitempty"`
+	Custom      bool     `json:"custom"`
+	URI         string   `json:"uri"`
 }
 
 func readSkillCatalogResource(ctx ToolContext) (any, error) {
@@ -168,6 +169,7 @@ func readSkillCatalogResource(ctx ToolContext) (any, error) {
 			Name:        skill.Name,
 			Category:    skill.Category,
 			Description: skill.Description,
+			Tags:        skill.Tags,
 			Custom:      skill.Custom,
 			URI:         "skill://" + skill.Name,
 		})

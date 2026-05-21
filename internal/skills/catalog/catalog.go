@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+
+	"sigs.k8s.io/yaml"
 )
 
 //go:embed manifest.json
@@ -21,11 +23,18 @@ type Manifest struct {
 }
 
 type Skill struct {
-	Name        string `json:"name"`
-	Category    string `json:"category"`
-	Description string `json:"description"`
-	Path        string `json:"path"`
-	Custom      bool   `json:"-"`
+	Name        string   `json:"name"`
+	Category    string   `json:"category"`
+	Description string   `json:"description"`
+	Path        string   `json:"path"`
+	Tags        []string `json:"tags,omitempty"`
+	Custom      bool     `json:"-"`
+}
+
+type skillFrontMatter struct {
+	Category    string   `json:"category"`
+	Description string   `json:"description"`
+	Tags        []string `json:"tags"`
 }
 
 type CustomOptions struct {
@@ -92,16 +101,26 @@ func DiscoverCustom(dirs []string) ([]Skill, error) {
 				}
 				return nil, fmt.Errorf("read custom skill %s: %w", name, err)
 			}
+			meta, body := parseSkillFrontMatter(data)
 			key := strings.ToLower(name)
 			if _, ok := seen[key]; ok {
 				return nil, fmt.Errorf("duplicate custom skill: %s", name)
 			}
 			seen[key] = struct{}{}
+			category := strings.TrimSpace(meta.Category)
+			if category == "" {
+				category = "Custom"
+			}
+			description := strings.TrimSpace(meta.Description)
+			if description == "" {
+				description = customDescription(body, file)
+			}
 			skills = append(skills, Skill{
 				Name:        name,
-				Category:    "Custom",
-				Description: customDescription(data, file),
+				Category:    category,
+				Description: description,
 				Path:        file,
+				Tags:        normalizeTags(meta.Tags),
 				Custom:      true,
 			})
 		}
@@ -221,4 +240,39 @@ func customDescription(data []byte, file string) string {
 		}
 	}
 	return fmt.Sprintf("Custom skill from %s", file)
+}
+
+func parseSkillFrontMatter(data []byte) (skillFrontMatter, []byte) {
+	text := string(data)
+	if !strings.HasPrefix(text, "---\n") && !strings.HasPrefix(text, "---\r\n") {
+		return skillFrontMatter{}, data
+	}
+	normalized := strings.ReplaceAll(text, "\r\n", "\n")
+	rest := strings.TrimPrefix(normalized, "---\n")
+	frontMatter, body, ok := strings.Cut(rest, "\n---\n")
+	if !ok {
+		return skillFrontMatter{}, data
+	}
+	var meta skillFrontMatter
+	if err := yaml.Unmarshal([]byte(frontMatter), &meta); err != nil {
+		return skillFrontMatter{}, []byte(body)
+	}
+	return meta, []byte(body)
+}
+
+func normalizeTags(tags []string) []string {
+	seen := map[string]struct{}{}
+	for _, tag := range tags {
+		trimmed := strings.ToLower(strings.TrimSpace(tag))
+		if trimmed == "" {
+			continue
+		}
+		seen[trimmed] = struct{}{}
+	}
+	out := make([]string, 0, len(seen))
+	for tag := range seen {
+		out = append(out, tag)
+	}
+	sort.Strings(out)
+	return out
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"time"
 
 	"rootcause/internal/policy"
@@ -69,6 +70,8 @@ func (i *ToolInvoker) Call(ctx context.Context, user policy.User, toolName strin
 		outcome = "error"
 		result.Data = canonicalErrorPayload(toolErr, result.Data)
 	}
+	guidance, guidanceErr := customSkillGuidanceForTool(i.ctx.Config, spec, args)
+	result = attachCustomSkillGuidance(result, guidance, guidanceErr)
 	logAudit(execCtx, i.ctx, spec, user.ID, result.Metadata.Namespaces, result.Metadata.Resources, outcome, toolErr)
 	return result, toolErr
 }
@@ -138,9 +141,7 @@ func (i *ToolInvoker) runMutationPreflight(ctx context.Context, user policy.User
 		return errors.New("k8s.safe_mutation_preflight tool is required for mutating operations")
 	}
 	preflightArgs := map[string]any{}
-	for key, value := range args {
-		preflightArgs[key] = value
-	}
+	maps.Copy(preflightArgs, args)
 	preflightArgs["operation"] = operation
 	result, err := preflight.Handler(ctx, ToolRequest{Arguments: preflightArgs, User: user, Context: i.ctx})
 	if err != nil {

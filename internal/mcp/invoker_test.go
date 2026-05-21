@@ -3,6 +3,8 @@ package mcp
 import (
 	"context"
 	"errors"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"rootcause/internal/config"
@@ -70,6 +72,42 @@ func TestInvokerSuccess(t *testing.T) {
 	}
 	if result.Data == nil {
 		t.Fatalf("expected result data")
+	}
+}
+
+func TestInvokerAttachesTaggedCustomSkillGuidance(t *testing.T) {
+	customRoot := t.TempDir()
+	customDir := filepath.Join(customRoot, "demo-skill")
+	if err := os.MkdirAll(customDir, 0o755); err != nil {
+		t.Fatalf("mkdir custom skill: %v", err)
+	}
+	content := "---\ntags: [demo]\ndescription: Demo tool guidance\n---\n# Demo Skill\n"
+	if err := os.WriteFile(filepath.Join(customDir, "SKILL.md"), []byte(content), 0o644); err != nil {
+		t.Fatalf("write custom skill: %v", err)
+	}
+	cfg := config.DefaultConfig()
+	cfg.Skills.CustomDirs = []string{customRoot}
+	reg := NewRegistry(&cfg)
+	_ = reg.Add(ToolSpec{
+		Name:      "demo.inspect",
+		ToolsetID: "demo",
+		Safety:    SafetyReadOnly,
+		Handler: func(ctx context.Context, req ToolRequest) (ToolResult, error) {
+			return ToolResult{Data: map[string]any{"ok": true}}, nil
+		},
+	})
+	invoker := NewToolInvoker(reg, ToolContext{Policy: policy.NewAuthorizer(), Config: &cfg})
+	result, err := invoker.Call(context.Background(), policy.User{Role: policy.RoleCluster}, "demo.inspect", nil)
+	if err != nil {
+		t.Fatalf("call tool: %v", err)
+	}
+	if len(result.Metadata.CustomSkills) != 1 {
+		t.Fatalf("expected one metadata custom skill, got %#v", result.Metadata.CustomSkills)
+	}
+	root := result.Data.(map[string]any)
+	guidance := root["customSkillGuidance"].([]SkillGuidance)
+	if len(guidance) != 1 || guidance[0].Name != "demo-skill" || guidance[0].Content != content {
+		t.Fatalf("unexpected custom skill guidance: %#v", guidance)
 	}
 }
 

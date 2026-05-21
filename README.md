@@ -139,6 +139,21 @@ Users can add team or personal skills in a folder containing one subdirectory pe
     SKILL.md
 ```
 
+Use YAML front matter to standardize metadata and tags. Tags decide which MCP tool calls receive the skill as guidance:
+
+```markdown
+---
+category: Root Cause Analysis
+description: Team-specific RCA checklist
+tags: [rootcause, rca, payments]
+---
+# Team RCA
+
+Always check the payments dashboard before declaring database root cause.
+```
+
+RootCause matches tags on every tool call using the toolset (`rootcause`, `k8s`, `helm`), exact tool name (`rootcause.rca_generate`), tool-name tokens (`rca`, `events`, `timeline`), plus optional call arguments `skillTags` or `customSkillTags`.
+
 Sync custom skills into supported agent directories:
 
 ```bash
@@ -155,6 +170,8 @@ allow_custom_overrides = false
 ```
 
 MCP clients can read `skill://catalog` for the merged skill list and `skill://team-runbook` for the skill content. Custom names cannot collide with built-ins unless overrides are explicitly enabled.
+
+Every tool call includes matching tagged custom skills in response metadata/payload as `customSkillGuidance`, so MCP agents can consider team-specific runbook instructions during root-cause analysis and other workflows.
 
 Agent directory defaults used by `sync-skills`:
 

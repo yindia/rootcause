@@ -51,8 +51,18 @@ type ToolResult struct {
 }
 
 type ToolMetadata struct {
-	Namespaces []string `json:"namespaces,omitempty"`
-	Resources  []string `json:"resources,omitempty"`
+	Namespaces       []string        `json:"namespaces,omitempty"`
+	Resources        []string        `json:"resources,omitempty"`
+	CustomSkills     []SkillGuidance `json:"customSkills,omitempty"`
+	CustomSkillError string          `json:"customSkillError,omitempty"`
+}
+
+type SkillGuidance struct {
+	Name        string   `json:"name"`
+	Description string   `json:"description"`
+	Tags        []string `json:"tags,omitempty"`
+	Content     string   `json:"content"`
+	Truncated   bool     `json:"truncated"`
 }
 
 type ToolContext struct {

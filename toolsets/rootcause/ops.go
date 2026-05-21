@@ -3,6 +3,7 @@ package rootcause
 import (
 	"context"
 	"fmt"
+	"maps"
 	"sort"
 	"strings"
 	"time"
@@ -517,11 +518,7 @@ func buildTimelinePayloadFromBundle(bundle map[string]any) map[string]any {
 }
 
 func cloneMap(in map[string]any) map[string]any {
-	out := make(map[string]any, len(in))
-	for k, v := range in {
-		out[k] = v
-	}
-	return out
+	return maps.Clone(in)
 }
 
 func timelineFromEvents(payload any, keyword string) []map[string]any {
