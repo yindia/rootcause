@@ -62,6 +62,7 @@ func newRootCmd(ctx context.Context, run RunServerFunc, version string, stderr i
 	flags.StringVar(&cfg.path, "path", "/mcp", "path for HTTP/SSE transport")
 	flags.StringVar(&cfg.logLevel, "log-level", "", "log level")
 	cmd.AddCommand(newSyncSkillsCmd(stderr))
+	cmd.AddCommand(newInitConfigCmd(stderr))
 	return cmd
 }
 

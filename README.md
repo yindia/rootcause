@@ -172,7 +172,13 @@ rootcause sync-skills --agent opencode --include-custom
 rootcause sync-skills --agent claude --custom-dir ~/.rootcause/skills --skill team-runbook
 ```
 
-Expose custom skills through MCP resources by adding them to config:
+Expose custom skills through MCP resources by initializing the home config:
+
+```bash
+rootcause init-config
+```
+
+or adding them to config manually:
 
 ```toml
 [skills]
@@ -183,6 +189,8 @@ allow_custom_overrides = false
 MCP clients can read `skill://catalog` for the merged skill list and `skill://team-runbook` for the skill content. Custom names cannot collide with built-ins unless overrides are explicitly enabled.
 
 Every tool call includes matching tagged custom skills in response metadata/payload as `customSkillGuidance`, so MCP agents can consider team-specific runbook instructions during root-cause analysis and other workflows.
+
+Syncing skills into `.claude/`, `.codex/`, `.opencode/`, or other agent-specific directories is optional. Claude, Codex, OpenCode, and any MCP-compatible client can use configured custom skills through RootCause tool responses and `skill://...` resources without local skill sync. Syncing is only needed when you want the agent's native skill system to discover RootCause skills outside MCP tool calls.
 
 Do not put secrets, credentials, kubeconfigs, tokens, or private incident data in custom `SKILL.md` files. Matching skills can be returned in MCP tool responses for the connected client to read.
 
@@ -393,6 +401,14 @@ CI image publishing is configured via GitHub Actions in `.github/workflows/docke
 ---
 
 ## Usage
+
+Initialize a home config with every built-in toolset enabled and custom skills configured:
+
+```bash
+rootcause init-config
+```
+
+This writes `${HOME}/.rootcause/config.toml` on macOS/Linux and `%USERPROFILE%\.rootcause\config.toml` on Windows, creates the sibling `skills/` directory, and refuses to overwrite unless `--overwrite` is passed.
 
 Run with a config file:
 
@@ -844,6 +860,14 @@ Safety workflow recommendation:
 ```
 rootcause --config config.example.toml --toolsets k8s,linkerd,istio,karpenter,helm,aws
 ```
+
+Create a cross-platform home config first if you do not already have one:
+
+```bash
+rootcause init-config
+```
+
+The generated config enables `k8s`, `linkerd`, `karpenter`, `istio`, `helm`, `aws`, `terraform`, and `rootcause`, sets stdio transport defaults, and configures `~/.rootcause/skills` as the custom skill folder.
 
 ### Flags
 

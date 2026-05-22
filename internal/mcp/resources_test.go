@@ -104,32 +104,50 @@ func TestRegisterSDKResources(t *testing.T) {
 func TestSkillResourcesIncludeConfiguredCustomSkills(t *testing.T) {
 	customRoot := t.TempDir()
 	customSkillDir := filepath.Join(customRoot, "team-runbook")
-	if err := os.MkdirAll(customSkillDir, 0o755); err != nil {
+	err := os.MkdirAll(customSkillDir, 0o755)
+	if err != nil {
 		t.Fatalf("mkdir custom skill: %v", err)
 	}
-	content := "# Team Runbook\n\nUse this for team incidents.\n"
-	if err := os.WriteFile(filepath.Join(customSkillDir, "SKILL.md"), []byte(content), 0o644); err != nil {
+	content := "---\ntags: [rootcause, team]\ndescription: Team custom runbook\n---\n# Team Runbook\n\nUse this for team incidents.\n"
+	err = os.WriteFile(filepath.Join(customSkillDir, "SKILL.md"), []byte(content), 0o600)
+	if err != nil {
 		t.Fatalf("write custom skill: %v", err)
 	}
 	ctx := ToolContext{
 		Config: &config.Config{Skills: config.SkillsConfig{CustomDirs: []string{customRoot}}},
 		Policy: policy.NewAuthorizer(),
 	}
-	h := resourceHandler(ctx)
+	resourceHandlerFunc := resourceHandler(ctx)
 
-	catalogResult, err := h(context.Background(), &sdkmcp.ReadResourceRequest{Params: &sdkmcp.ReadResourceParams{URI: "skill://catalog"}})
+	catalogResult, err := resourceHandlerFunc(context.Background(), &sdkmcp.ReadResourceRequest{Params: &sdkmcp.ReadResourceParams{URI: "skill://catalog"}})
 	if err != nil {
 		t.Fatalf("read skill catalog: %v", err)
 	}
 	if !strings.Contains(catalogResult.Contents[0].Text, "team-runbook") {
 		t.Fatalf("expected custom skill in catalog: %s", catalogResult.Contents[0].Text)
 	}
+	if !strings.Contains(catalogResult.Contents[0].Text, `"custom":true`) || !strings.Contains(catalogResult.Contents[0].Text, `"rootcause"`) {
+		t.Fatalf("expected custom metadata and tags in catalog: %s", catalogResult.Contents[0].Text)
+	}
 
-	skillResult, err := h(context.Background(), &sdkmcp.ReadResourceRequest{Params: &sdkmcp.ReadResourceParams{URI: "skill://team-runbook"}})
+	skillResult, err := resourceHandlerFunc(context.Background(), &sdkmcp.ReadResourceRequest{Params: &sdkmcp.ReadResourceParams{URI: "skill://team-runbook"}})
 	if err != nil {
 		t.Fatalf("read custom skill: %v", err)
 	}
 	if skillResult.Contents[0].Text != content {
 		t.Fatalf("unexpected skill content: %q", skillResult.Contents[0].Text)
+	}
+}
+
+func TestSkillResourceMissingCustomSkillReturnsNotFound(t *testing.T) {
+	ctx := ToolContext{Config: &config.Config{}, Policy: policy.NewAuthorizer()}
+	resourceHandlerFunc := resourceHandler(ctx)
+
+	_, err := resourceHandlerFunc(context.Background(), &sdkmcp.ReadResourceRequest{Params: &sdkmcp.ReadResourceParams{URI: "skill://missing-skill"}})
+	if err == nil {
+		t.Fatalf("expected missing skill resource error")
+	}
+	if !strings.Contains(err.Error(), "not found") {
+		t.Fatalf("expected not found error, got %v", err)
 	}
 }

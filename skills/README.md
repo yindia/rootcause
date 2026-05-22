@@ -31,6 +31,14 @@ rootcause sync-skills --list-skills
 
 ## User Custom Skills
 
+Create the default cross-platform config and custom skill folder first:
+
+```bash
+rootcause init-config
+```
+
+This writes `${HOME}/.rootcause/config.toml` on macOS/Linux and `%USERPROFILE%\.rootcause\config.toml` on Windows, with all built-in toolsets enabled and `~/.rootcause/skills` configured.
+
 Users can add their own skills in any folder that follows the same directory shape:
 
 ```text
@@ -97,6 +105,8 @@ MCP clients can then read:
 - `skill://team-runbook` for a custom skill's `SKILL.md` content
 
 All tool calls include matching configured custom skills in their response metadata/payload as `customSkillGuidance`, allowing MCP agents to evaluate incidents with team-specific instructions and runbooks.
+
+Claude, Codex, OpenCode, and any MCP-compatible agent can use configured custom skills through RootCause MCP responses and `skill://...` resources without syncing skills into that agent's native skill directory. `rootcause sync-skills` is optional and only needed when you also want native agent skill discovery outside MCP tool calls.
 
 Do not put secrets, credentials, kubeconfigs, tokens, or private incident data in custom `SKILL.md` files. Matching skills can be returned in MCP tool responses for the connected client to read.
 

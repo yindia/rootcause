@@ -173,6 +173,76 @@ func TestCustomSkillGuidanceMatchesSkillTagsString(t *testing.T) {
 	}
 }
 
+func TestCustomSkillGuidanceMatchesSkillTagsStringSlice(t *testing.T) {
+	customRoot := t.TempDir()
+	writeMCPTestCustomSkill(t, customRoot, "array-runbook", "---\ntags: [payments]\ndescription: Array runbook\n---\n# Array Runbook\n")
+
+	cfg := config.DefaultConfig()
+	cfg.Skills.CustomDirs = []string{customRoot}
+	spec := ToolSpec{Name: "k8s.events", ToolsetID: "k8s", Safety: SafetyReadOnly}
+
+	guidance, err := customSkillGuidanceForTool(&cfg, spec, map[string]any{"skillTags": []string{"payments"}}, newCustomSkillCache())
+	if err != nil {
+		t.Fatalf("customSkillGuidanceForTool: %v", err)
+	}
+	if len(guidance) != 1 || guidance[0].Name != "array-runbook" {
+		t.Fatalf("expected guidance from skillTags string slice, got %#v", guidance)
+	}
+}
+
+func TestCustomSkillGuidanceReturnsNilWithoutCustomSkillConfig(t *testing.T) {
+	spec := ToolSpec{Name: "rootcause.rca_generate", ToolsetID: "rootcause", Safety: SafetyReadOnly}
+
+	guidance, err := customSkillGuidanceForTool(nil, spec, nil, newCustomSkillCache())
+	if err != nil {
+		t.Fatalf("customSkillGuidanceForTool nil config: %v", err)
+	}
+	if guidance != nil {
+		t.Fatalf("expected nil guidance for nil config, got %#v", guidance)
+	}
+
+	cfg := config.Config{}
+	guidance, err = customSkillGuidanceForTool(&cfg, spec, nil, newCustomSkillCache())
+	if err != nil {
+		t.Fatalf("customSkillGuidanceForTool empty config: %v", err)
+	}
+	if guidance != nil {
+		t.Fatalf("expected nil guidance without custom dirs, got %#v", guidance)
+	}
+}
+
+func TestCachedCustomSkillCandidatesSupportsNilCacheAndCloneIsolation(t *testing.T) {
+	customRoot := t.TempDir()
+	content := "---\ntags: [rootcause]\ndescription: Clone runbook\n---\n# Clone Runbook\n"
+	writeMCPTestCustomSkill(t, customRoot, "clone-runbook", content)
+
+	candidates, err := cachedCustomSkillCandidates([]string{customRoot}, false, nil)
+	if err != nil {
+		t.Fatalf("cachedCustomSkillCandidates nil cache: %v", err)
+	}
+	if len(candidates) != 1 || candidates[0].Guidance.Content != content {
+		t.Fatalf("unexpected nil-cache candidates: %#v", candidates)
+	}
+
+	cache := newCustomSkillCache()
+	candidates, err = cachedCustomSkillCandidates([]string{customRoot}, false, cache)
+	if err != nil {
+		t.Fatalf("cachedCustomSkillCandidates initial cache: %v", err)
+	}
+	const mutatedValue = "mutated"
+	candidates[0].Guidance.Content = mutatedValue
+	candidates[0].Guidance.Tags[0] = mutatedValue
+	candidates[0].Tags[0] = mutatedValue
+
+	candidates, err = cachedCustomSkillCandidates([]string{customRoot}, false, cache)
+	if err != nil {
+		t.Fatalf("cachedCustomSkillCandidates cached: %v", err)
+	}
+	if candidates[0].Guidance.Content != content || candidates[0].Guidance.Tags[0] != "rootcause" || candidates[0].Tags[0] != "rootcause" {
+		t.Fatalf("expected cached candidates to be cloned, got %#v", candidates)
+	}
+}
+
 func TestCustomSkillGuidanceReturnsMultipleMatchesInCatalogOrder(t *testing.T) {
 	customRoot := t.TempDir()
 	writeMCPTestCustomSkill(t, customRoot, "z-runbook", "---\ntags: [rootcause]\n---\n# Z Runbook\n")
@@ -318,6 +388,72 @@ func TestAttachCustomSkillGuidanceDoesNotOverwriteExistingPayloadFields(t *testi
 	}
 	if updated.Metadata.CustomSkillError != "new error" {
 		t.Fatalf("expected metadata custom skill error, got %q", updated.Metadata.CustomSkillError)
+	}
+}
+
+func TestAttachCustomSkillGuidanceHandlesNonMapData(t *testing.T) {
+	guidance := []SkillGuidance{{Name: "skill", Content: "content"}}
+	result := ToolResult{Data: "plain text"}
+
+	updated := attachCustomSkillGuidance(result, guidance, errors.New("custom failure"))
+	if updated.Data != "plain text" {
+		t.Fatalf("expected non-map data to be preserved, got %#v", updated.Data)
+	}
+	if len(updated.Metadata.CustomSkills) != 1 || updated.Metadata.CustomSkills[0].Name != "skill" {
+		t.Fatalf("expected metadata guidance for non-map data, got %#v", updated.Metadata.CustomSkills)
+	}
+	if updated.Metadata.CustomSkillError != "custom failure" {
+		t.Fatalf("expected metadata custom skill error, got %q", updated.Metadata.CustomSkillError)
+	}
+}
+
+func TestCustomSkillStateHelpersCoverMissingBlankAndMismatch(t *testing.T) {
+	blankState, err := statPath(" ")
+	if err != nil {
+		t.Fatalf("statPath blank: %v", err)
+	}
+	if blankState.Path != " " || blankState.Exists {
+		t.Fatalf("unexpected blank path state: %#v", blankState)
+	}
+
+	missingPath := filepath.Join(t.TempDir(), "missing", "SKILL.md")
+	missingState, err := statPath(missingPath)
+	if err != nil {
+		t.Fatalf("statPath missing: %v", err)
+	}
+	if missingState.Path != missingPath || missingState.Exists {
+		t.Fatalf("unexpected missing path state: %#v", missingState)
+	}
+	if fileStatesEqual([]fileState{missingState}, nil) {
+		t.Fatalf("expected fileStatesEqual to reject length mismatch")
+	}
+	changedState := missingState
+	changedState.Size++
+	if fileStatesEqual([]fileState{missingState}, []fileState{changedState}) {
+		t.Fatalf("expected fileStatesEqual to reject state mismatch")
+	}
+	if fileStatesStillCurrent([]fileState{changedState}) {
+		t.Fatalf("expected stale file state to be detected")
+	}
+}
+
+func TestResolveSkillPathExpandsEnvironmentAndBlank(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("ROOTCAUSE_MCP_SKILLS_DIR", dir)
+
+	blankPath, err := resolveSkillPath(" ")
+	if err != nil {
+		t.Fatalf("resolveSkillPath blank: %v", err)
+	}
+	if blankPath != "" {
+		t.Fatalf("expected blank skill path to resolve to empty string, got %q", blankPath)
+	}
+	resolved, err := resolveSkillPath("$ROOTCAUSE_MCP_SKILLS_DIR")
+	if err != nil {
+		t.Fatalf("resolveSkillPath env: %v", err)
+	}
+	if resolved != dir {
+		t.Fatalf("expected env-expanded path %q, got %q", dir, resolved)
 	}
 }
 
