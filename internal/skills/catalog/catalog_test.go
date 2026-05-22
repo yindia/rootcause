@@ -39,6 +39,79 @@ func TestDiscoverCustomSkills(t *testing.T) {
 	}
 }
 
+func TestDiscoverCustomSkillsFallsBackToTitleAndDefaultCategory(t *testing.T) {
+	dir := t.TempDir()
+	writeCustomSkill(t, dir, "local-runbook", "# Local Runbook\n\nUse local steps.\n")
+
+	skills, err := DiscoverCustom([]string{dir})
+	if err != nil {
+		t.Fatalf("DiscoverCustom: %v", err)
+	}
+	if len(skills) != 1 {
+		t.Fatalf("expected 1 custom skill, got %d", len(skills))
+	}
+	if skills[0].Category != "Custom" {
+		t.Fatalf("expected default custom category, got %q", skills[0].Category)
+	}
+	if skills[0].Description != "Local Runbook" {
+		t.Fatalf("expected title-derived description, got %q", skills[0].Description)
+	}
+	if len(skills[0].Tags) != 0 {
+		t.Fatalf("expected no tags, got %#v", skills[0].Tags)
+	}
+}
+
+func TestDiscoverCustomSkillsNormalizesAndDeduplicatesTags(t *testing.T) {
+	dir := t.TempDir()
+	writeCustomSkill(t, dir, "tagged-runbook", "---\ntags: [' RootCause ', rootcause, PAYMENTS, '']\n---\n# Tagged\n")
+
+	skills, err := DiscoverCustom([]string{dir})
+	if err != nil {
+		t.Fatalf("DiscoverCustom: %v", err)
+	}
+	if len(skills) != 1 {
+		t.Fatalf("expected 1 custom skill, got %d", len(skills))
+	}
+	expected := []string{"payments", "rootcause"}
+	if strings.Join(skills[0].Tags, ",") != strings.Join(expected, ",") {
+		t.Fatalf("expected normalized tags %#v, got %#v", expected, skills[0].Tags)
+	}
+}
+
+func TestDiscoverCustomSkillsMalformedFrontMatterUsesBodyTitle(t *testing.T) {
+	dir := t.TempDir()
+	writeCustomSkill(t, dir, "malformed-runbook", "---\ntags: [broken\n---\n# Body Title\n")
+
+	skills, err := DiscoverCustom([]string{dir})
+	if err != nil {
+		t.Fatalf("DiscoverCustom: %v", err)
+	}
+	if len(skills) != 1 {
+		t.Fatalf("expected 1 custom skill, got %d", len(skills))
+	}
+	if skills[0].Description != "Body Title" {
+		t.Fatalf("expected body title fallback, got %q", skills[0].Description)
+	}
+	if len(skills[0].Tags) != 0 {
+		t.Fatalf("expected malformed tags to be ignored, got %#v", skills[0].Tags)
+	}
+}
+
+func TestDiscoverCustomSkillsRejectsDuplicateCustomNamesAcrossDirs(t *testing.T) {
+	firstDir := t.TempDir()
+	secondDir := t.TempDir()
+	writeCustomSkill(t, firstDir, "team-runbook", "# First\n")
+	writeCustomSkill(t, secondDir, "team-runbook", "# Second\n")
+
+	_, err := DiscoverCustom([]string{firstDir, secondDir})
+	if err == nil {
+		t.Fatalf("expected duplicate custom skill error")
+	}
+	if !strings.Contains(err.Error(), "duplicate custom skill") {
+		t.Fatalf("expected duplicate custom skill error, got %v", err)
+	}
+}
+
 func TestDiscoverCustomSkillsRequiresSkillFile(t *testing.T) {
 	dir := t.TempDir()
 	if err := os.MkdirAll(filepath.Join(dir, "broken"), 0o755); err != nil {

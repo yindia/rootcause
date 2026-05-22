@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -62,7 +63,7 @@ func TestInvokerSuccess(t *testing.T) {
 	_ = reg.Add(ToolSpec{
 		Name:      "demo",
 		ToolsetID: "core",
-		Handler: func(ctx context.Context, req ToolRequest) (ToolResult, error) {
+		Handler: func(_ context.Context, _ ToolRequest) (ToolResult, error) {
 			return ToolResult{Data: map[string]any{"ok": true}}, nil
 		},
 	})
@@ -88,7 +89,7 @@ func TestInvokerAttachesTaggedCustomSkillGuidance(t *testing.T) {
 		Name:      "demo.inspect",
 		ToolsetID: "demo",
 		Safety:    SafetyReadOnly,
-		Handler: func(ctx context.Context, req ToolRequest) (ToolResult, error) {
+		Handler: func(_ context.Context, _ ToolRequest) (ToolResult, error) {
 			return ToolResult{Data: map[string]any{"ok": true}}, nil
 		},
 	})
@@ -155,6 +156,44 @@ func TestCustomSkillGuidanceMatchesExplicitCustomSkillTags(t *testing.T) {
 	}
 }
 
+func TestCustomSkillGuidanceMatchesSkillTagsString(t *testing.T) {
+	customRoot := t.TempDir()
+	writeMCPTestCustomSkill(t, customRoot, "case-runbook", "---\ntags: [Payments]\ndescription: Case runbook\n---\n# Case Runbook\n")
+
+	cfg := config.DefaultConfig()
+	cfg.Skills.CustomDirs = []string{customRoot}
+	spec := ToolSpec{Name: "k8s.events", ToolsetID: "k8s", Safety: SafetyReadOnly}
+
+	guidance, err := customSkillGuidanceForTool(&cfg, spec, map[string]any{"skillTags": "other, payments"}, newCustomSkillCache())
+	if err != nil {
+		t.Fatalf("customSkillGuidanceForTool: %v", err)
+	}
+	if len(guidance) != 1 || guidance[0].Name != "case-runbook" {
+		t.Fatalf("expected case-insensitive guidance from skillTags string, got %#v", guidance)
+	}
+}
+
+func TestCustomSkillGuidanceReturnsMultipleMatchesInCatalogOrder(t *testing.T) {
+	customRoot := t.TempDir()
+	writeMCPTestCustomSkill(t, customRoot, "z-runbook", "---\ntags: [rootcause]\n---\n# Z Runbook\n")
+	writeMCPTestCustomSkill(t, customRoot, "a-runbook", "---\ntags: [rootcause]\n---\n# A Runbook\n")
+
+	cfg := config.DefaultConfig()
+	cfg.Skills.CustomDirs = []string{customRoot}
+	spec := ToolSpec{Name: "rootcause.rca_generate", ToolsetID: "rootcause", Safety: SafetyReadOnly}
+
+	guidance, err := customSkillGuidanceForTool(&cfg, spec, nil, newCustomSkillCache())
+	if err != nil {
+		t.Fatalf("customSkillGuidanceForTool: %v", err)
+	}
+	if len(guidance) != 2 {
+		t.Fatalf("expected two matching custom skills, got %#v", guidance)
+	}
+	if guidance[0].Name != "a-runbook" || guidance[1].Name != "z-runbook" {
+		t.Fatalf("expected custom skills in catalog order, got %#v", guidance)
+	}
+}
+
 func TestCustomSkillGuidanceSkipsUntaggedCustomSkill(t *testing.T) {
 	customRoot := t.TempDir()
 	writeMCPTestCustomSkill(t, customRoot, "untagged-runbook", "# Untagged Runbook\n")
@@ -187,6 +226,98 @@ func TestCustomSkillGuidanceMatchesToolNameTokenTag(t *testing.T) {
 	}
 	if len(guidance) != 1 || guidance[0].Name != "timeline-runbook" || guidance[0].Content != content {
 		t.Fatalf("expected timeline guidance from tool-name token, got %#v", guidance)
+	}
+}
+
+func TestCustomSkillGuidanceTruncatesLargeCustomSkillContent(t *testing.T) {
+	customRoot := t.TempDir()
+	content := "---\ntags: [demo]\n---\n" + strings.Repeat("x", maxSkillGuidanceBytes)
+	writeMCPTestCustomSkill(t, customRoot, "large-runbook", content)
+
+	cfg := config.DefaultConfig()
+	cfg.Skills.CustomDirs = []string{customRoot}
+	spec := ToolSpec{Name: "demo.inspect", ToolsetID: "demo", Safety: SafetyReadOnly}
+
+	guidance, err := customSkillGuidanceForTool(&cfg, spec, nil, newCustomSkillCache())
+	if err != nil {
+		t.Fatalf("customSkillGuidanceForTool: %v", err)
+	}
+	if len(guidance) != 1 {
+		t.Fatalf("expected one large guidance item, got %#v", guidance)
+	}
+	if !guidance[0].Truncated {
+		t.Fatalf("expected large guidance to be marked truncated")
+	}
+	if len(guidance[0].Content) != maxSkillGuidanceBytes {
+		t.Fatalf("expected truncated content length %d, got %d", maxSkillGuidanceBytes, len(guidance[0].Content))
+	}
+}
+
+func TestInvokerAttachesCustomSkillErrorWithoutFailingTool(t *testing.T) {
+	customRoot := t.TempDir()
+	missingSkillDir := filepath.Join(customRoot, "broken-runbook")
+	err := os.MkdirAll(missingSkillDir, 0o755)
+	if err != nil {
+		t.Fatalf("mkdir broken custom skill: %v", err)
+	}
+
+	cfg := config.DefaultConfig()
+	cfg.Skills.CustomDirs = []string{customRoot}
+	reg := NewRegistry(&cfg)
+	err = reg.Add(ToolSpec{
+		Name:      "demo.inspect",
+		ToolsetID: "demo",
+		Safety:    SafetyReadOnly,
+		Handler: func(_ context.Context, _ ToolRequest) (ToolResult, error) {
+			return ToolResult{Data: map[string]any{"ok": true}}, nil
+		},
+	})
+	if err != nil {
+		t.Fatalf("add tool: %v", err)
+	}
+
+	invoker := NewToolInvoker(reg, ToolContext{Policy: policy.NewAuthorizer(), Config: &cfg})
+	result, err := invoker.Call(context.Background(), policy.User{Role: policy.RoleCluster}, "demo.inspect", nil)
+	if err != nil {
+		t.Fatalf("expected tool success despite custom skill error: %v", err)
+	}
+	if result.Metadata.CustomSkillError == "" {
+		t.Fatalf("expected custom skill error metadata")
+	}
+	root, ok := result.Data.(map[string]any)
+	if !ok {
+		t.Fatalf("expected map result data, got %#v", result.Data)
+	}
+	if root["customSkillError"] == "" {
+		t.Fatalf("expected payload customSkillError, got %#v", root)
+	}
+}
+
+func TestAttachCustomSkillGuidanceDoesNotOverwriteExistingPayloadFields(t *testing.T) {
+	existingGuidance := []SkillGuidance{{Name: "existing", Content: "keep"}}
+	newGuidance := []SkillGuidance{{Name: "new", Content: "replace"}}
+	result := ToolResult{Data: map[string]any{"customSkillGuidance": existingGuidance, "customSkillError": "existing error"}}
+
+	updated := attachCustomSkillGuidance(result, newGuidance, errors.New("new error"))
+	root, ok := updated.Data.(map[string]any)
+	if !ok {
+		t.Fatalf("expected map result data, got %#v", updated.Data)
+	}
+	payloadGuidance, ok := root["customSkillGuidance"].([]SkillGuidance)
+	if !ok {
+		t.Fatalf("expected existing payload guidance slice, got %#v", root["customSkillGuidance"])
+	}
+	if len(payloadGuidance) != 1 || payloadGuidance[0].Name != "existing" {
+		t.Fatalf("expected existing payload guidance to be preserved, got %#v", root["customSkillGuidance"])
+	}
+	if root["customSkillError"] != "existing error" {
+		t.Fatalf("expected existing payload error to be preserved, got %#v", root["customSkillError"])
+	}
+	if len(updated.Metadata.CustomSkills) != 1 || updated.Metadata.CustomSkills[0].Name != "new" {
+		t.Fatalf("expected metadata to receive new guidance, got %#v", updated.Metadata.CustomSkills)
+	}
+	if updated.Metadata.CustomSkillError != "new error" {
+		t.Fatalf("expected metadata custom skill error, got %q", updated.Metadata.CustomSkillError)
 	}
 }
 
