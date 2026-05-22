@@ -60,7 +60,7 @@ func newMinimalToolset(t *testing.T, discovery discovery.CachedDiscoveryInterfac
 	cfg := config.DefaultConfig()
 	clients := &kube.Clients{Typed: typed, Discovery: discovery}
 	toolset := New()
-	if err := toolset.Init(mcp.ToolsetContext{
+	if err := toolset.Init(mcp.ToolContext{
 		Config:   &cfg,
 		Clients:  clients,
 		Policy:   policy.NewAuthorizer(),
@@ -146,7 +146,7 @@ func TestLinkerdCRStatusNotDetected(t *testing.T) {
 
 func TestLinkerdRegisterError(t *testing.T) {
 	toolset := New()
-	if err := toolset.Init(mcp.ToolsetContext{Clients: &kube.Clients{}}); err != nil {
+	if err := toolset.Init(mcp.ToolContext{Clients: &kube.Clients{}}); err != nil {
 		t.Fatalf("init: %v", err)
 	}
 	if err := toolset.Register(errRegistry{}); err == nil {

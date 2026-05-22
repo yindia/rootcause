@@ -47,7 +47,7 @@ func (d *errorDiscoveryGroup) WithLegacy() discovery.DiscoveryInterface     { re
 func TestAddGroupResourcesDiscoveryError(t *testing.T) {
 	cfg := config.DefaultConfig()
 	toolset := New()
-	_ = toolset.Init(mcp.ToolsetContext{
+	_ = toolset.Init(mcp.ToolContext{
 		Config:  &cfg,
 		Clients: &kube.Clients{Discovery: &errorDiscoveryGroup{}},
 		Policy:  policy.NewAuthorizer(),
@@ -62,7 +62,7 @@ func TestAddGroupResourcesDiscoveryError(t *testing.T) {
 func TestAddMeshGraphResolveErrors(t *testing.T) {
 	cfg := config.DefaultConfig()
 	toolset := New()
-	_ = toolset.Init(mcp.ToolsetContext{
+	_ = toolset.Init(mcp.ToolContext{
 		Config:  &cfg,
 		Clients: &kube.Clients{Discovery: &errorDiscoveryGroup{}},
 		Policy:  policy.NewAuthorizer(),

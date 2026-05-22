@@ -13,7 +13,7 @@ import (
 )
 
 func TestVPCHandlerValidation(t *testing.T) {
-	ctx := mcp.ToolsetContext{Redactor: redact.New()}
+	ctx := mcp.ToolContext{Redactor: redact.New()}
 	ec2Called := false
 	r53Called := false
 	svc := &Service{

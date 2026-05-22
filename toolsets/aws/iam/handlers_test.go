@@ -12,7 +12,7 @@ import (
 )
 
 func TestIAMHandlerValidation(t *testing.T) {
-	ctx := mcp.ToolsetContext{Redactor: redact.New()}
+	ctx := mcp.ToolContext{Redactor: redact.New()}
 	called := false
 	svc := &Service{
 		ctx: ctx,
@@ -83,7 +83,7 @@ func TestIAMHandlerValidation(t *testing.T) {
 }
 
 func TestIAMUpdateRoleNoUpdates(t *testing.T) {
-	ctx := mcp.ToolsetContext{Redactor: redact.New()}
+	ctx := mcp.ToolContext{Redactor: redact.New()}
 	called := false
 	svc := &Service{
 		ctx: ctx,

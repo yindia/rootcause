@@ -33,7 +33,7 @@ func TestAWSListCacheKey(t *testing.T) {
 }
 
 func TestWrapListCacheNoCache(t *testing.T) {
-	ctx := mcp.ToolsetContext{}
+	ctx := mcp.ToolContext{}
 	toolset := &Toolset{ctx: ctx}
 	calls := 0
 	spec := mcp.ToolSpec{
@@ -54,7 +54,7 @@ func TestWrapListCacheNoCache(t *testing.T) {
 func TestWrapListCacheNonList(t *testing.T) {
 	cfg := config.DefaultConfig()
 	cfg.Cache.AWSListTTLSeconds = 60
-	ctx := mcp.ToolsetContext{
+	ctx := mcp.ToolContext{
 		Config: &cfg,
 		Cache:  cache.NewStore(),
 	}
@@ -78,7 +78,7 @@ func TestWrapListCacheNonList(t *testing.T) {
 func TestWrapListCacheDisabledTTL(t *testing.T) {
 	cfg := config.DefaultConfig()
 	cfg.Cache.AWSListTTLSeconds = 0
-	ctx := mcp.ToolsetContext{
+	ctx := mcp.ToolContext{
 		Config: &cfg,
 		Cache:  cache.NewStore(),
 	}

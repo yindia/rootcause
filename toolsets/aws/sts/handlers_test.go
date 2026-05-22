@@ -17,7 +17,7 @@ import (
 )
 
 func TestSTSHandlerValidation(t *testing.T) {
-	ctx := mcp.ToolsetContext{Redactor: redact.New()}
+	ctx := mcp.ToolContext{Redactor: redact.New()}
 	called := false
 	svc := &Service{
 		ctx: ctx,
@@ -61,7 +61,7 @@ func TestSTSHandlersWithStubbedClient(t *testing.T) {
 	}
 	client := newSTSTestClient(t, responses)
 	svc := &Service{
-		ctx: mcp.ToolsetContext{Redactor: redact.New()},
+		ctx: mcp.ToolContext{Redactor: redact.New()},
 		stsClient: func(context.Context, string) (*sts.Client, string, error) {
 			return client, "us-east-1", nil
 		},

@@ -51,7 +51,7 @@ func TestIAMDeleteRoleForce(t *testing.T) {
 	}
 	client := newIAMTestClient(t, responses)
 	svc := &Service{
-		ctx: mcp.ToolsetContext{Redactor: redact.New()},
+		ctx: mcp.ToolContext{Redactor: redact.New()},
 		iamClient: func(context.Context, string) (*iam.Client, string, error) {
 			return client, "us-east-1", nil
 		},
@@ -81,7 +81,7 @@ func TestIAMDeletePolicyForce(t *testing.T) {
 	}
 	client := newIAMTestClient(t, responses)
 	svc := &Service{
-		ctx: mcp.ToolsetContext{Redactor: redact.New()},
+		ctx: mcp.ToolContext{Redactor: redact.New()},
 		iamClient: func(context.Context, string) (*iam.Client, string, error) {
 			return client, "us-east-1", nil
 		},

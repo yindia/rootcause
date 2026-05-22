@@ -16,7 +16,7 @@ import (
 )
 
 func TestECRHandlerValidation(t *testing.T) {
-	ctx := mcp.ToolsetContext{Redactor: redact.New()}
+	ctx := mcp.ToolContext{Redactor: redact.New()}
 	called := false
 	svc := &Service{
 		ctx: ctx,
@@ -61,7 +61,7 @@ func TestECRHandlersWithStubbedClient(t *testing.T) {
 	}
 	client := newECRTestClient(t, responses)
 	svc := &Service{
-		ctx: mcp.ToolsetContext{Redactor: redact.New()},
+		ctx: mcp.ToolContext{Redactor: redact.New()},
 		ecrClient: func(context.Context, string) (*ecr.Client, string, error) {
 			return client, "us-east-1", nil
 		},

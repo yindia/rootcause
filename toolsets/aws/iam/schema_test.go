@@ -26,7 +26,7 @@ func TestIAMSchemas(t *testing.T) {
 }
 
 func TestIAMToolSpecs(t *testing.T) {
-	specs := ToolSpecs(mcp.ToolsetContext{}, "aws", nil)
+	specs := ToolSpecs(mcp.ToolContext{}, "aws", nil)
 	if len(specs) == 0 {
 		t.Fatalf("expected iam tool specs")
 	}

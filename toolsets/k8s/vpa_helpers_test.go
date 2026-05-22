@@ -128,7 +128,7 @@ func TestSelectorAndMetricsCollection(t *testing.T) {
 	clients := &kube.Clients{Typed: client, Metrics: metricsClient}
 	cfg := config.DefaultConfig()
 	toolset := New()
-	_ = toolset.Init(mcp.ToolsetContext{Config: &cfg, Clients: clients, Policy: policy.NewAuthorizer(), Renderer: render.NewRenderer(), Redactor: redact.New()})
+	_ = toolset.Init(mcp.ToolContext{Config: &cfg, Clients: clients, Policy: policy.NewAuthorizer(), Renderer: render.NewRenderer(), Redactor: redact.New()})
 
 	selector, workload, err := toolset.selectorForTarget(context.Background(), "default", "Deployment", "api")
 	if err != nil || selector == nil || workload == nil {
@@ -162,7 +162,7 @@ func TestSelectorAndMetricsCollection(t *testing.T) {
 func TestHandleVPADebugNotDetected(t *testing.T) {
 	cfg := config.DefaultConfig()
 	toolset := New()
-	_ = toolset.Init(mcp.ToolsetContext{Config: &cfg, Clients: &kube.Clients{Discovery: &vpaDiscovery{}}, Policy: policy.NewAuthorizer(), Renderer: render.NewRenderer(), Redactor: redact.New()})
+	_ = toolset.Init(mcp.ToolContext{Config: &cfg, Clients: &kube.Clients{Discovery: &vpaDiscovery{}}, Policy: policy.NewAuthorizer(), Renderer: render.NewRenderer(), Redactor: redact.New()})
 	_, err := toolset.handleVPADebug(context.Background(), mcp.ToolRequest{User: policy.User{Role: policy.RoleCluster}, Arguments: map[string]any{"namespace": "default"}})
 	if err != nil {
 		t.Fatalf("handleVPADebug: %v", err)

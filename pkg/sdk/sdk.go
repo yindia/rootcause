@@ -19,7 +19,7 @@ import (
 // Core toolset interfaces and types.
 type Toolset = mcp.Toolset
 
-type ToolsetContext = mcp.ToolsetContext
+type ToolsetContext = mcp.ToolContext
 
 type ToolSpec = mcp.ToolSpec
 
@@ -54,9 +54,6 @@ func MustRegisterToolset(id string, factory mcp.ToolsetFactory) {
 func RegisteredToolsets() []string {
 	return mcp.RegisteredToolsets()
 }
-
-// Shared services and invoker.
-type ServiceRegistry = mcp.ServiceRegistry
 
 type ToolInvoker = mcp.ToolInvoker
 

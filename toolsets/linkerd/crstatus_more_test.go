@@ -95,7 +95,7 @@ func newCRToolset(t *testing.T, objects ...runtime.Object) *Toolset {
 	clients := &kube.Clients{Typed: typed, Dynamic: dynamicClient, Discovery: discoveryClient, Mapper: mapper}
 	cfg := config.DefaultConfig()
 	toolset := New()
-	if err := toolset.Init(mcp.ToolsetContext{
+	if err := toolset.Init(mcp.ToolContext{
 		Config:   &cfg,
 		Clients:  clients,
 		Policy:   policy.NewAuthorizer(),
@@ -144,7 +144,7 @@ func newVirtualServiceToolset(t *testing.T, groups []metav1.APIGroup, objects ..
 	clients := &kube.Clients{Typed: typed, Dynamic: dynamicClient, Discovery: discoveryClient, Mapper: mapper}
 	cfg := config.DefaultConfig()
 	toolset := New()
-	if err := toolset.Init(mcp.ToolsetContext{
+	if err := toolset.Init(mcp.ToolContext{
 		Config:   &cfg,
 		Clients:  clients,
 		Policy:   policy.NewAuthorizer(),

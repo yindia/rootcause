@@ -131,7 +131,7 @@ func TestHandleLogsError(t *testing.T) {
 	clients := &kube.Clients{Typed: client}
 	cfg := config.DefaultConfig()
 	toolset := New()
-	_ = toolset.Init(mcp.ToolsetContext{
+	_ = toolset.Init(mcp.ToolContext{
 		Config:   &cfg,
 		Clients:  clients,
 		Policy:   policy.NewAuthorizer(),
@@ -158,7 +158,7 @@ func TestHandleLogsError(t *testing.T) {
 func TestHandleLogsMissingArgs(t *testing.T) {
 	cfg := config.DefaultConfig()
 	toolset := New()
-	_ = toolset.Init(mcp.ToolsetContext{
+	_ = toolset.Init(mcp.ToolContext{
 		Config:   &cfg,
 		Clients:  &kube.Clients{},
 		Policy:   policy.NewAuthorizer(),
@@ -176,7 +176,7 @@ func TestHandleLogsOptions(t *testing.T) {
 	clients := &kube.Clients{Typed: client}
 	cfg := config.DefaultConfig()
 	toolset := New()
-	_ = toolset.Init(mcp.ToolsetContext{
+	_ = toolset.Init(mcp.ToolContext{
 		Config:   &cfg,
 		Clients:  clients,
 		Policy:   policy.NewAuthorizer(),
@@ -200,7 +200,7 @@ func TestHandleLogsOptions(t *testing.T) {
 func TestHandlePortForwardMissingArgs(t *testing.T) {
 	cfg := config.DefaultConfig()
 	toolset := New()
-	_ = toolset.Init(mcp.ToolsetContext{Config: &cfg, Clients: &kube.Clients{}, Policy: policy.NewAuthorizer(), Renderer: render.NewRenderer(), Redactor: redact.New()})
+	_ = toolset.Init(mcp.ToolContext{Config: &cfg, Clients: &kube.Clients{}, Policy: policy.NewAuthorizer(), Renderer: render.NewRenderer(), Redactor: redact.New()})
 	_, err := toolset.handlePortForward(context.Background(), mcp.ToolRequest{User: policy.User{Role: policy.RoleCluster}})
 	if err == nil {
 		t.Fatalf("expected error for missing args")
@@ -211,7 +211,7 @@ func TestCommandAllowed(t *testing.T) {
 	cfg := config.DefaultConfig()
 	cfg.Exec.AllowedCommands = []string{"ls"}
 	toolset := New()
-	_ = toolset.Init(mcp.ToolsetContext{Config: &cfg, Clients: &kube.Clients{}, Policy: policy.NewAuthorizer(), Renderer: render.NewRenderer(), Redactor: redact.New()})
+	_ = toolset.Init(mcp.ToolContext{Config: &cfg, Clients: &kube.Clients{}, Policy: policy.NewAuthorizer(), Renderer: render.NewRenderer(), Redactor: redact.New()})
 	if !toolset.commandAllowed([]string{"ls"}) {
 		t.Fatalf("expected allowed command")
 	}
@@ -260,7 +260,7 @@ func TestHandleEventsNamespace(t *testing.T) {
 	clients := &kube.Clients{Typed: client}
 	cfg := config.DefaultConfig()
 	toolset := New()
-	_ = toolset.Init(mcp.ToolsetContext{
+	_ = toolset.Init(mcp.ToolContext{
 		Config:   &cfg,
 		Clients:  clients,
 		Policy:   policy.NewAuthorizer(),
@@ -372,7 +372,7 @@ func TestHandleGenericVerbs(t *testing.T) {
 	cfg := config.DefaultConfig()
 	client := k8sfake.NewSimpleClientset()
 	toolset := New()
-	_ = toolset.Init(mcp.ToolsetContext{Config: &cfg, Clients: &kube.Clients{Typed: client}, Policy: policy.NewAuthorizer(), Renderer: render.NewRenderer(), Redactor: redact.New()})
+	_ = toolset.Init(mcp.ToolContext{Config: &cfg, Clients: &kube.Clients{Typed: client}, Policy: policy.NewAuthorizer(), Renderer: render.NewRenderer(), Redactor: redact.New()})
 	verbs := []string{"create", "apply", "patch", "delete", "logs", "events", "scale", "rollout", "context"}
 	for _, verb := range verbs {
 		_, _ = toolset.handleGeneric(context.Background(), mcp.ToolRequest{

@@ -46,7 +46,7 @@ func newClusterScopeToolset(objects ...*unstructured.Unstructured) *Toolset {
 
 	cfg := config.DefaultConfig()
 	toolset := New()
-	_ = toolset.Init(mcp.ToolsetContext{
+	_ = toolset.Init(mcp.ToolContext{
 		Config:   &cfg,
 		Clients:  &kube.Clients{Dynamic: dyn, Mapper: mapper},
 		Policy:   policy.NewAuthorizer(),

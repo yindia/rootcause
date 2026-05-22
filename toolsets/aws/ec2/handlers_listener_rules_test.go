@@ -26,7 +26,7 @@ func TestEC2ListListenerRulesByArn(t *testing.T) {
 	}
 	client := newELBTestClient(t, responses)
 	svc := &Service{
-		ctx: mcp.ToolsetContext{Redactor: redact.New()},
+		ctx: mcp.ToolContext{Redactor: redact.New()},
 		elbClient: func(context.Context, string) (*elasticloadbalancingv2.Client, string, error) {
 			return client, "us-east-1", nil
 		},

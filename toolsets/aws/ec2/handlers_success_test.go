@@ -134,7 +134,7 @@ func TestEC2HandlersWithStubbedClient(t *testing.T) {
 	}
 	client := newEC2TestClient(t, responses)
 	svc := &Service{
-		ctx: mcp.ToolsetContext{Redactor: redact.New()},
+		ctx: mcp.ToolContext{Redactor: redact.New()},
 		ec2Client: func(context.Context, string) (*ec2.Client, string, error) {
 			return client, "us-east-1", nil
 		},

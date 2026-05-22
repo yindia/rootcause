@@ -30,7 +30,7 @@ func newMinimalKarpenterToolset(t *testing.T, discovery *fakeCachedDiscovery, dy
 		Dynamic:   dyn,
 		Discovery: discovery,
 	}
-	_ = toolset.Init(mcp.ToolsetContext{
+	_ = toolset.Init(mcp.ToolContext{
 		Config:   &cfg,
 		Clients:  clients,
 		Policy:   policy.NewAuthorizer(),

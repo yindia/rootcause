@@ -57,7 +57,7 @@ func TestHandleDiagnoseCrashloopEvents(t *testing.T) {
 	clients := &kube.Clients{Typed: client}
 	cfg := config.DefaultConfig()
 	toolset := New()
-	_ = toolset.Init(mcp.ToolsetContext{
+	_ = toolset.Init(mcp.ToolContext{
 		Config:   &cfg,
 		Clients:  clients,
 		Policy:   policy.NewAuthorizer(),
@@ -83,7 +83,7 @@ func TestHandleDiagnoseNamespaceDenied(t *testing.T) {
 	clients := &kube.Clients{Typed: client}
 	cfg := config.DefaultConfig()
 	toolset := New()
-	_ = toolset.Init(mcp.ToolsetContext{
+	_ = toolset.Init(mcp.ToolContext{
 		Config:   &cfg,
 		Clients:  clients,
 		Policy:   policy.NewAuthorizer(),

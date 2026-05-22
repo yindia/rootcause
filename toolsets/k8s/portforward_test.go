@@ -161,7 +161,7 @@ func TestHandlePortForwardServiceInvalidPort(t *testing.T) {
 	client := fake.NewSimpleClientset(svc, endpoints, pod)
 	cfg := config.DefaultConfig()
 	toolset := New()
-	_ = toolset.Init(mcp.ToolsetContext{
+	_ = toolset.Init(mcp.ToolContext{
 		Config:   &cfg,
 		Clients:  &kube.Clients{Typed: client},
 		Policy:   policy.NewAuthorizer(),
@@ -184,7 +184,7 @@ func TestHandlePortForwardServiceInvalidPort(t *testing.T) {
 func TestHandlePortForwardMissingArgsMore(t *testing.T) {
 	cfg := config.DefaultConfig()
 	toolset := New()
-	_ = toolset.Init(mcp.ToolsetContext{
+	_ = toolset.Init(mcp.ToolContext{
 		Config:   &cfg,
 		Clients:  &kube.Clients{},
 		Policy:   policy.NewAuthorizer(),
@@ -211,7 +211,7 @@ func TestHandlePortForwardServiceNoPods(t *testing.T) {
 	client := fake.NewSimpleClientset(svc, endpoints)
 	cfg := config.DefaultConfig()
 	toolset := New()
-	_ = toolset.Init(mcp.ToolsetContext{
+	_ = toolset.Init(mcp.ToolContext{
 		Config:   &cfg,
 		Clients:  &kube.Clients{Typed: client},
 		Policy:   policy.NewAuthorizer(),

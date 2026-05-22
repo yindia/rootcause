@@ -82,8 +82,8 @@ func (t *Toolset) handlePermissionDebug(ctx context.Context, req mcp.ToolRequest
 		}
 	}
 
-	clusterBindings := []map[string]any{}
 	if req.User.Role == policy.RoleCluster {
+		var clusterBindings []map[string]any
 		clusterBindings, roleRefs = t.clusterRoleBindingsForServiceAccount(ctx, namespace, serviceAccount, roleRefs)
 		analysis.AddEvidence("clusterRoleBindings", clusterBindings)
 		if len(clusterBindings) == 0 {

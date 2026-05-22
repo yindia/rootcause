@@ -50,7 +50,7 @@ func newDynamicToolset(gvr schema.GroupVersionResource, listKind, kind string, o
 	clients := &kube.Clients{Typed: client, Dynamic: dyn, Mapper: mapper}
 	cfg := config.DefaultConfig()
 	toolset := New()
-	_ = toolset.Init(mcp.ToolsetContext{
+	_ = toolset.Init(mcp.ToolContext{
 		Config:   &cfg,
 		Clients:  clients,
 		Policy:   policy.NewAuthorizer(),
@@ -92,7 +92,7 @@ func TestHandleRolloutStatus(t *testing.T) {
 	clients := &kube.Clients{Typed: client}
 	cfg := config.DefaultConfig()
 	toolset := New()
-	_ = toolset.Init(mcp.ToolsetContext{
+	_ = toolset.Init(mcp.ToolContext{
 		Config:   &cfg,
 		Clients:  clients,
 		Policy:   policy.NewAuthorizer(),
@@ -123,7 +123,7 @@ func TestHandleContextCurrent(t *testing.T) {
 	cfg := config.DefaultConfig()
 	cfg.Kubeconfig = configPath
 	toolset := New()
-	_ = toolset.Init(mcp.ToolsetContext{Config: &cfg, Clients: &kube.Clients{}, Policy: policy.NewAuthorizer(), Renderer: render.NewRenderer(), Redactor: redact.New()})
+	_ = toolset.Init(mcp.ToolContext{Config: &cfg, Clients: &kube.Clients{}, Policy: policy.NewAuthorizer(), Renderer: render.NewRenderer(), Redactor: redact.New()})
 	result, err := toolset.handleContext(context.Background(), mcp.ToolRequest{
 		User:      policy.User{Role: policy.RoleCluster},
 		Arguments: map[string]any{"action": "current"},
@@ -159,7 +159,7 @@ func TestHandleExplainResourceInfo(t *testing.T) {
 	clients := &kube.Clients{Discovery: cached, Mapper: mapper}
 	cfg := config.DefaultConfig()
 	toolset := New()
-	_ = toolset.Init(mcp.ToolsetContext{Config: &cfg, Clients: clients, Policy: policy.NewAuthorizer(), Renderer: render.NewRenderer(), Redactor: redact.New()})
+	_ = toolset.Init(mcp.ToolContext{Config: &cfg, Clients: clients, Policy: policy.NewAuthorizer(), Renderer: render.NewRenderer(), Redactor: redact.New()})
 	result, err := toolset.handleExplain(context.Background(), mcp.ToolRequest{
 		User:      policy.User{Role: policy.RoleCluster},
 		Arguments: map[string]any{"kind": "Deployment", "apiVersion": "apps/v1"},
@@ -176,7 +176,7 @@ func TestHandleExplainResourceInfo(t *testing.T) {
 func TestHandleGenericUnsupported(t *testing.T) {
 	cfg := config.DefaultConfig()
 	toolset := New()
-	_ = toolset.Init(mcp.ToolsetContext{Config: &cfg, Clients: &kube.Clients{}, Policy: policy.NewAuthorizer(), Renderer: render.NewRenderer(), Redactor: redact.New()})
+	_ = toolset.Init(mcp.ToolContext{Config: &cfg, Clients: &kube.Clients{}, Policy: policy.NewAuthorizer(), Renderer: render.NewRenderer(), Redactor: redact.New()})
 	_, err := toolset.handleGeneric(context.Background(), mcp.ToolRequest{Arguments: map[string]any{"verb": "unknown"}})
 	if err == nil {
 		t.Fatalf("expected error for unsupported verb")

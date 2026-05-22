@@ -24,7 +24,7 @@ func TestCommandIsShell(t *testing.T) {
 func TestHandleExecMissingArgs(t *testing.T) {
 	cfg := config.DefaultConfig()
 	toolset := New()
-	_ = toolset.Init(mcp.ToolsetContext{
+	_ = toolset.Init(mcp.ToolContext{
 		Config:   &cfg,
 		Clients:  &kube.Clients{},
 		Policy:   policy.NewAuthorizer(),
@@ -40,7 +40,7 @@ func TestHandleExecMissingArgs(t *testing.T) {
 func TestHandleExecShellBlocked(t *testing.T) {
 	cfg := config.DefaultConfig()
 	toolset := New()
-	_ = toolset.Init(mcp.ToolsetContext{
+	_ = toolset.Init(mcp.ToolContext{
 		Config:   &cfg,
 		Clients:  &kube.Clients{},
 		Policy:   policy.NewAuthorizer(),
@@ -64,7 +64,7 @@ func TestHandleExecReadonlyBlocked(t *testing.T) {
 	cfg := config.DefaultConfig()
 	cfg.Exec.AllowedCommands = []string{"ls"}
 	toolset := New()
-	_ = toolset.Init(mcp.ToolsetContext{
+	_ = toolset.Init(mcp.ToolContext{
 		Config:   &cfg,
 		Clients:  &kube.Clients{},
 		Policy:   policy.NewAuthorizer(),

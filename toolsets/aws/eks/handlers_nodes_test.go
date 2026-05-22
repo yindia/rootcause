@@ -62,7 +62,7 @@ func TestEKSListNodesWithStubbedClients(t *testing.T) {
 	ec2Client := newEC2TestClient(t, ec2Responses)
 
 	svc := &Service{
-		ctx: mcp.ToolsetContext{Redactor: redact.New()},
+		ctx: mcp.ToolContext{Redactor: redact.New()},
 		eksClient: func(context.Context, string) (*eks.Client, string, error) {
 			return eksClient, "us-east-1", nil
 		},

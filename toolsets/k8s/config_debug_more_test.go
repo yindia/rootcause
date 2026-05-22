@@ -22,7 +22,7 @@ func TestHandleConfigDebugErrors(t *testing.T) {
 	cfg := config.DefaultConfig()
 	client := fake.NewSimpleClientset()
 	clients := &kube.Clients{Typed: client}
-	_ = toolset.Init(mcp.ToolsetContext{
+	_ = toolset.Init(mcp.ToolContext{
 		Config:   &cfg,
 		Clients:  clients,
 		Policy:   policy.NewAuthorizer(),
@@ -137,7 +137,7 @@ func TestInspectPodConfigRefsProjected(t *testing.T) {
 	clients := &kube.Clients{Typed: client}
 	cfg := config.DefaultConfig()
 	toolset := New()
-	_ = toolset.Init(mcp.ToolsetContext{
+	_ = toolset.Init(mcp.ToolContext{
 		Config:   &cfg,
 		Clients:  clients,
 		Policy:   policy.NewAuthorizer(),

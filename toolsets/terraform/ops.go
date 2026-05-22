@@ -690,7 +690,6 @@ func resolveProviderVersionInfo(payload any, requested string, allowPrerelease b
 	if err := json.Unmarshal(buf, &decoded); err != nil {
 		return "", ""
 	}
-	latest := ""
 	var available []string
 	requestedID := ""
 	for _, item := range decoded.Included {
@@ -702,7 +701,7 @@ func resolveProviderVersionInfo(payload any, requested string, allowPrerelease b
 			requestedID = item.ID
 		}
 	}
-	latest = pickLatestVersion(available, allowPrerelease)
+	latest := pickLatestVersion(available, allowPrerelease)
 	if requested != "" {
 		return requestedID, latest
 	}

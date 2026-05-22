@@ -17,14 +17,14 @@ import (
 )
 
 type Service struct {
-	ctx            mcp.ToolsetContext
+	ctx            mcp.ToolContext
 	ec2Client      func(context.Context, string) (*ec2.Client, string, error)
 	resolverClient func(context.Context, string) (*route53resolver.Client, string, error)
 	toolsetID      string
 }
 
 func ToolSpecs(
-	ctx mcp.ToolsetContext,
+	ctx mcp.ToolContext,
 	toolsetID string,
 	ec2Client func(context.Context, string) (*ec2.Client, string, error),
 	resolverClient func(context.Context, string) (*route53resolver.Client, string, error),

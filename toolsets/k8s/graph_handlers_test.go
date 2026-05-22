@@ -249,7 +249,7 @@ func newGraphToolset() *Toolset {
 	clients := &kube.Clients{Typed: typed, Dynamic: dyn, Discovery: cached, Mapper: mapper}
 	cfg := config.DefaultConfig()
 	toolset := New()
-	_ = toolset.Init(mcp.ToolsetContext{
+	_ = toolset.Init(mcp.ToolContext{
 		Config:   &cfg,
 		Clients:  clients,
 		Policy:   policy.NewAuthorizer(),

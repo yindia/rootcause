@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -15,12 +16,12 @@ import (
 )
 
 type Service struct {
-	ctx       mcp.ToolsetContext
+	ctx       mcp.ToolContext
 	kmsClient func(context.Context, string) (*kms.Client, string, error)
 	toolsetID string
 }
 
-func ToolSpecs(ctx mcp.ToolsetContext, toolsetID string, kmsClient func(context.Context, string) (*kms.Client, string, error)) []mcp.ToolSpec {
+func ToolSpecs(ctx mcp.ToolContext, toolsetID string, kmsClient func(context.Context, string) (*kms.Client, string, error)) []mcp.ToolSpec {
 	svc := &Service{ctx: ctx, kmsClient: kmsClient, toolsetID: toolsetID}
 	return []mcp.ToolSpec{
 		{
@@ -67,7 +68,10 @@ func (s *Service) handleListKeys(ctx context.Context, req mcp.ToolRequest) (mcp.
 	}
 	input := &kms.ListKeysInput{}
 	if limit > 0 {
-		input.Limit = aws.Int32(int32(limit))
+		if limit > math.MaxInt32 {
+			limit = math.MaxInt32
+		}
+		input.Limit = aws.Int32(int32(limit)) //nolint:gosec // bounded above by MaxInt32 clamp
 	}
 	paginator := kms.NewListKeysPaginator(client, input)
 	var keys []map[string]any
@@ -102,7 +106,10 @@ func (s *Service) handleListAliases(ctx context.Context, req mcp.ToolRequest) (m
 	}
 	input := &kms.ListAliasesInput{}
 	if limit > 0 {
-		input.Limit = aws.Int32(int32(limit))
+		if limit > math.MaxInt32 {
+			limit = math.MaxInt32
+		}
+		input.Limit = aws.Int32(int32(limit)) //nolint:gosec // bounded above by MaxInt32 clamp
 	}
 	paginator := kms.NewListAliasesPaginator(client, input)
 	var aliases []map[string]any

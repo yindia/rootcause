@@ -28,7 +28,7 @@ func TestHandleRestartSafetyCheck(t *testing.T) {
 
 	cfg := config.DefaultConfig()
 	toolset := New()
-	_ = toolset.Init(mcp.ToolsetContext{Config: &cfg, Clients: &kube.Clients{Typed: client}, Policy: policy.NewAuthorizer(), Renderer: render.NewRenderer(), Redactor: redact.New()})
+	_ = toolset.Init(mcp.ToolContext{Config: &cfg, Clients: &kube.Clients{Typed: client}, Policy: policy.NewAuthorizer(), Renderer: render.NewRenderer(), Redactor: redact.New()})
 
 	result, err := toolset.handleRestartSafetyCheck(context.Background(), mcp.ToolRequest{User: policy.User{Role: policy.RoleCluster, AllowedNamespaces: []string{"*"}}, Arguments: map[string]any{"name": "api", "namespace": "default"}})
 	if err != nil {

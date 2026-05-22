@@ -108,7 +108,7 @@ func TestEC2ListPagination(t *testing.T) {
 	}
 	client := newEC2SequenceClient(t, responses)
 	svc := &Service{
-		ctx: mcp.ToolsetContext{Redactor: redact.New()},
+		ctx: mcp.ToolContext{Redactor: redact.New()},
 		ec2Client: func(context.Context, string) (*ec2.Client, string, error) {
 			return client, "us-east-1", nil
 		},
@@ -159,7 +159,7 @@ func TestELBListPagination(t *testing.T) {
 	}
 	client := newELBSequenceClient(t, responses)
 	svc := &Service{
-		ctx: mcp.ToolsetContext{Redactor: redact.New()},
+		ctx: mcp.ToolContext{Redactor: redact.New()},
 		elbClient: func(context.Context, string) (*elasticloadbalancingv2.Client, string, error) {
 			return client, "us-east-1", nil
 		},
@@ -251,7 +251,7 @@ func TestASGListPagination(t *testing.T) {
 	}
 	client := newASGSequenceClient(t, responses)
 	svc := &Service{
-		ctx: mcp.ToolsetContext{Redactor: redact.New()},
+		ctx: mcp.ToolContext{Redactor: redact.New()},
 		asgClient: func(context.Context, string) (*autoscaling.Client, string, error) {
 			return client, "us-east-1", nil
 		},

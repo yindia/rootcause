@@ -45,7 +45,7 @@ func TestEC2GetNotFoundBranches(t *testing.T) {
 	}
 	ec2Client := newEC2TestClient(t, ec2Responses)
 	svc := &Service{
-		ctx: mcp.ToolsetContext{Redactor: redact.New()},
+		ctx: mcp.ToolContext{Redactor: redact.New()},
 		ec2Client: func(context.Context, string) (*ec2.Client, string, error) {
 			return ec2Client, "us-east-1", nil
 		},
@@ -136,7 +136,7 @@ func TestEC2GetNotFoundASGAndELB(t *testing.T) {
 	asgClient := newASGTestClient(t, asgResponses)
 	elbClient := newELBTestClient(t, elbResponses)
 	svc := &Service{
-		ctx: mcp.ToolsetContext{Redactor: redact.New()},
+		ctx: mcp.ToolContext{Redactor: redact.New()},
 		asgClient: func(context.Context, string) (*autoscaling.Client, string, error) {
 			return asgClient, "us-east-1", nil
 		},

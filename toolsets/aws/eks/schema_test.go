@@ -31,7 +31,7 @@ func TestEKSSchemas(t *testing.T) {
 }
 
 func TestEKSToolSpecs(t *testing.T) {
-	specs := ToolSpecs(mcp.ToolsetContext{}, "aws", nil, nil, nil, nil, nil, nil)
+	specs := ToolSpecs(mcp.ToolContext{}, "aws", nil, nil, nil, nil, nil, nil)
 	if len(specs) == 0 {
 		t.Fatalf("expected eks tool specs")
 	}

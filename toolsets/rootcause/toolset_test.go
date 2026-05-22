@@ -14,7 +14,7 @@ import (
 
 func TestToolsetInitAndRegister(t *testing.T) {
 	toolset := New()
-	if err := toolset.Init(mcp.ToolsetContext{}); err == nil {
+	if err := toolset.Init(mcp.ToolContext{}); err == nil {
 		t.Fatalf("expected init error without invoker")
 	}
 	cfg := config.DefaultConfig()
@@ -170,7 +170,7 @@ func TestHandleIncidentBundleStopOnError(t *testing.T) {
 
 func TestHandleRCAGenerateFromBundle(t *testing.T) {
 	toolset := New()
-	if err := toolset.Init(mcp.ToolsetContext{Invoker: &mcp.ToolInvoker{}}); err != nil {
+	if err := toolset.Init(mcp.ToolContext{Invoker: &mcp.ToolInvoker{}}); err != nil {
 		cfg := config.DefaultConfig()
 		reg := mcp.NewRegistry(&cfg)
 		ctx := mcp.ToolContext{Config: &cfg, Registry: reg}

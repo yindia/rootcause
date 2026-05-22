@@ -74,7 +74,7 @@ func TestEC2ListHandlersWithFilters(t *testing.T) {
 	}
 	client := newEC2TestClient(t, responses)
 	svc := &Service{
-		ctx: mcp.ToolsetContext{Redactor: redact.New()},
+		ctx: mcp.ToolContext{Redactor: redact.New()},
 		ec2Client: func(context.Context, string) (*ec2.Client, string, error) {
 			return client, "us-east-1", nil
 		},
@@ -165,7 +165,7 @@ func TestEC2AutoScalingFilters(t *testing.T) {
 	}
 	client := newASGTestClient(t, responses)
 	svc := &Service{
-		ctx: mcp.ToolsetContext{Redactor: redact.New()},
+		ctx: mcp.ToolContext{Redactor: redact.New()},
 		asgClient: func(context.Context, string) (*autoscaling.Client, string, error) {
 			return client, "us-east-1", nil
 		},
@@ -269,7 +269,7 @@ func TestEC2ELBListFilters(t *testing.T) {
 	}
 	client := newELBTestClient(t, responses)
 	svc := &Service{
-		ctx: mcp.ToolsetContext{Redactor: redact.New()},
+		ctx: mcp.ToolContext{Redactor: redact.New()},
 		elbClient: func(context.Context, string) (*elasticloadbalancingv2.Client, string, error) {
 			return client, "us-east-1", nil
 		},

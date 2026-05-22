@@ -27,7 +27,7 @@ func TestAddServiceGraphMissingEndpointsAndSelector(t *testing.T) {
 
 	cfg := config.DefaultConfig()
 	toolset := New()
-	_ = toolset.Init(mcp.ToolsetContext{Config: &cfg, Clients: &kube.Clients{Typed: fake.NewSimpleClientset()}, Policy: policy.NewAuthorizer()})
+	_ = toolset.Init(mcp.ToolContext{Config: &cfg, Clients: &kube.Clients{Typed: fake.NewSimpleClientset()}, Policy: policy.NewAuthorizer()})
 	graph := newGraphBuilder()
 
 	if _, err := toolset.addServiceGraph(context.Background(), graph, namespace, "api", cache); err != nil {
@@ -60,7 +60,7 @@ func TestAddDeploymentGraphSkipsUnownedReplicaSet(t *testing.T) {
 
 	cfg := config.DefaultConfig()
 	toolset := New()
-	_ = toolset.Init(mcp.ToolsetContext{Config: &cfg, Clients: &kube.Clients{Typed: fake.NewSimpleClientset()}, Policy: policy.NewAuthorizer()})
+	_ = toolset.Init(mcp.ToolContext{Config: &cfg, Clients: &kube.Clients{Typed: fake.NewSimpleClientset()}, Policy: policy.NewAuthorizer()})
 	graph := newGraphBuilder()
 
 	if _, err := toolset.addDeploymentGraph(context.Background(), graph, namespace, "api", cache); err != nil {
@@ -71,7 +71,7 @@ func TestAddDeploymentGraphSkipsUnownedReplicaSet(t *testing.T) {
 func TestAddReplicaSetPodsNilMore(t *testing.T) {
 	cfg := config.DefaultConfig()
 	toolset := New()
-	_ = toolset.Init(mcp.ToolsetContext{Config: &cfg, Clients: &kube.Clients{Typed: fake.NewSimpleClientset()}, Policy: policy.NewAuthorizer()})
+	_ = toolset.Init(mcp.ToolContext{Config: &cfg, Clients: &kube.Clients{Typed: fake.NewSimpleClientset()}, Policy: policy.NewAuthorizer()})
 	graph := newGraphBuilder()
 	if _, err := toolset.addReplicaSetPods(context.Background(), graph, "default", nil, newGraphCache()); err != nil {
 		t.Fatalf("addReplicaSetPods nil: %v", err)
@@ -100,7 +100,7 @@ func TestAddStatefulSetGraphHeadlessServiceMissing(t *testing.T) {
 
 	cfg := config.DefaultConfig()
 	toolset := New()
-	_ = toolset.Init(mcp.ToolsetContext{Config: &cfg, Clients: &kube.Clients{Typed: fake.NewSimpleClientset()}, Policy: policy.NewAuthorizer()})
+	_ = toolset.Init(mcp.ToolContext{Config: &cfg, Clients: &kube.Clients{Typed: fake.NewSimpleClientset()}, Policy: policy.NewAuthorizer()})
 	graph := newGraphBuilder()
 
 	if _, err := toolset.addStatefulSetGraph(context.Background(), graph, namespace, "db", cache); err != nil {
@@ -118,7 +118,7 @@ func TestAddIngressGraphNoBackends(t *testing.T) {
 
 	cfg := config.DefaultConfig()
 	toolset := New()
-	_ = toolset.Init(mcp.ToolsetContext{Config: &cfg, Clients: &kube.Clients{Typed: fake.NewSimpleClientset()}, Policy: policy.NewAuthorizer()})
+	_ = toolset.Init(mcp.ToolContext{Config: &cfg, Clients: &kube.Clients{Typed: fake.NewSimpleClientset()}, Policy: policy.NewAuthorizer()})
 	graph := newGraphBuilder()
 
 	if _, err := toolset.addIngressGraph(context.Background(), graph, namespace, "empty", cache); err != nil {

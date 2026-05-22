@@ -36,7 +36,7 @@ func TestHandleCRDsQueryAndLimit(t *testing.T) {
 
 	cfg := config.DefaultConfig()
 	toolset := New()
-	_ = toolset.Init(mcp.ToolsetContext{
+	_ = toolset.Init(mcp.ToolContext{
 		Config:  &cfg,
 		Clients: &kube.Clients{Dynamic: dynamicClient},
 		Policy:  policy.NewAuthorizer(),

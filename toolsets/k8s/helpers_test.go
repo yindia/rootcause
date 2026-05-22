@@ -15,11 +15,11 @@ import (
 
 func TestToolsetInitAndRegister(t *testing.T) {
 	toolset := New()
-	if err := toolset.Init(mcp.ToolsetContext{}); err == nil {
+	if err := toolset.Init(mcp.ToolContext{}); err == nil {
 		t.Fatalf("expected error for missing clients")
 	}
 	cfg := config.DefaultConfig()
-	ctx := mcp.ToolsetContext{Clients: &kube.Clients{}, Config: &cfg}
+	ctx := mcp.ToolContext{Clients: &kube.Clients{}, Config: &cfg}
 	if err := toolset.Init(ctx); err != nil {
 		t.Fatalf("init: %v", err)
 	}
@@ -85,7 +85,7 @@ func TestToolsetRegisterExecReadonly(t *testing.T) {
 	cfg.Exec.Enabled = true
 	cfg.Exec.AllowedCommands = []string{"ls"}
 	toolset := New()
-	if err := toolset.Init(mcp.ToolsetContext{Clients: &kube.Clients{}, Config: &cfg}); err != nil {
+	if err := toolset.Init(mcp.ToolContext{Clients: &kube.Clients{}, Config: &cfg}); err != nil {
 		t.Fatalf("init: %v", err)
 	}
 	reg := mcp.NewRegistry(&cfg)

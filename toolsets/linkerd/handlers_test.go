@@ -101,7 +101,7 @@ func TestHandleProxyStatus(t *testing.T) {
 	cfg := config.DefaultConfig()
 
 	toolset := New()
-	_ = toolset.Init(mcp.ToolsetContext{
+	_ = toolset.Init(mcp.ToolContext{
 		Config:   &cfg,
 		Clients:  clients,
 		Policy:   policy.NewAuthorizer(),
@@ -134,7 +134,7 @@ func TestHandleHealthNotDetected(t *testing.T) {
 	cfg := config.DefaultConfig()
 
 	toolset := New()
-	_ = toolset.Init(mcp.ToolsetContext{
+	_ = toolset.Init(mcp.ToolContext{
 		Config:   &cfg,
 		Clients:  clients,
 		Policy:   policy.NewAuthorizer(),

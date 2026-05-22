@@ -265,6 +265,8 @@ func targetFilePath(destRoot, skillName string, format skillFormat) string {
 		return filepath.Join(destRoot, skillName+".mdc")
 	case formatMD:
 		return filepath.Join(destRoot, skillName+".md")
+	case formatSkillMD:
+		return filepath.Join(destRoot, skillName, "SKILL.md")
 	default:
 		return filepath.Join(destRoot, skillName, "SKILL.md")
 	}

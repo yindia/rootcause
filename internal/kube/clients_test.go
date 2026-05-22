@@ -352,8 +352,8 @@ func TestRefreshDiscovery(t *testing.T) {
 	clients := &Clients{
 		Discovery:          fake,
 		deferredRESTMapper: mapper,
-		discoveryResetAt:   time.Now().Add(-2 * time.Second),
 	}
+	clients.discoveryResetNs.Store(time.Now().Add(-2 * time.Second).UnixNano())
 	clients.RefreshDiscovery(time.Second)
 	if !fake.invalidated {
 		t.Fatalf("expected discovery invalidate to be called")
@@ -366,8 +366,8 @@ func TestRefreshDiscoveryNoop(t *testing.T) {
 	clients := &Clients{
 		Discovery:          fake,
 		deferredRESTMapper: mapper,
-		discoveryResetAt:   time.Now(),
 	}
+	clients.discoveryResetNs.Store(time.Now().UnixNano())
 	clients.RefreshDiscovery(10 * time.Second)
 	if fake.invalidated {
 		t.Fatalf("expected no invalidation when ttl not exceeded")

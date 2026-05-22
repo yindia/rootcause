@@ -10,7 +10,7 @@ import (
 func TestRegisterDisabledByEnv(t *testing.T) {
 	t.Setenv("MCP_BROWSER_ENABLED", "false")
 	ts := New()
-	if err := ts.Init(mcp.ToolsetContext{}); err != nil {
+	if err := ts.Init(mcp.ToolContext{}); err != nil {
 		t.Fatalf("init: %v", err)
 	}
 	reg := mcp.NewRegistry(&config.Config{})
@@ -25,7 +25,7 @@ func TestRegisterDisabledByEnv(t *testing.T) {
 func TestRegisterEnabledByEnv(t *testing.T) {
 	t.Setenv("MCP_BROWSER_ENABLED", "true")
 	ts := New()
-	if err := ts.Init(mcp.ToolsetContext{}); err != nil {
+	if err := ts.Init(mcp.ToolContext{}); err != nil {
 		t.Fatalf("init: %v", err)
 	}
 	reg := mcp.NewRegistry(&config.Config{})

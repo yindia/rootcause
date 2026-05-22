@@ -20,7 +20,7 @@ import (
 )
 
 func TestEKSDebugMissingClusterName(t *testing.T) {
-	svc := &Service{ctx: mcp.ToolsetContext{Redactor: redact.New()}}
+	svc := &Service{ctx: mcp.ToolContext{Redactor: redact.New()}}
 	if _, err := svc.handleDebug(context.Background(), mcp.ToolRequest{Arguments: map[string]any{}}); err == nil {
 		t.Fatalf("expected missing clusterName error")
 	}
@@ -49,7 +49,7 @@ func TestEKSDebugWithAWSDependencies(t *testing.T) {
 	})
 
 	svc := &Service{
-		ctx: mcp.ToolsetContext{Redactor: redact.New()},
+		ctx: mcp.ToolContext{Redactor: redact.New()},
 		eksClient: func(context.Context, string) (*eks.Client, string, error) {
 			return eksClient, "us-east-1", nil
 		},

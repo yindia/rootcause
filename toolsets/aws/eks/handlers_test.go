@@ -14,7 +14,7 @@ import (
 )
 
 func TestEKSHandlerValidation(t *testing.T) {
-	ctx := mcp.ToolsetContext{Redactor: redact.New()}
+	ctx := mcp.ToolContext{Redactor: redact.New()}
 	eksCalled := false
 	ec2Called := false
 	asgCalled := false

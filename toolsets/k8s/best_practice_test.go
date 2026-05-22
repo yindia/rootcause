@@ -35,7 +35,7 @@ func TestHandleBestPracticeDeployment(t *testing.T) {
 
 	cfg := config.DefaultConfig()
 	toolset := New()
-	_ = toolset.Init(mcp.ToolsetContext{Config: &cfg, Clients: &kube.Clients{Typed: client}, Policy: policy.NewAuthorizer(), Renderer: render.NewRenderer(), Redactor: redact.New()})
+	_ = toolset.Init(mcp.ToolContext{Config: &cfg, Clients: &kube.Clients{Typed: client}, Policy: policy.NewAuthorizer(), Renderer: render.NewRenderer(), Redactor: redact.New()})
 
 	result, err := toolset.handleBestPractice(context.Background(), mcp.ToolRequest{User: policy.User{Role: policy.RoleCluster, AllowedNamespaces: []string{"*"}}, Arguments: map[string]any{"kind": "Deployment", "name": "api", "namespace": "default"}})
 	if err != nil {
@@ -124,7 +124,7 @@ func TestHandleBestPracticeDeploymentPVCResilience(t *testing.T) {
 
 	cfg := config.DefaultConfig()
 	toolset := New()
-	_ = toolset.Init(mcp.ToolsetContext{Config: &cfg, Clients: &kube.Clients{Typed: client}, Policy: policy.NewAuthorizer(), Renderer: render.NewRenderer(), Redactor: redact.New()})
+	_ = toolset.Init(mcp.ToolContext{Config: &cfg, Clients: &kube.Clients{Typed: client}, Policy: policy.NewAuthorizer(), Renderer: render.NewRenderer(), Redactor: redact.New()})
 
 	result, err := toolset.handleBestPractice(context.Background(), mcp.ToolRequest{User: policy.User{Role: policy.RoleCluster, AllowedNamespaces: []string{"*"}}, Arguments: map[string]any{"kind": "Deployment", "name": "api", "namespace": "default"}})
 	if err != nil {

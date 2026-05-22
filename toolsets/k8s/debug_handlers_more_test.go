@@ -74,7 +74,7 @@ func TestHandleSchedulingDebugQuotaAndEvents(t *testing.T) {
 	clients := &kube.Clients{Typed: client}
 	cfg := config.DefaultConfig()
 	toolset := New()
-	_ = toolset.Init(mcp.ToolsetContext{
+	_ = toolset.Init(mcp.ToolContext{
 		Config:   &cfg,
 		Clients:  clients,
 		Policy:   policy.NewAuthorizer(),
@@ -110,7 +110,7 @@ func TestHandleHPADebugBranches(t *testing.T) {
 	clients := &kube.Clients{Typed: client}
 	cfg := config.DefaultConfig()
 	toolset := New()
-	_ = toolset.Init(mcp.ToolsetContext{
+	_ = toolset.Init(mcp.ToolContext{
 		Config:   &cfg,
 		Clients:  clients,
 		Policy:   policy.NewAuthorizer(),
@@ -126,7 +126,7 @@ func TestHandleHPADebugBranches(t *testing.T) {
 	}
 
 	toolsetEmpty := New()
-	_ = toolsetEmpty.Init(mcp.ToolsetContext{
+	_ = toolsetEmpty.Init(mcp.ToolContext{
 		Config:   &cfg,
 		Clients:  &kube.Clients{Typed: fake.NewSimpleClientset()},
 		Policy:   policy.NewAuthorizer(),
@@ -174,7 +174,7 @@ func TestHandleNetworkAndPrivateLinkDebug(t *testing.T) {
 	clients := &kube.Clients{Typed: client}
 	cfg := config.DefaultConfig()
 	toolset := New()
-	_ = toolset.Init(mcp.ToolsetContext{
+	_ = toolset.Init(mcp.ToolContext{
 		Config:   &cfg,
 		Clients:  clients,
 		Policy:   policy.NewAuthorizer(),

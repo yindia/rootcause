@@ -255,7 +255,7 @@ func TestHandleGraphKinds(t *testing.T) {
 		Discovery: discoveryClient,
 		Mapper:    mapper,
 	}
-	_ = toolset.Init(mcp.ToolsetContext{
+	_ = toolset.Init(mcp.ToolContext{
 		Config:   &cfg,
 		Clients:  clients,
 		Policy:   policy.NewAuthorizer(),

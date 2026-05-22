@@ -24,7 +24,7 @@ func TestAddAWSNodeClassEvidenceNoRegistry(t *testing.T) {
 		},
 	}
 	toolset := New()
-	toolset.ctx = mcp.ToolsetContext{}
+	toolset.ctx = mcp.ToolContext{}
 	analysis := render.NewAnalysis()
 	toolset.addAWSNodeClassEvidence(context.Background(), mcp.ToolRequest{}, &analysis, resourceMatch{Group: "karpenter.k8s.aws", Kind: "EC2NodeClass"}, obj)
 	if len(analysis.Evidence) == 0 {

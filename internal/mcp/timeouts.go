@@ -8,14 +8,23 @@ import (
 )
 
 func withToolTimeout(ctx context.Context, cfg *config.Config, spec ToolSpec) (context.Context, context.CancelFunc) {
-	if cfg == nil {
-		return ctx, func() {}
-	}
 	timeout := toolTimeout(cfg, spec.Name)
+	parentRemaining, parentHasDeadline := remainingDeadline(ctx)
+	if parentHasDeadline && (timeout <= 0 || parentRemaining < timeout) {
+		timeout = parentRemaining
+	}
 	if timeout <= 0 {
 		return ctx, func() {}
 	}
 	return context.WithTimeout(ctx, timeout)
+}
+
+func remainingDeadline(ctx context.Context) (time.Duration, bool) {
+	deadline, ok := ctx.Deadline()
+	if !ok {
+		return 0, false
+	}
+	return time.Until(deadline), true
 }
 
 func toolTimeout(cfg *config.Config, toolName string) time.Duration {

@@ -71,7 +71,7 @@ func TestHandleDiagnoseCrashLoopAndPending(t *testing.T) {
 	cfg := config.DefaultConfig()
 	clients := &kube.Clients{Typed: client}
 	toolset := New()
-	_ = toolset.Init(mcp.ToolsetContext{
+	_ = toolset.Init(mcp.ToolContext{
 		Config:   &cfg,
 		Clients:  clients,
 		Policy:   policy.NewAuthorizer(),
@@ -108,7 +108,7 @@ func TestHandleDiagnoseLimit(t *testing.T) {
 	cfg := config.DefaultConfig()
 	clients := &kube.Clients{Typed: client}
 	toolset := New()
-	_ = toolset.Init(mcp.ToolsetContext{
+	_ = toolset.Init(mcp.ToolContext{
 		Config:   &cfg,
 		Clients:  clients,
 		Policy:   policy.NewAuthorizer(),

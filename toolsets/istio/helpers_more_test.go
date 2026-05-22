@@ -29,7 +29,7 @@ func TestListServicesBranches(t *testing.T) {
 	cfg := config.DefaultConfig()
 	toolset := New()
 	clients := &kube.Clients{Typed: client}
-	if err := toolset.Init(mcp.ToolsetContext{
+	if err := toolset.Init(mcp.ToolContext{
 		Config:   &cfg,
 		Clients:  clients,
 		Policy:   policy.NewAuthorizer(),

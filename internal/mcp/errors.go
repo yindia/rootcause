@@ -21,13 +21,27 @@ type ErrorEnvelope struct {
 	Details any         `json:"details,omitempty"`
 }
 
+const envelopeMarkerKey = "__rootcauseEnvelope"
+
 func BuildErrorEnvelope(err error, details any) map[string]any {
 	envelope := ErrorEnvelope{Error: classifyError(err)}
-	out := map[string]any{"error": envelope.Error}
+	out := map[string]any{
+		"error":           envelope.Error,
+		envelopeMarkerKey: true,
+	}
 	if details != nil {
 		out["details"] = details
 	}
 	return out
+}
+
+func IsErrorEnvelope(payload any) bool {
+	root, ok := payload.(map[string]any)
+	if !ok {
+		return false
+	}
+	marker, ok := root[envelopeMarkerKey].(bool)
+	return ok && marker
 }
 
 func classifyError(err error) ErrorDetail {
@@ -60,7 +74,8 @@ func classifyError(err error) ErrorDetail {
 		return ErrorDetail{Code: "invalid_request", Message: msg, Hint: "Fix request parameters or schema.", Retryable: false}
 	}
 
-	if apiErr, ok := err.(smithy.APIError); ok {
+	var apiErr smithy.APIError
+	if errors.As(err, &apiErr) {
 		code := apiErr.ErrorCode()
 		switch code {
 		case "AccessDenied", "AccessDeniedException", "UnauthorizedOperation":

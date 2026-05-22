@@ -78,7 +78,7 @@ func TestRegisterSDKToolsAndToolHandler(t *testing.T) {
 		Registry: reg,
 	}
 	toolCtx.Invoker = NewToolInvoker(reg, toolCtx)
-	tools, err := RegisterSDKTools(server, reg, toolCtx)
+	tools, err := RegisterSDKTools(server, toolCtx.Invoker)
 	if err != nil {
 		t.Fatalf("register tools: %v", err)
 	}
@@ -86,7 +86,7 @@ func TestRegisterSDKToolsAndToolHandler(t *testing.T) {
 		t.Fatalf("unexpected tools list: %#v", tools)
 	}
 
-	handler := toolHandler(spec, toolCtx)
+	handler := toolHandler(spec, toolCtx.Invoker)
 	args, _ := json.Marshal(map[string]any{"name": "ok"})
 	req := &sdkmcp.CallToolRequest{Params: &sdkmcp.CallToolParamsRaw{Name: "demo", Arguments: args}}
 	_, err = handler(context.Background(), req)
@@ -99,8 +99,8 @@ func TestRegisterSDKToolsAndToolHandler(t *testing.T) {
 }
 
 func TestRegisterSDKToolsNilArgs(t *testing.T) {
-	if _, err := RegisterSDKTools(nil, nil, ToolContext{}); err == nil {
-		t.Fatalf("expected error for nil server/registry")
+	if _, err := RegisterSDKTools(nil, nil); err == nil {
+		t.Fatalf("expected error for nil server/invoker")
 	}
 }
 
@@ -112,7 +112,7 @@ func TestBuildCallToolResultSuccess(t *testing.T) {
 		},
 	}
 	ctx := withTraceID(context.Background(), "trace-1")
-	out := buildCallToolResult(ctx, result, nil)
+	out := buildCallToolResult(ctx, result, nil, 0)
 	if out.StructuredContent == nil {
 		t.Fatalf("expected structured content")
 	}
@@ -127,7 +127,7 @@ func TestBuildCallToolResultSuccess(t *testing.T) {
 func TestBuildCallToolResultError(t *testing.T) {
 	err := errors.New("boom")
 	result := ToolResult{Data: map[string]any{"hint": "test"}}
-	out := buildCallToolResult(context.Background(), result, err)
+	out := buildCallToolResult(context.Background(), result, err, 0)
 	if !out.IsError {
 		t.Fatalf("expected error result")
 	}
@@ -141,12 +141,12 @@ func TestBuildCallToolResultError(t *testing.T) {
 }
 
 func TestBuildCallToolResultFallbacks(t *testing.T) {
-	out := buildCallToolResult(context.Background(), ToolResult{}, nil)
+	out := buildCallToolResult(context.Background(), ToolResult{}, nil, 0)
 	if out.Content == nil || len(out.Content) == 0 {
 		t.Fatalf("expected content for empty result")
 	}
 	result := ToolResult{Data: map[string]any{"bad": func() {}}}
-	out = buildCallToolResult(context.Background(), result, nil)
+	out = buildCallToolResult(context.Background(), result, nil, 0)
 	if out.Content == nil || len(out.Content) == 0 {
 		t.Fatalf("expected content fallback for marshal error")
 	}
@@ -167,7 +167,7 @@ func TestToolHandlerInvalidArgs(t *testing.T) {
 		Registry: NewRegistry(&cfg),
 	}
 	toolCtx.Invoker = NewToolInvoker(toolCtx.Registry.(*ToolRegistry), toolCtx)
-	handler := toolHandler(spec, toolCtx)
+	handler := toolHandler(spec, toolCtx.Invoker)
 	req := &sdkmcp.CallToolRequest{Params: &sdkmcp.CallToolParamsRaw{Name: "demo", Arguments: []byte("{")}}
 	_, err := handler(context.Background(), req)
 	if err == nil {
@@ -196,7 +196,7 @@ func TestToolHandlerErrorResult(t *testing.T) {
 	reg := toolCtx.Registry.(*ToolRegistry)
 	_ = reg.Add(spec)
 	toolCtx.Invoker = NewToolInvoker(reg, toolCtx)
-	handler := toolHandler(spec, toolCtx)
+	handler := toolHandler(spec, toolCtx.Invoker)
 	req := &sdkmcp.CallToolRequest{Params: &sdkmcp.CallToolParamsRaw{Name: "demo"}}
 	result, err := handler(context.Background(), req)
 	if err != nil {

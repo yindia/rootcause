@@ -234,11 +234,8 @@ func (t *Toolset) buildPermissionFlow(graph graphView, entryID, namespace string
 
 func parseGraph(data any) (graphView, []string, error) {
 	view := graphView{nodes: map[string]flowNode{}}
-	out := map[string]any{}
-	switch v := data.(type) {
-	case map[string]any:
-		out = v
-	default:
+	out, ok := data.(map[string]any)
+	if !ok {
 		return view, nil, errors.New("invalid graph payload")
 	}
 	if rawNodes, ok := out["nodes"].([]any); ok {

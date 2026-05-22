@@ -157,7 +157,7 @@ func TestAddAWSNodeClassEvidenceWithRegistry(t *testing.T) {
 	addTool("aws.iam.get_instance_profile")
 
 	toolset := New()
-	ctx := mcp.ToolsetContext{
+	ctx := mcp.ToolContext{
 		Config:   &cfg,
 		Clients:  &kube.Clients{},
 		Registry: reg,
@@ -199,7 +199,7 @@ func provisionerGVR() schema.GroupVersionResource {
 
 func TestKarpenterInitAndVersion(t *testing.T) {
 	toolset := New()
-	if err := toolset.Init(mcp.ToolsetContext{}); err == nil {
+	if err := toolset.Init(mcp.ToolContext{}); err == nil {
 		t.Fatalf("expected init error")
 	}
 	if toolset.Version() == "" {
@@ -211,7 +211,7 @@ func TestKarpenterStatusNotDetected(t *testing.T) {
 	client := k8sfake.NewSimpleClientset(&corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "default"}})
 	cfg := config.DefaultConfig()
 	toolset := New()
-	_ = toolset.Init(mcp.ToolsetContext{
+	_ = toolset.Init(mcp.ToolContext{
 		Config:   &cfg,
 		Clients:  &kube.Clients{Typed: client, Discovery: &fakeCachedDiscovery{groups: &metav1.APIGroupList{}}},
 		Policy:   policy.NewAuthorizer(),
@@ -227,7 +227,7 @@ func TestAWSNodeClassEvidenceToolMissing(t *testing.T) {
 	cfg := config.DefaultConfig()
 	reg := mcp.NewRegistry(&cfg)
 	toolset := New()
-	ctx := mcp.ToolsetContext{
+	ctx := mcp.ToolContext{
 		Config:   &cfg,
 		Clients:  &kube.Clients{},
 		Registry: reg,
@@ -314,7 +314,7 @@ func TestKarpenterNoNodeClassOrNodeClaim(t *testing.T) {
 	}
 	cfg := config.DefaultConfig()
 	toolset := New()
-	_ = toolset.Init(mcp.ToolsetContext{
+	_ = toolset.Init(mcp.ToolContext{
 		Config:   &cfg,
 		Clients:  &kube.Clients{Typed: client, Discovery: discovery},
 		Policy:   policy.NewAuthorizer(),
@@ -358,7 +358,7 @@ func TestAddAWSNodeClassEvidenceToolError(t *testing.T) {
 		},
 	})
 	toolset := New()
-	ctx := mcp.ToolsetContext{
+	ctx := mcp.ToolContext{
 		Config:   &cfg,
 		Clients:  &kube.Clients{},
 		Registry: reg,

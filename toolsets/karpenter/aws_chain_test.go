@@ -188,7 +188,7 @@ func TestNodeClassDebugCallsAWS(t *testing.T) {
 	toolCtx.Invoker = mcp.NewToolInvoker(reg, toolCtx)
 
 	toolset := New()
-	if err := toolset.Init(mcp.ToolsetContext(toolCtx)); err != nil {
+	if err := toolset.Init(mcp.ToolContext(toolCtx)); err != nil {
 		t.Fatalf("init failed: %v", err)
 	}
 

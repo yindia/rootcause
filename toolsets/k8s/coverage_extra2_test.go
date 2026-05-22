@@ -49,7 +49,7 @@ func TestHandleDiagnoseWithEventsAndCrashLoop(t *testing.T) {
 	clients := &kube.Clients{Typed: client}
 	cfg := config.DefaultConfig()
 	toolset := New()
-	_ = toolset.Init(mcp.ToolsetContext{
+	_ = toolset.Init(mcp.ToolContext{
 		Config:   &cfg,
 		Clients:  clients,
 		Policy:   policy.NewAuthorizer(),
@@ -94,7 +94,7 @@ func TestAddStatefulSetGraphServiceMissing(t *testing.T) {
 	client := k8sfake.NewSimpleClientset(sts, &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "default"}})
 	cfg := config.DefaultConfig()
 	toolset := New()
-	_ = toolset.Init(mcp.ToolsetContext{
+	_ = toolset.Init(mcp.ToolContext{
 		Config:   &cfg,
 		Clients:  &kube.Clients{Typed: client},
 		Policy:   policy.NewAuthorizer(),
@@ -127,7 +127,7 @@ func TestAddAWSRoleEvidenceSuccess(t *testing.T) {
 		},
 	})
 	toolset := New()
-	toolCtx := mcp.ToolsetContext{
+	toolCtx := mcp.ToolContext{
 		Config:   &cfg,
 		Clients:  &kube.Clients{RestConfig: &rest.Config{Host: "https://cluster.eks.amazonaws.com"}},
 		Registry: reg,

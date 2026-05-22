@@ -12,7 +12,7 @@ import (
 func TestWrapListCache(t *testing.T) {
 	cfg := config.DefaultConfig()
 	cfg.Cache.AWSListTTLSeconds = 60
-	ctx := mcp.ToolsetContext{
+	ctx := mcp.ToolContext{
 		Config: &cfg,
 		Cache:  cache.NewStore(),
 	}

@@ -252,7 +252,7 @@ func newLinkerdToolset(t *testing.T) *Toolset {
 		Discovery: discoveryClient,
 		Mapper:    mapper,
 	}
-	_ = toolset.Init(mcp.ToolsetContext{
+	_ = toolset.Init(mcp.ToolContext{
 		Config:   &cfg,
 		Clients:  clients,
 		Policy:   policy.NewAuthorizer(),
@@ -383,7 +383,7 @@ func TestLinkerdNotDetectedPaths(t *testing.T) {
 	discoveryClient := &linkerdDiscoveryResources{groups: &metav1.APIGroupList{}}
 	cfg := config.DefaultConfig()
 	toolset := New()
-	_ = toolset.Init(mcp.ToolsetContext{
+	_ = toolset.Init(mcp.ToolContext{
 		Config:   &cfg,
 		Clients:  &kube.Clients{Typed: client, Discovery: discoveryClient},
 		Policy:   policy.NewAuthorizer(),
@@ -396,7 +396,7 @@ func TestLinkerdNotDetectedPaths(t *testing.T) {
 
 	discoveryClient.groups = &metav1.APIGroupList{Groups: []metav1.APIGroup{{Name: "linkerd.io"}}}
 	toolsetPolicy := New()
-	_ = toolsetPolicy.Init(mcp.ToolsetContext{
+	_ = toolsetPolicy.Init(mcp.ToolContext{
 		Config:   &cfg,
 		Clients:  &kube.Clients{Typed: client, Discovery: discoveryClient},
 		Policy:   policy.NewAuthorizer(),
@@ -410,7 +410,7 @@ func TestLinkerdNotDetectedPaths(t *testing.T) {
 
 func TestLinkerdInitError(t *testing.T) {
 	toolset := New()
-	if err := toolset.Init(mcp.ToolsetContext{}); err == nil {
+	if err := toolset.Init(mcp.ToolContext{}); err == nil {
 		t.Fatalf("expected init error for missing clients")
 	}
 }
@@ -443,7 +443,7 @@ func TestLinkerdCRStatusClusterScoped(t *testing.T) {
 	cfg := config.DefaultConfig()
 	toolset := New()
 	clients := &kube.Clients{Typed: client, Dynamic: dynamicClient, Discovery: discoveryClient, Mapper: mapper}
-	_ = toolset.Init(mcp.ToolsetContext{
+	_ = toolset.Init(mcp.ToolContext{
 		Config:   &cfg,
 		Clients:  clients,
 		Policy:   policy.NewAuthorizer(),
@@ -519,7 +519,7 @@ func TestLinkerdIdentityNotFound(t *testing.T) {
 	discoveryClient := &linkerdDiscoveryResources{groups: &metav1.APIGroupList{Groups: []metav1.APIGroup{{Name: "linkerd.io"}}}}
 	cfg := config.DefaultConfig()
 	toolset := New()
-	_ = toolset.Init(mcp.ToolsetContext{
+	_ = toolset.Init(mcp.ToolContext{
 		Config:   &cfg,
 		Clients:  &kube.Clients{Typed: client, Discovery: discoveryClient},
 		Policy:   policy.NewAuthorizer(),
@@ -536,7 +536,7 @@ func TestDetectLinkerdNamespaceFallback(t *testing.T) {
 	discoveryClient := &linkerdDiscoveryResources{groups: &metav1.APIGroupList{}}
 	cfg := config.DefaultConfig()
 	toolset := New()
-	_ = toolset.Init(mcp.ToolsetContext{
+	_ = toolset.Init(mcp.ToolContext{
 		Config:   &cfg,
 		Clients:  &kube.Clients{Typed: client, Discovery: discoveryClient},
 		Policy:   policy.NewAuthorizer(),

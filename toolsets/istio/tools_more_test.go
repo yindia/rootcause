@@ -300,7 +300,7 @@ func newIstioToolset(t *testing.T) *Toolset {
 		Discovery: discoveryClient,
 		Mapper:    mapper,
 	}
-	_ = toolset.Init(mcp.ToolsetContext{
+	_ = toolset.Init(mcp.ToolContext{
 		Config:   &cfg,
 		Clients:  clients,
 		Policy:   policy.NewAuthorizer(),
@@ -412,7 +412,7 @@ func TestIstioProxyAdminSuccess(t *testing.T) {
 	clients := &kube.Clients{Typed: client}
 	cfg := config.DefaultConfig()
 	toolset := New()
-	_ = toolset.Init(mcp.ToolsetContext{
+	_ = toolset.Init(mcp.ToolContext{
 		Config:   &cfg,
 		Clients:  clients,
 		Policy:   policy.NewAuthorizer(),
@@ -487,7 +487,7 @@ func TestIstioProxyAdminNotFoundAndNoProxy(t *testing.T) {
 	clients := &kube.Clients{Typed: client}
 	cfg := config.DefaultConfig()
 	toolset := New()
-	_ = toolset.Init(mcp.ToolsetContext{
+	_ = toolset.Init(mcp.ToolContext{
 		Config:   &cfg,
 		Clients:  clients,
 		Policy:   policy.NewAuthorizer(),
@@ -517,7 +517,7 @@ func TestIstioProxyAdminNotFoundAndNoProxy(t *testing.T) {
 
 func TestIstioInitAndToInt(t *testing.T) {
 	toolset := New()
-	if err := toolset.Init(mcp.ToolsetContext{}); err == nil {
+	if err := toolset.Init(mcp.ToolContext{}); err == nil {
 		t.Fatalf("expected init error without clients")
 	}
 	if toInt("15000", 15000) != 15000 {
@@ -548,7 +548,7 @@ func TestHandlePodsByServiceBranches(t *testing.T) {
 	clients := &kube.Clients{Typed: client}
 	cfg := config.DefaultConfig()
 	toolset := New()
-	_ = toolset.Init(mcp.ToolsetContext{
+	_ = toolset.Init(mcp.ToolContext{
 		Config:   &cfg,
 		Clients:  clients,
 		Policy:   policy.NewAuthorizer(),
@@ -616,7 +616,7 @@ func TestHandleCRStatusNotFoundAndMultipleNamespaces(t *testing.T) {
 	clients := &kube.Clients{Typed: client, Dynamic: dynamicClient, Discovery: discoveryClient, Mapper: mapper}
 	cfg := config.DefaultConfig()
 	toolset := New()
-	_ = toolset.Init(mcp.ToolsetContext{
+	_ = toolset.Init(mcp.ToolContext{
 		Config:   &cfg,
 		Clients:  clients,
 		Policy:   policy.NewAuthorizer(),
@@ -735,7 +735,7 @@ func TestHandleCRStatusWithStatusField(t *testing.T) {
 	clients := &kube.Clients{Typed: client, Dynamic: dynamicClient, Discovery: discoveryClient, Mapper: mapper}
 	cfg := config.DefaultConfig()
 	toolset := New()
-	_ = toolset.Init(mcp.ToolsetContext{
+	_ = toolset.Init(mcp.ToolContext{
 		Config:   &cfg,
 		Clients:  clients,
 		Policy:   policy.NewAuthorizer(),
@@ -795,7 +795,7 @@ func TestHandleConfigSummaryNotDetected(t *testing.T) {
 	client := k8sfake.NewSimpleClientset()
 	cfg := config.DefaultConfig()
 	toolset := New()
-	_ = toolset.Init(mcp.ToolsetContext{
+	_ = toolset.Init(mcp.ToolContext{
 		Config:   &cfg,
 		Clients:  &kube.Clients{Typed: client, Discovery: &istioDiscoveryResources{groups: &metav1.APIGroupList{}}},
 		Policy:   policy.NewAuthorizer(),
@@ -818,7 +818,7 @@ func TestHandleExternalDependencyNoHosts(t *testing.T) {
 	}
 	cfg := config.DefaultConfig()
 	toolset := New()
-	_ = toolset.Init(mcp.ToolsetContext{
+	_ = toolset.Init(mcp.ToolContext{
 		Config:   &cfg,
 		Clients:  &kube.Clients{Typed: client, Dynamic: dynamicfake.NewSimpleDynamicClient(runtime.NewScheme()), Discovery: discoveryClient},
 		Policy:   policy.NewAuthorizer(),

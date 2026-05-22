@@ -58,7 +58,7 @@ func TestDebugHelperBranches(t *testing.T) {
 
 	toolset := New()
 	cfg := config.DefaultConfig()
-	_ = toolset.Init(mcp.ToolsetContext{Config: &cfg, Clients: &kube.Clients{}, Policy: policy.NewAuthorizer()})
+	_ = toolset.Init(mcp.ToolContext{Config: &cfg, Clients: &kube.Clients{}, Policy: policy.NewAuthorizer()})
 	cache := newGraphCache()
 	cache.podsLoaded = true
 	if pods, err := toolset.podsForSelector(context.Background(), "default", labels.Everything(), cache); err != nil || len(pods) != 0 {

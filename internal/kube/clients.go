@@ -8,6 +8,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -32,7 +33,7 @@ type Clients struct {
 	Metrics    metricsclient.Interface
 
 	discoveryMu        sync.Mutex
-	discoveryResetAt   time.Time
+	discoveryResetNs   atomic.Int64
 	deferredRESTMapper *restmapper.DeferredDiscoveryRESTMapper
 }
 
@@ -89,25 +90,31 @@ func NewClients(cfg Config) (*Clients, error) {
 		return nil, err
 	}
 
-	return &Clients{
+	clients := &Clients{
 		RestConfig:         restConfig,
 		Typed:              typed,
 		Dynamic:            dynamicClient,
 		Discovery:          cachedDiscovery,
 		Mapper:             mapper,
 		Metrics:            metricsClient,
-		discoveryResetAt:   time.Now(),
 		deferredRESTMapper: mapper,
-	}, nil
+	}
+	clients.discoveryResetNs.Store(time.Now().UnixNano())
+	return clients, nil
 }
 
 func (c *Clients) RefreshDiscovery(ttl time.Duration) {
 	if c == nil || ttl <= 0 {
 		return
 	}
+	last := c.discoveryResetNs.Load()
+	if last > 0 && time.Since(time.Unix(0, last)) < ttl {
+		return
+	}
 	c.discoveryMu.Lock()
 	defer c.discoveryMu.Unlock()
-	if time.Since(c.discoveryResetAt) < ttl {
+	last = c.discoveryResetNs.Load()
+	if last > 0 && time.Since(time.Unix(0, last)) < ttl {
 		return
 	}
 	if c.Discovery != nil {
@@ -116,7 +123,7 @@ func (c *Clients) RefreshDiscovery(ttl time.Duration) {
 	if c.deferredRESTMapper != nil {
 		c.deferredRESTMapper.Reset()
 	}
-	c.discoveryResetAt = time.Now()
+	c.discoveryResetNs.Store(time.Now().UnixNano())
 }
 
 func kubeconfigPath(path string) string {

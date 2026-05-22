@@ -65,7 +65,7 @@ func TestHandleResourceUsageSortAndLimit(t *testing.T) {
 	clients := &kube.Clients{Typed: client, Metrics: metricsClient, Discovery: &metricsDiscovery{}}
 	cfg := config.DefaultConfig()
 	toolset := New()
-	_ = toolset.Init(mcp.ToolsetContext{
+	_ = toolset.Init(mcp.ToolContext{
 		Config:   &cfg,
 		Clients:  clients,
 		Policy:   policy.NewAuthorizer(),
@@ -100,7 +100,7 @@ func TestHandleResourceUsageNoPodsNoNodes(t *testing.T) {
 	clients := &kube.Clients{Typed: client, Metrics: metricsClient, Discovery: &metricsDiscovery{}}
 	cfg := config.DefaultConfig()
 	toolset := New()
-	_ = toolset.Init(mcp.ToolsetContext{
+	_ = toolset.Init(mcp.ToolContext{
 		Config:   &cfg,
 		Clients:  clients,
 		Policy:   policy.NewAuthorizer(),
@@ -127,7 +127,7 @@ func TestHandleResourceUsagePodMetricsNotFound(t *testing.T) {
 	clients := &kube.Clients{Typed: client, Metrics: metricsClient, Discovery: &metricsDiscovery{}}
 	cfg := config.DefaultConfig()
 	toolset := New()
-	_ = toolset.Init(mcp.ToolsetContext{
+	_ = toolset.Init(mcp.ToolContext{
 		Config:   &cfg,
 		Clients:  clients,
 		Policy:   policy.NewAuthorizer(),
@@ -149,7 +149,7 @@ func TestHandleResourceUsageDiscoveryError(t *testing.T) {
 	metricsClient := metricsfake.NewSimpleClientset()
 	cfg := config.DefaultConfig()
 	toolset := New()
-	_ = toolset.Init(mcp.ToolsetContext{
+	_ = toolset.Init(mcp.ToolContext{
 		Config:   &cfg,
 		Clients:  &kube.Clients{Metrics: metricsClient},
 		Policy:   policy.NewAuthorizer(),
@@ -170,7 +170,7 @@ func TestHandleResourceUsageNodeMetricsError(t *testing.T) {
 	clients := &kube.Clients{Typed: client, Metrics: metricsClient, Discovery: &metricsDiscovery{}}
 	cfg := config.DefaultConfig()
 	toolset := New()
-	_ = toolset.Init(mcp.ToolsetContext{
+	_ = toolset.Init(mcp.ToolContext{
 		Config:   &cfg,
 		Clients:  clients,
 		Policy:   policy.NewAuthorizer(),
@@ -202,7 +202,7 @@ func TestHandleResourceUsageAllowedNamespaces(t *testing.T) {
 	clients := &kube.Clients{Typed: client, Metrics: metricsClient, Discovery: &metricsDiscovery{}}
 	cfg := config.DefaultConfig()
 	toolset := New()
-	_ = toolset.Init(mcp.ToolsetContext{
+	_ = toolset.Init(mcp.ToolContext{
 		Config:   &cfg,
 		Clients:  clients,
 		Policy:   policy.NewAuthorizer(),

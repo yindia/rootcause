@@ -41,7 +41,7 @@ func TestHelmSettingsFromConfig(t *testing.T) {
 	cfg := config.DefaultConfig()
 	cfg.Kubeconfig = "/tmp/kubeconfig"
 	cfg.Context = "demo"
-	toolset := &Toolset{ctx: mcp.ToolsetContext{Config: &cfg}}
+	toolset := &Toolset{ctx: mcp.ToolContext{Config: &cfg}}
 	settings := toolset.helmSettings()
 	if settings.KubeConfig != cfg.Kubeconfig || settings.KubeContext != cfg.Context {
 		t.Fatalf("unexpected helm settings: %#v", settings)
@@ -50,7 +50,7 @@ func TestHelmSettingsFromConfig(t *testing.T) {
 
 func TestTemplateApplyInvalidManifest(t *testing.T) {
 	cfg := config.DefaultConfig()
-	toolset := &Toolset{ctx: mcp.ToolsetContext{Config: &cfg, Clients: &kube.Clients{}}}
+	toolset := &Toolset{ctx: mcp.ToolContext{Config: &cfg, Clients: &kube.Clients{}}}
 	_, err := toolset.handleTemplateApply(context.Background(), mcp.ToolRequest{
 		Arguments: map[string]any{
 			"release":   "demo",

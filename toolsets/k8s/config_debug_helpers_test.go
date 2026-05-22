@@ -23,7 +23,7 @@ func TestConfigDebugHelpers(t *testing.T) {
 	clients := &kube.Clients{Typed: client}
 	cfg := config.DefaultConfig()
 	toolset := New()
-	_ = toolset.Init(mcp.ToolsetContext{Config: &cfg, Clients: clients, Policy: policy.NewAuthorizer(), Renderer: render.NewRenderer(), Redactor: redact.New()})
+	_ = toolset.Init(mcp.ToolContext{Config: &cfg, Clients: clients, Policy: policy.NewAuthorizer(), Renderer: render.NewRenderer(), Redactor: redact.New()})
 
 	issue := toolset.checkConfigMapKeys(context.Background(), "default", "app", []string{"foo", "missing"}, "direct", false, "")
 	if len(issue.MissingKeys) == 0 {
@@ -44,7 +44,7 @@ func TestConfigDebugMissingRefs(t *testing.T) {
 	clients := &kube.Clients{Typed: client}
 	cfg := config.DefaultConfig()
 	toolset := New()
-	_ = toolset.Init(mcp.ToolsetContext{Config: &cfg, Clients: clients, Policy: policy.NewAuthorizer(), Renderer: render.NewRenderer(), Redactor: redact.New()})
+	_ = toolset.Init(mcp.ToolContext{Config: &cfg, Clients: clients, Policy: policy.NewAuthorizer(), Renderer: render.NewRenderer(), Redactor: redact.New()})
 
 	missingCM := toolset.checkConfigMapKeys(context.Background(), "default", "", []string{"key"}, "direct", false, "")
 	if !missingCM.Missing {

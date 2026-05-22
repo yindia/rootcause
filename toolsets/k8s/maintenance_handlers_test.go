@@ -31,7 +31,7 @@ func TestHandleCleanupPods(t *testing.T) {
 	client := fake.NewSimpleClientset(pod)
 	cfg := config.DefaultConfig()
 	toolset := New()
-	_ = toolset.Init(mcp.ToolsetContext{
+	_ = toolset.Init(mcp.ToolContext{
 		Config:  &cfg,
 		Clients: &kube.Clients{Typed: client},
 		Policy:  policy.NewAuthorizer(),
@@ -62,7 +62,7 @@ func TestHandleNodeManagementDrain(t *testing.T) {
 	})
 	cfg := config.DefaultConfig()
 	toolset := New()
-	_ = toolset.Init(mcp.ToolsetContext{
+	_ = toolset.Init(mcp.ToolContext{
 		Config:  &cfg,
 		Clients: &kube.Clients{Typed: client},
 		Policy:  policy.NewAuthorizer(),
@@ -87,7 +87,7 @@ func TestHandleNodeManagementCordon(t *testing.T) {
 	client := fake.NewSimpleClientset(node)
 	cfg := config.DefaultConfig()
 	toolset := New()
-	_ = toolset.Init(mcp.ToolsetContext{
+	_ = toolset.Init(mcp.ToolContext{
 		Config:  &cfg,
 		Clients: &kube.Clients{Typed: client},
 		Policy:  policy.NewAuthorizer(),

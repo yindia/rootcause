@@ -78,7 +78,7 @@ func TestLinkIstioAuthorizationPolicyToServiceAccounts(t *testing.T) {
 	graph := newGraphBuilder()
 	cfg := config.DefaultConfig()
 	toolset := New()
-	_ = toolset.Init(mcp.ToolsetContext{
+	_ = toolset.Init(mcp.ToolContext{
 		Config:  &cfg,
 		Clients: &kube.Clients{},
 		Policy:  policy.NewAuthorizer(),

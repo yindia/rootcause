@@ -101,7 +101,7 @@ func TestHandleAPIResources(t *testing.T) {
 	}
 	toolset := New()
 	cfg := config.DefaultConfig()
-	_ = toolset.Init(mcp.ToolsetContext{
+	_ = toolset.Init(mcp.ToolContext{
 		Config:  &cfg,
 		Clients: &kube.Clients{Discovery: discoveryClient},
 		Policy:  policy.NewAuthorizer(),
@@ -148,7 +148,7 @@ func TestHandleCRDs(t *testing.T) {
 
 	toolset := New()
 	cfg := config.DefaultConfig()
-	_ = toolset.Init(mcp.ToolsetContext{
+	_ = toolset.Init(mcp.ToolContext{
 		Config:  &cfg,
 		Clients: &kube.Clients{Dynamic: dyn},
 		Policy:  policy.NewAuthorizer(),
@@ -193,7 +193,7 @@ current-context: test
 	cfg := config.DefaultConfig()
 	cfg.Kubeconfig = kubeconfigPath
 	toolset := New()
-	_ = toolset.Init(mcp.ToolsetContext{
+	_ = toolset.Init(mcp.ToolContext{
 		Config:  &cfg,
 		Clients: &kube.Clients{},
 	})
@@ -212,7 +212,7 @@ current-context: test
 func TestHandleContextUseAction(t *testing.T) {
 	cfg := config.DefaultConfig()
 	toolset := New()
-	_ = toolset.Init(mcp.ToolsetContext{
+	_ = toolset.Init(mcp.ToolContext{
 		Config:  &cfg,
 		Clients: &kube.Clients{},
 	})
@@ -233,7 +233,7 @@ func TestHandleEvents(t *testing.T) {
 	client := k8sfake.NewSimpleClientset(event, ns)
 	cfg := config.DefaultConfig()
 	toolset := New()
-	_ = toolset.Init(mcp.ToolsetContext{
+	_ = toolset.Init(mcp.ToolContext{
 		Config:  &cfg,
 		Clients: &kube.Clients{Typed: client},
 		Policy:  policy.NewAuthorizer(),
@@ -276,7 +276,7 @@ func TestHandleExplain(t *testing.T) {
 	})
 	cfg := config.DefaultConfig()
 	toolset := New()
-	_ = toolset.Init(mcp.ToolsetContext{
+	_ = toolset.Init(mcp.ToolContext{
 		Config:  &cfg,
 		Clients: &kube.Clients{Discovery: discoveryClient, Mapper: mapper},
 	})
@@ -297,7 +297,7 @@ func TestHandlePing(t *testing.T) {
 	discoveryClient := &apiDiscovery{version: &version.Info{GitVersion: "v1.28.0"}}
 	toolset := New()
 	cfg := config.DefaultConfig()
-	_ = toolset.Init(mcp.ToolsetContext{
+	_ = toolset.Init(mcp.ToolContext{
 		Config:  &cfg,
 		Clients: &kube.Clients{Discovery: discoveryClient},
 	})

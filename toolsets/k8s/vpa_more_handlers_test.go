@@ -41,7 +41,7 @@ func TestHandleVPADebugNoResources(t *testing.T) {
 
 	cfg := config.DefaultConfig()
 	toolset := New()
-	_ = toolset.Init(mcp.ToolsetContext{
+	_ = toolset.Init(mcp.ToolContext{
 		Config:   &cfg,
 		Clients:  &kube.Clients{Dynamic: dyn, Discovery: cached, Mapper: mapper},
 		Policy:   policy.NewAuthorizer(),
@@ -77,7 +77,7 @@ func TestHandleVPADebugNameNotFound(t *testing.T) {
 
 	cfg := config.DefaultConfig()
 	toolset := New()
-	_ = toolset.Init(mcp.ToolsetContext{
+	_ = toolset.Init(mcp.ToolContext{
 		Config:   &cfg,
 		Clients:  &kube.Clients{Dynamic: dyn, Discovery: cached, Mapper: mapper},
 		Policy:   policy.NewAuthorizer(),

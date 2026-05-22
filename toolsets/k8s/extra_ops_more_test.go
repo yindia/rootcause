@@ -80,7 +80,7 @@ func TestHandleCreateAndScaleErrors(t *testing.T) {
 func TestHandleRolloutUnsupportedAction(t *testing.T) {
 	cfg := config.DefaultConfig()
 	toolset := New()
-	_ = toolset.Init(mcp.ToolsetContext{Config: &cfg, Clients: &kube.Clients{}, Policy: policy.NewAuthorizer()})
+	_ = toolset.Init(mcp.ToolContext{Config: &cfg, Clients: &kube.Clients{}, Policy: policy.NewAuthorizer()})
 	if _, err := toolset.handleRollout(context.Background(), mcp.ToolRequest{
 		User: policy.User{Role: policy.RoleCluster},
 		Arguments: map[string]any{
@@ -97,7 +97,7 @@ func TestHandleRolloutUnsupportedAction(t *testing.T) {
 func TestHandlePingError(t *testing.T) {
 	cfg := config.DefaultConfig()
 	toolset := New()
-	_ = toolset.Init(mcp.ToolsetContext{Config: &cfg, Clients: &kube.Clients{Discovery: &errorVersionDiscovery{}}, Policy: policy.NewAuthorizer()})
+	_ = toolset.Init(mcp.ToolContext{Config: &cfg, Clients: &kube.Clients{Discovery: &errorVersionDiscovery{}}, Policy: policy.NewAuthorizer()})
 	if _, err := toolset.handlePing(context.Background(), mcp.ToolRequest{}); err == nil {
 		t.Fatalf("expected handlePing error")
 	}

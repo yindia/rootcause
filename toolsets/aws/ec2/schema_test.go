@@ -53,7 +53,7 @@ func TestEC2Schemas(t *testing.T) {
 }
 
 func TestEC2ToolSpecs(t *testing.T) {
-	specs := ToolSpecs(mcp.ToolsetContext{}, "aws", nil, nil, nil, nil)
+	specs := ToolSpecs(mcp.ToolContext{}, "aws", nil, nil, nil, nil)
 	if len(specs) == 0 {
 		t.Fatalf("expected ec2 tool specs")
 	}

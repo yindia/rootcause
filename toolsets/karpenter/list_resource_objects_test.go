@@ -45,7 +45,7 @@ func newListToolset(t *testing.T) *Toolset {
 	)
 	cfg := config.DefaultConfig()
 	toolset := New()
-	_ = toolset.Init(mcp.ToolsetContext{
+	_ = toolset.Init(mcp.ToolContext{
 		Config:  &cfg,
 		Clients: &kube.Clients{Dynamic: dynamicClient, Typed: typed},
 		Policy:  policy.NewAuthorizer(),

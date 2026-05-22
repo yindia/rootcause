@@ -33,6 +33,8 @@ func (r *ToolRegistry) Add(spec ToolSpec) error {
 	if !r.allowedBySafety(spec) {
 		return nil
 	}
+	_ = spec.AugmentedSchema()
+	_, _ = spec.CompileSchema()
 	r.tools[spec.Name] = spec
 	return nil
 }
@@ -40,11 +42,7 @@ func (r *ToolRegistry) Add(spec ToolSpec) error {
 func (r *ToolRegistry) List() []ToolInfo {
 	infos := make([]ToolInfo, 0, len(r.tools))
 	for _, tool := range r.tools {
-		schema := tool.InputSchema
-		if schema == nil {
-			schema = map[string]any{"type": "object"}
-		}
-		infos = append(infos, ToolInfo{Name: tool.Name, Description: tool.Description, InputSchema: schemaWithGlobalSkillTags(schema)})
+		infos = append(infos, ToolInfo{Name: tool.Name, Description: tool.Description, InputSchema: tool.AugmentedSchema()})
 	}
 	sort.Slice(infos, func(i, j int) bool {
 		return infos[i].Name < infos[j].Name

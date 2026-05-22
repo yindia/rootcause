@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -91,12 +92,13 @@ func Run(ctx context.Context, opts Options) error {
 		return fmt.Errorf("config load failed: %w", err)
 	}
 
-	toolCtx, reg, err := buildRuntime(cfg, errOut)
+	toolCtx, reg, err := buildRuntime(cfg, errOut, nil)
 	if err != nil {
 		return fmt.Errorf("init failed: %w", err)
 	}
+	invoker := toolCtx.Invoker
 	server := sdkmcp.NewServer(&sdkmcp.Implementation{Name: "rootcause", Version: opts.Version}, nil)
-	toolNames, err := rcmcp.RegisterSDKTools(server, reg, toolCtx)
+	toolNames, err := rcmcp.RegisterSDKTools(server, invoker)
 	if err != nil {
 		return fmt.Errorf("tool registration failed: %w", err)
 	}
@@ -108,6 +110,7 @@ func Run(ctx context.Context, opts Options) error {
 	if err != nil {
 		return fmt.Errorf("resource registration failed: %w", err)
 	}
+	_ = reg
 
 	reloadCh := make(chan os.Signal, 1)
 	notifyReload(reloadCh)
@@ -118,14 +121,22 @@ func Run(ctx context.Context, opts Options) error {
 				fmt.Fprintf(errOut, "config reload failed: %v\n", err)
 				continue
 			}
-			toolCtx, reg, err := buildRuntime(cfg, errOut)
+			newCtx, newReg, err := buildRuntime(cfg, errOut, invoker)
 			if err != nil {
 				fmt.Fprintf(errOut, "reload init failed: %v\n", err)
 				continue
 			}
-			if len(toolNames) > 0 {
-				server.RemoveTools(toolNames...)
+			newNames := newReg.Names()
+			toRemove, toAdd := diffToolNames(toolNames, newNames)
+			if len(toRemove) > 0 {
+				server.RemoveTools(toRemove...)
 			}
+			for _, name := range toAdd {
+				if spec, ok := newReg.Get(name); ok {
+					rcmcp.AddSDKTool(server, spec, invoker)
+				}
+			}
+			toolNames = newNames
 			if len(promptNames) > 0 {
 				server.RemovePrompts(promptNames...)
 			}
@@ -135,23 +146,20 @@ func Run(ctx context.Context, opts Options) error {
 			if len(resourceTemplates) > 0 {
 				server.RemoveResourceTemplates(resourceTemplates...)
 			}
-			toolNames, err = rcmcp.RegisterSDKTools(server, reg, toolCtx)
-			if err != nil {
-				fmt.Fprintf(errOut, "tool registration failed: %v\n", err)
-				continue
-			}
-			promptNames, err = rcmcp.RegisterSDKPrompts(server, toolCtx)
+			promptNames, err = rcmcp.RegisterSDKPrompts(server, newCtx)
 			if err != nil {
 				fmt.Fprintf(errOut, "prompt registration failed: %v\n", err)
 				continue
 			}
-			resourceURIs, resourceTemplates, err = rcmcp.RegisterSDKResources(server, toolCtx)
+			resourceURIs, resourceTemplates, err = rcmcp.RegisterSDKResources(server, newCtx)
 			if err != nil {
 				fmt.Fprintf(errOut, "resource registration failed: %v\n", err)
 				continue
 			}
 		}
 	}()
+
+	_ = invoker
 
 	mode := strings.ToLower(strings.TrimSpace(cfg.Transport.Mode))
 	if mode == "" {
@@ -196,7 +204,11 @@ func Run(ctx context.Context, opts Options) error {
 	default:
 		return fmt.Errorf("unsupported transport mode: %s", mode)
 	}
-	httpServer := &http.Server{Addr: addr, Handler: mux}
+	httpServer := &http.Server{
+		Addr:              addr,
+		Handler:           mux,
+		ReadHeaderTimeout: 10 * time.Second,
+	}
 	go func() {
 		<-ctx.Done()
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -204,13 +216,13 @@ func Run(ctx context.Context, opts Options) error {
 		_ = httpServer.Shutdown(shutdownCtx)
 	}()
 	err = httpServer.ListenAndServe()
-	if err != nil && err != http.ErrServerClosed {
+	if err != nil && !errors.Is(err, http.ErrServerClosed) {
 		return fmt.Errorf("server error: %w", err)
 	}
 	return nil
 }
 
-func buildRuntime(cfg config.Config, errOut io.Writer) (rcmcp.ToolContext, *rcmcp.ToolRegistry, error) {
+func buildRuntime(cfg config.Config, errOut io.Writer, existingInvoker *rcmcp.ToolInvoker) (rcmcp.ToolContext, *rcmcp.ToolRegistry, error) {
 	clients, err := kube.NewClients(kube.Config{
 		Kubeconfig: cfg.Kubeconfig,
 		Context:    cfg.Context,
@@ -223,9 +235,8 @@ func buildRuntime(cfg config.Config, errOut io.Writer) (rcmcp.ToolContext, *rcmc
 	renderer := render.NewRenderer()
 	evidenceCollector := evidence.NewCollector(clients)
 	auditLogger := audit.NewLogger(errOut)
-	serviceRegistry := rcmcp.NewServiceRegistry()
 	cacheStore := cache.NewStore()
-	callGraph := rcmcp.NewCallGraph()
+	callGraph := rcmcp.NewCallGraph(cfg.Limits.MaxCallGraph)
 	reg := rcmcp.NewRegistry(&cfg)
 
 	toolCtx := rcmcp.ToolContext{
@@ -236,13 +247,15 @@ func buildRuntime(cfg config.Config, errOut io.Writer) (rcmcp.ToolContext, *rcmc
 		Renderer:  renderer,
 		Redactor:  redactor,
 		Audit:     auditLogger,
-		Services:  serviceRegistry,
 		Cache:     cacheStore,
 		CallGraph: callGraph,
 		Registry:  reg,
 	}
-	toolCtx.Invoker = rcmcp.NewToolInvoker(reg, toolCtx)
-	toolsetCtx := rcmcp.ToolsetContext(toolCtx)
+	if existingInvoker != nil {
+		toolCtx.Invoker = existingInvoker
+	} else {
+		toolCtx.Invoker = rcmcp.NewToolInvoker(reg, toolCtx)
+	}
 
 	for _, id := range effectiveToolsets(cfg.Toolsets) {
 		factory, ok := rcmcp.ToolsetFactoryFor(id)
@@ -250,7 +263,7 @@ func buildRuntime(cfg config.Config, errOut io.Writer) (rcmcp.ToolContext, *rcmc
 			return rcmcp.ToolContext{}, nil, fmt.Errorf("unknown toolset: %s", id)
 		}
 		toolset := factory()
-		if err := toolset.Init(toolsetCtx); err != nil {
+		if err := toolset.Init(toolCtx); err != nil {
 			return rcmcp.ToolContext{}, nil, err
 		}
 		if err := toolset.Register(reg); err != nil {
@@ -261,7 +274,33 @@ func buildRuntime(cfg config.Config, errOut io.Writer) (rcmcp.ToolContext, *rcmc
 		return rcmcp.ToolContext{}, nil, err
 	}
 
+	if existingInvoker != nil {
+		existingInvoker.Swap(reg, toolCtx)
+	}
+
 	return toolCtx, reg, nil
+}
+
+func diffToolNames(oldNames, newNames []string) (toRemove, toAdd []string) {
+	oldSet := make(map[string]struct{}, len(oldNames))
+	for _, n := range oldNames {
+		oldSet[n] = struct{}{}
+	}
+	newSet := make(map[string]struct{}, len(newNames))
+	for _, n := range newNames {
+		newSet[n] = struct{}{}
+	}
+	for _, n := range oldNames {
+		if _, ok := newSet[n]; !ok {
+			toRemove = append(toRemove, n)
+		}
+	}
+	for _, n := range newNames {
+		if _, ok := oldSet[n]; !ok {
+			toAdd = append(toAdd, n)
+		}
+	}
+	return toRemove, toAdd
 }
 
 func effectiveToolsets(toolsets []string) []string {

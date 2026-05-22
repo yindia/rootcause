@@ -129,7 +129,7 @@ func newGraphToolsetRich() *Toolset {
 	client := k8sfake.NewSimpleClientset(service, headless, endpoints, deploy, rs, sts, ds, podAPI, podDB, podAgent, ingress, netpol, nsDefault, nsOther)
 	cfg := config.DefaultConfig()
 	toolset := New()
-	_ = toolset.Init(mcp.ToolsetContext{
+	_ = toolset.Init(mcp.ToolContext{
 		Config:   &cfg,
 		Clients:  &kube.Clients{Typed: client},
 		Policy:   policy.NewAuthorizer(),

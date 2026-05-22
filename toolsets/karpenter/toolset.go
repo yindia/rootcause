@@ -8,7 +8,7 @@ import (
 )
 
 type Toolset struct {
-	ctx mcp.ToolsetContext
+	ctx mcp.ToolContext
 }
 
 func New() *Toolset {
@@ -29,7 +29,7 @@ func (t *Toolset) Version() string {
 	return "0.1.0"
 }
 
-func (t *Toolset) Init(ctx mcp.ToolsetContext) error {
+func (t *Toolset) Init(ctx mcp.ToolContext) error {
 	if ctx.Clients == nil {
 		return errors.New("missing kube clients")
 	}

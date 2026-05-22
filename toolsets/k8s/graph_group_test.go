@@ -38,7 +38,7 @@ func TestAddGroupResourcesClusterScoped(t *testing.T) {
 
 	cfg := config.DefaultConfig()
 	toolset := New()
-	_ = toolset.Init(mcp.ToolsetContext{
+	_ = toolset.Init(mcp.ToolContext{
 		Config:  &cfg,
 		Clients: &kube.Clients{Dynamic: dynamicClient, Discovery: discoveryClient},
 		Policy:  policy.NewAuthorizer(),

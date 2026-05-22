@@ -84,6 +84,7 @@ func (t *Toolset) handleIncidentBundle(ctx context.Context, req mcp.ToolRequest)
 	sections := map[string]any{}
 	errorsOut := make([]map[string]any, 0)
 	executed := make([]map[string]any, 0)
+	aggregated := metadataForNamespace(namespace)
 
 	steps := make([]bundleChainStep, 0)
 	if includeDefault {
@@ -107,10 +108,11 @@ func (t *Toolset) handleIncidentBundle(ctx context.Context, req mcp.ToolRequest)
 			}
 			continue
 		}
-		data, err := t.call(ctx, req.User, step.Tool, step.Args)
+		childResult, err := t.call(ctx, req.User, step.Tool, step.Args)
+		aggregated.Merge(childResult.Metadata)
 		executed = append(executed, map[string]any{"tool": step.Tool, "section": step.Section, "ok": err == nil})
 		if err != nil {
-			errorsOut = append(errorsOut, map[string]any{"tool": step.Tool, "section": step.Section, "error": err.Error(), "data": data})
+			errorsOut = append(errorsOut, map[string]any{"tool": step.Tool, "section": step.Section, "error": err.Error(), "data": childResult.Data})
 			if !continueOnError {
 				break
 			}
@@ -119,7 +121,7 @@ func (t *Toolset) handleIncidentBundle(ctx context.Context, req mcp.ToolRequest)
 		if step.Section == "" {
 			step.Section = step.Tool
 		}
-		sections[step.Section] = data
+		sections[step.Section] = childResult.Data
 	}
 
 	bundle := map[string]any{
@@ -137,11 +139,10 @@ func (t *Toolset) handleIncidentBundle(ctx context.Context, req mcp.ToolRequest)
 	}
 
 	if outputMode == "timeline" {
-		return mcp.ToolResult{Data: buildTimelinePayloadFromBundle(bundle), Metadata: metadataForNamespace(namespace)}, nil
+		return mcp.ToolResult{Data: buildTimelinePayloadFromBundle(bundle), Metadata: aggregated}, nil
 	}
 
-	metadata := metadataForNamespace(namespace)
-	return mcp.ToolResult{Data: bundle, Metadata: metadata}, nil
+	return mcp.ToolResult{Data: bundle, Metadata: aggregated}, nil
 }
 
 func metadataForNamespace(namespace string) mcp.ToolMetadata {
@@ -211,19 +212,17 @@ func parseCustomChain(value any) ([]bundleChainStep, bool) {
 	return steps, true
 }
 
-func (t *Toolset) call(ctx context.Context, user policy.User, tool string, args map[string]any) (any, error) {
+func (t *Toolset) call(ctx context.Context, user policy.User, tool string, args map[string]any) (mcp.ToolResult, error) {
 	if t.ctx.Invoker == nil {
-		return map[string]any{"error": "tool invoker not available"}, fmt.Errorf("tool invoker not available")
+		err := fmt.Errorf("tool invoker not available")
+		return mcp.ToolResult{Data: map[string]any{"error": err.Error()}}, err
 	}
-	result, err := t.ctx.CallTool(ctx, user, tool, args)
-	if err != nil {
-		return result.Data, err
-	}
-	return result.Data, nil
+	return t.ctx.CallTool(ctx, user, tool, args)
 }
 
 func (t *Toolset) handleRCAGenerate(ctx context.Context, req mcp.ToolRequest) (mcp.ToolResult, error) {
 	args := req.Arguments
+	aggregated := mcp.ToolMetadata{}
 	bundleRaw := args["bundle"]
 	if bundleRaw == nil {
 		bundleArgs := map[string]any{}
@@ -233,16 +232,17 @@ func (t *Toolset) handleRCAGenerate(ctx context.Context, req mcp.ToolRequest) (m
 		if keyword := toString(args["keyword"]); keyword != "" {
 			bundleArgs["keyword"] = keyword
 		}
-		bundleData, err := t.call(ctx, req.User, "rootcause.incident_bundle", bundleArgs)
+		bundleResult, err := t.call(ctx, req.User, "rootcause.incident_bundle", bundleArgs)
+		aggregated.Merge(bundleResult.Metadata)
 		if err != nil {
-			return mcp.ToolResult{Data: map[string]any{"error": err.Error(), "bundle": bundleData}}, err
+			return mcp.ToolResult{Data: map[string]any{"error": err.Error(), "bundle": bundleResult.Data}, Metadata: aggregated}, err
 		}
-		bundleRaw = bundleData
+		bundleRaw = bundleResult.Data
 	}
 	bundle, ok := bundleRaw.(map[string]any)
 	if !ok {
 		err := fmt.Errorf("bundle must be an object")
-		return mcp.ToolResult{Data: map[string]any{"error": err.Error()}}, err
+		return mcp.ToolResult{Data: map[string]any{"error": err.Error()}, Metadata: aggregated}, err
 	}
 	sections, _ := bundle["sections"].(map[string]any)
 	errorCount := intOrDefault(bundle["errorCount"], 0)
@@ -285,7 +285,7 @@ func (t *Toolset) handleRCAGenerate(ctx context.Context, req mcp.ToolRequest) (m
 		"recommendations":    recommendations,
 		"confidence":         confidenceLabel(errorCount),
 	}
-	return mcp.ToolResult{Data: map[string]any{"rca": rca, "bundle": bundle}}, nil
+	return mcp.ToolResult{Data: map[string]any{"rca": rca, "bundle": bundle}, Metadata: aggregated}, nil
 }
 
 func confidenceLabel(errorCount int) string {
@@ -300,13 +300,16 @@ func confidenceLabel(errorCount int) string {
 
 func (t *Toolset) handleRemediationPlaybook(ctx context.Context, req mcp.ToolRequest) (mcp.ToolResult, error) {
 	args := req.Arguments
-	bundle, err := t.resolveBundle(ctx, req, args)
+	aggregated := mcp.ToolMetadata{}
+	bundle, bundleMeta, err := t.resolveBundle(ctx, req, args)
+	aggregated.Merge(bundleMeta)
 	if err != nil {
-		return mcp.ToolResult{Data: map[string]any{"error": err.Error()}}, err
+		return mcp.ToolResult{Data: map[string]any{"error": err.Error()}, Metadata: aggregated}, err
 	}
-	rca, err := t.resolveRCA(ctx, req, args, bundle)
+	rca, rcaMeta, err := t.resolveRCA(ctx, req, args, bundle)
+	aggregated.Merge(rcaMeta)
 	if err != nil {
-		return mcp.ToolResult{Data: map[string]any{"error": err.Error(), "bundle": bundle}}, err
+		return mcp.ToolResult{Data: map[string]any{"error": err.Error(), "bundle": bundle}, Metadata: aggregated}, err
 	}
 	maxImmediate := intOrDefault(args["maxImmediateActions"], 3)
 	if maxImmediate <= 0 {
@@ -348,18 +351,21 @@ func (t *Toolset) handleRemediationPlaybook(ctx context.Context, req mcp.ToolReq
 			"Run smoke tests on critical user journeys.",
 		},
 	}
-	return mcp.ToolResult{Data: map[string]any{"playbook": playbook, "bundle": bundle, "rca": rca}}, nil
+	return mcp.ToolResult{Data: map[string]any{"playbook": playbook, "bundle": bundle, "rca": rca}, Metadata: aggregated}, nil
 }
 
 func (t *Toolset) handlePostmortemExport(ctx context.Context, req mcp.ToolRequest) (mcp.ToolResult, error) {
 	args := req.Arguments
-	bundle, err := t.resolveBundle(ctx, req, args)
+	aggregated := mcp.ToolMetadata{}
+	bundle, bundleMeta, err := t.resolveBundle(ctx, req, args)
+	aggregated.Merge(bundleMeta)
 	if err != nil {
-		return mcp.ToolResult{Data: map[string]any{"error": err.Error()}}, err
+		return mcp.ToolResult{Data: map[string]any{"error": err.Error()}, Metadata: aggregated}, err
 	}
-	rca, err := t.resolveRCA(ctx, req, args, bundle)
+	rca, rcaMeta, err := t.resolveRCA(ctx, req, args, bundle)
+	aggregated.Merge(rcaMeta)
 	if err != nil {
-		return mcp.ToolResult{Data: map[string]any{"error": err.Error(), "bundle": bundle}}, err
+		return mcp.ToolResult{Data: map[string]any{"error": err.Error(), "bundle": bundle}, Metadata: aggregated}, err
 	}
 	incidentSummary := strings.TrimSpace(toString(args["incidentSummary"]))
 	if incidentSummary == "" {
@@ -385,12 +391,13 @@ func (t *Toolset) handlePostmortemExport(ctx context.Context, req mcp.ToolReques
 		format = "json"
 	}
 	if format == "markdown" {
-		return mcp.ToolResult{Data: map[string]any{"format": "markdown", "content": renderPostmortemMarkdown(doc), "document": doc}}, nil
+		return mcp.ToolResult{Data: map[string]any{"format": "markdown", "content": renderPostmortemMarkdown(doc), "document": doc}, Metadata: aggregated}, nil
 	}
-	return mcp.ToolResult{Data: map[string]any{"format": "json", "document": doc}}, nil
+	return mcp.ToolResult{Data: map[string]any{"format": "json", "document": doc}, Metadata: aggregated}, nil
 }
 
-func (t *Toolset) resolveBundle(ctx context.Context, req mcp.ToolRequest, args map[string]any) (map[string]any, error) {
+func (t *Toolset) resolveBundle(ctx context.Context, req mcp.ToolRequest, args map[string]any) (map[string]any, mcp.ToolMetadata, error) {
+	meta := mcp.ToolMetadata{}
 	bundleRaw := args["bundle"]
 	if bundleRaw == nil {
 		bundleArgs := map[string]any{}
@@ -400,43 +407,46 @@ func (t *Toolset) resolveBundle(ctx context.Context, req mcp.ToolRequest, args m
 		if keyword := toString(args["keyword"]); keyword != "" {
 			bundleArgs["keyword"] = keyword
 		}
-		bundleData, err := t.call(ctx, req.User, "rootcause.incident_bundle", bundleArgs)
+		bundleResult, err := t.call(ctx, req.User, "rootcause.incident_bundle", bundleArgs)
+		meta.Merge(bundleResult.Metadata)
 		if err != nil {
-			if typed, ok := bundleData.(map[string]any); ok {
-				return typed, err
+			if typed, ok := bundleResult.Data.(map[string]any); ok {
+				return typed, meta, err
 			}
-			return map[string]any{"error": toString(bundleData)}, err
+			return map[string]any{"error": toString(bundleResult.Data)}, meta, err
 		}
-		bundleRaw = bundleData
+		bundleRaw = bundleResult.Data
 	}
 	bundle, ok := bundleRaw.(map[string]any)
 	if !ok {
-		return nil, fmt.Errorf("bundle must be an object")
+		return nil, meta, fmt.Errorf("bundle must be an object")
 	}
-	return bundle, nil
+	return bundle, meta, nil
 }
 
-func (t *Toolset) resolveRCA(ctx context.Context, req mcp.ToolRequest, args map[string]any, bundle map[string]any) (map[string]any, error) {
+func (t *Toolset) resolveRCA(ctx context.Context, req mcp.ToolRequest, args map[string]any, bundle map[string]any) (map[string]any, mcp.ToolMetadata, error) {
+	meta := mcp.ToolMetadata{}
 	rcaRaw := args["rca"]
 	if rcaRaw == nil {
-		rcaData, err := t.call(ctx, req.User, "rootcause.rca_generate", map[string]any{
+		rcaResult, err := t.call(ctx, req.User, "rootcause.rca_generate", map[string]any{
 			"bundle":          bundle,
 			"incidentSummary": args["incidentSummary"],
 		})
+		meta.Merge(rcaResult.Metadata)
 		if err != nil {
-			return nil, err
+			return nil, meta, err
 		}
-		rcaContainer, ok := rcaData.(map[string]any)
+		rcaContainer, ok := rcaResult.Data.(map[string]any)
 		if !ok {
-			return nil, fmt.Errorf("invalid rca_generate response")
+			return nil, meta, fmt.Errorf("invalid rca_generate response")
 		}
 		rcaRaw = rcaContainer["rca"]
 	}
 	rca, ok := rcaRaw.(map[string]any)
 	if !ok {
-		return nil, fmt.Errorf("rca must be an object")
+		return nil, meta, fmt.Errorf("rca must be an object")
 	}
-	return rca, nil
+	return rca, meta, nil
 }
 
 func toStringList(value any) []string {

@@ -10,7 +10,7 @@ import (
 
 func TestRegisterIncludesTerraformTools(t *testing.T) {
 	toolset := New()
-	if err := toolset.Init(mcp.ToolsetContext{}); err != nil {
+	if err := toolset.Init(mcp.ToolContext{}); err != nil {
 		t.Fatalf("init failed: %v", err)
 	}
 	reg := mcp.NewRegistry(nil)
@@ -44,7 +44,7 @@ func TestRegisterIncludesTerraformTools(t *testing.T) {
 
 func TestHandleDebugPlanSummarizesPlan(t *testing.T) {
 	toolset := New()
-	if err := toolset.Init(mcp.ToolsetContext{Renderer: render.NewRenderer()}); err != nil {
+	if err := toolset.Init(mcp.ToolContext{Renderer: render.NewRenderer()}); err != nil {
 		t.Fatalf("init failed: %v", err)
 	}
 	plan := map[string]any{

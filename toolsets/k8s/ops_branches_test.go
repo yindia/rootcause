@@ -53,7 +53,7 @@ func TestHandleEventsAllNamespaces(t *testing.T) {
 	client := fake.NewSimpleClientset(event, ns)
 	cfg := config.DefaultConfig()
 	toolset := New()
-	_ = toolset.Init(mcp.ToolsetContext{
+	_ = toolset.Init(mcp.ToolContext{
 		Config:   &cfg,
 		Clients:  &kube.Clients{Typed: client},
 		Policy:   policy.NewAuthorizer(),
@@ -86,7 +86,7 @@ func TestHandleAPIResourcesLimitAndMatch(t *testing.T) {
 	}
 	toolset := New()
 	cfg := config.DefaultConfig()
-	_ = toolset.Init(mcp.ToolsetContext{
+	_ = toolset.Init(mcp.ToolContext{
 		Config:  &cfg,
 		Clients: &kube.Clients{Discovery: discoveryClient},
 		Policy:  policy.NewAuthorizer(),
@@ -106,7 +106,7 @@ func TestHandleExecReadonlyCommandNotAllowed(t *testing.T) {
 	cfg := config.DefaultConfig()
 	cfg.Exec.AllowedCommands = []string{"ls"}
 	toolset := New()
-	_ = toolset.Init(mcp.ToolsetContext{
+	_ = toolset.Init(mcp.ToolContext{
 		Config:   &cfg,
 		Clients:  &kube.Clients{},
 		Policy:   policy.NewAuthorizer(),

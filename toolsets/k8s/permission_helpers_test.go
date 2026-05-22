@@ -41,7 +41,7 @@ func TestAddAWSRoleEvidence(t *testing.T) {
 	invoker := mcp.NewToolInvoker(reg, ctx)
 	ctx.Invoker = invoker
 	toolset := New()
-	_ = toolset.Init(mcp.ToolsetContext{
+	_ = toolset.Init(mcp.ToolContext{
 		Config:   &cfg,
 		Clients:  &kube.Clients{RestConfig: &rest.Config{Host: "https://cluster.eks.amazonaws.com"}},
 		Registry: reg,

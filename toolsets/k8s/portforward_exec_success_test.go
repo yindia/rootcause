@@ -109,7 +109,7 @@ func TestHandlePortForwardSuccess(t *testing.T) {
 	)
 	cfg := config.DefaultConfig()
 	toolset := New()
-	_ = toolset.Init(mcp.ToolsetContext{
+	_ = toolset.Init(mcp.ToolContext{
 		Config:   &cfg,
 		Clients:  &kube.Clients{Typed: fakeClient, RestConfig: restCfg},
 		Policy:   policy.NewAuthorizer(),
@@ -145,7 +145,7 @@ func TestHandleExecSuccess(t *testing.T) {
 	clientset, restCfg := newRestClientset(t)
 	cfg := config.DefaultConfig()
 	toolset := New()
-	_ = toolset.Init(mcp.ToolsetContext{
+	_ = toolset.Init(mcp.ToolContext{
 		Config:   &cfg,
 		Clients:  &kube.Clients{Typed: clientset, RestConfig: restCfg},
 		Policy:   policy.NewAuthorizer(),
@@ -174,7 +174,7 @@ func TestHandlePortForwardErrors(t *testing.T) {
 	clientset, restCfg := newRestClientset(t)
 	cfg := config.DefaultConfig()
 	toolset := New()
-	_ = toolset.Init(mcp.ToolsetContext{
+	_ = toolset.Init(mcp.ToolContext{
 		Config:   &cfg,
 		Clients:  &kube.Clients{Typed: clientset, RestConfig: restCfg},
 		Policy:   policy.NewAuthorizer(),
@@ -273,7 +273,7 @@ func TestHandlePortForwardServiceSuccess(t *testing.T) {
 	clientset, restCfg := newRestClientset(t)
 	cfg := config.DefaultConfig()
 	toolset := New()
-	_ = toolset.Init(mcp.ToolsetContext{
+	_ = toolset.Init(mcp.ToolContext{
 		Config:   &cfg,
 		Clients:  &kube.Clients{Typed: clientset, RestConfig: restCfg},
 		Policy:   policy.NewAuthorizer(),

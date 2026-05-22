@@ -14,7 +14,7 @@ func TestToolsetClientCaching(t *testing.T) {
 	t.Setenv("AWS_REGION", "us-west-2")
 
 	toolset := New()
-	if err := toolset.Init(mcp.ToolsetContext{Clients: &kube.Clients{}}); err != nil {
+	if err := toolset.Init(mcp.ToolContext{Clients: &kube.Clients{}}); err != nil {
 		t.Fatalf("init toolset: %v", err)
 	}
 

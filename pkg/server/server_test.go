@@ -48,7 +48,7 @@ current-context: test
 	cfg.Kubeconfig = kubeconfigPath
 	cfg.Toolsets = []string{}
 
-	toolCtx, reg, err := buildRuntime(cfg, io.Discard)
+	toolCtx, reg, err := buildRuntime(cfg, io.Discard, nil)
 	if err != nil {
 		t.Fatalf("buildRuntime failed: %v", err)
 	}
@@ -163,7 +163,7 @@ current-context: test
 	cfg.Kubeconfig = kubeconfigPath
 	cfg.Toolsets = []string{"missing"}
 
-	_, _, err := buildRuntime(cfg, io.Discard)
+	_, _, err := buildRuntime(cfg, io.Discard, nil)
 	if err == nil {
 		t.Fatalf("expected error for unknown toolset")
 	}
@@ -407,7 +407,7 @@ func (t errorToolset) Version() string {
 	return "0.0.0"
 }
 
-func (t errorToolset) Init(rcmcp.ToolsetContext) error {
+func (t errorToolset) Init(rcmcp.ToolContext) error {
 	return fmt.Errorf("init error")
 }
 
@@ -427,7 +427,7 @@ func (t registerErrorToolset) Version() string {
 	return "0.0.0"
 }
 
-func (t registerErrorToolset) Init(rcmcp.ToolsetContext) error {
+func (t registerErrorToolset) Init(rcmcp.ToolContext) error {
 	return nil
 }
 
@@ -466,7 +466,7 @@ current-context: test
 	cfg := config.DefaultConfig()
 	cfg.Kubeconfig = kubeconfigPath
 	cfg.Toolsets = []string{id}
-	_, _, err := buildRuntime(cfg, io.Discard)
+	_, _, err := buildRuntime(cfg, io.Discard, nil)
 	if err == nil {
 		t.Fatalf("expected init error")
 	}
@@ -503,7 +503,7 @@ current-context: test
 	cfg := config.DefaultConfig()
 	cfg.Kubeconfig = kubeconfigPath
 	cfg.Toolsets = []string{id}
-	_, _, err := buildRuntime(cfg, io.Discard)
+	_, _, err := buildRuntime(cfg, io.Discard, nil)
 	if err == nil {
 		t.Fatalf("expected register error")
 	}

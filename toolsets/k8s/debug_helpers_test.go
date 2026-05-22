@@ -35,7 +35,7 @@ func TestPodEvents(t *testing.T) {
 	client := k8sfake.NewSimpleClientset(event)
 	cfg := config.DefaultConfig()
 	toolset := New()
-	_ = toolset.Init(mcp.ToolsetContext{
+	_ = toolset.Init(mcp.ToolContext{
 		Config:   &cfg,
 		Clients:  &kube.Clients{Typed: client},
 		Policy:   policy.NewAuthorizer(),

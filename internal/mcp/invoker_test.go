@@ -3,6 +3,7 @@ package mcp
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -583,6 +584,7 @@ func TestInvokerRunsMutationPreflight(t *testing.T) {
 		Name:      "k8s.apply",
 		ToolsetID: "k8s",
 		Safety:    SafetyRiskyWrite,
+		Preflight: &PreflightSpec{GuardTool: "k8s.safe_mutation_preflight", Operation: "apply"},
 		Handler: func(ctx context.Context, req ToolRequest) (ToolResult, error) {
 			t.Fatalf("mutation handler should not run when preflight fails")
 			return ToolResult{Data: map[string]any{"ok": true}}, nil
@@ -603,6 +605,7 @@ func TestInvokerFailsWhenPreflightToolMissing(t *testing.T) {
 		Name:      "k8s.apply",
 		ToolsetID: "k8s",
 		Safety:    SafetyRiskyWrite,
+		Preflight: &PreflightSpec{GuardTool: "k8s.safe_mutation_preflight", Operation: "apply"},
 		Handler: func(ctx context.Context, req ToolRequest) (ToolResult, error) {
 			return ToolResult{Data: map[string]any{"ok": true}}, nil
 		},
@@ -629,6 +632,7 @@ func TestInvokerFailsWhenPreflightResponseMalformed(t *testing.T) {
 		Name:      "k8s.patch",
 		ToolsetID: "k8s",
 		Safety:    SafetyRiskyWrite,
+		Preflight: &PreflightSpec{GuardTool: "k8s.safe_mutation_preflight", Operation: "patch"},
 		Handler: func(ctx context.Context, req ToolRequest) (ToolResult, error) {
 			return ToolResult{Data: map[string]any{"ok": true}}, nil
 		},
@@ -681,5 +685,60 @@ func TestInvokerDeniesClusterScopedForNamespaceRole(t *testing.T) {
 	_, err := invoker.Call(context.Background(), policy.User{Role: policy.RoleNamespace, AllowedNamespaces: []string{"team-a"}}, "cluster.info", map[string]any{})
 	if err == nil {
 		t.Fatalf("expected cluster-scoped policy error")
+	}
+}
+
+func TestInvokerDetectsCallCycle(t *testing.T) {
+	cfg := config.DefaultConfig()
+	reg := NewRegistry(&cfg)
+	var invokerRef *ToolInvoker
+	_ = reg.Add(ToolSpec{
+		Name:      "self.recurse",
+		ToolsetID: "core",
+		Safety:    SafetyReadOnly,
+		Handler: func(ctx context.Context, req ToolRequest) (ToolResult, error) {
+			return invokerRef.Call(ctx, req.User, "self.recurse", nil)
+		},
+	})
+	ctx := ToolContext{Policy: policy.NewAuthorizer(), Config: &cfg, Registry: reg}
+	invokerRef = NewToolInvoker(reg, ctx)
+	_, err := invokerRef.Call(context.Background(), policy.User{Role: policy.RoleCluster}, "self.recurse", nil)
+	if err == nil {
+		t.Fatalf("expected cycle detection error")
+	}
+	if !strings.Contains(err.Error(), "cycle") {
+		t.Fatalf("expected cycle error message, got: %v", err)
+	}
+}
+
+func TestInvokerEnforcesMaxCallDepth(t *testing.T) {
+	cfg := config.DefaultConfig()
+	cfg.Limits.MaxCallDepth = 3
+	reg := NewRegistry(&cfg)
+	var invokerRef *ToolInvoker
+	for i := 0; i < 5; i++ {
+		name := fmt.Sprintf("chain.%d", i)
+		next := fmt.Sprintf("chain.%d", i+1)
+		idx := i
+		_ = reg.Add(ToolSpec{
+			Name:      name,
+			ToolsetID: "core",
+			Safety:    SafetyReadOnly,
+			Handler: func(ctx context.Context, req ToolRequest) (ToolResult, error) {
+				if idx >= 4 {
+					return ToolResult{Data: map[string]any{"ok": true}}, nil
+				}
+				return invokerRef.Call(ctx, req.User, next, nil)
+			},
+		})
+	}
+	ctx := ToolContext{Policy: policy.NewAuthorizer(), Config: &cfg, Registry: reg}
+	invokerRef = NewToolInvoker(reg, ctx)
+	_, err := invokerRef.Call(context.Background(), policy.User{Role: policy.RoleCluster}, "chain.0", nil)
+	if err == nil {
+		t.Fatalf("expected max depth error")
+	}
+	if !strings.Contains(err.Error(), "call depth") {
+		t.Fatalf("expected call depth error, got: %v", err)
 	}
 }

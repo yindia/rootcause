@@ -279,12 +279,13 @@ func (t *Toolset) handleEcosystemDiagnose(ctx context.Context, req mcp.ToolReque
 		if len(findings) >= limit {
 			break
 		}
+		message, _ := warning["message"].(string)
 		findings = append(findings, map[string]any{
 			"resource":  "events",
 			"name":      warning["reason"],
 			"namespace": warning["namespace"],
 			"status":    "warning",
-			"issues":    []string{warning["message"].(string)},
+			"issues":    []string{message},
 		})
 	}
 

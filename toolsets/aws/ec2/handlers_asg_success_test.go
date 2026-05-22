@@ -70,7 +70,7 @@ func TestEC2AutoScalingHandlersWithStubbedClient(t *testing.T) {
 	}
 	client := newASGTestClient(t, responses)
 	svc := &Service{
-		ctx: mcp.ToolsetContext{Redactor: redact.New()},
+		ctx: mcp.ToolContext{Redactor: redact.New()},
 		asgClient: func(context.Context, string) (*autoscaling.Client, string, error) {
 			return client, "us-east-1", nil
 		},

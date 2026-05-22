@@ -197,7 +197,7 @@ func TestHandleRepoListAndUpdate(t *testing.T) {
 	}
 
 	cfg := config.DefaultConfig()
-	toolset := &Toolset{ctx: mcp.ToolsetContext{Config: &cfg}}
+	toolset := &Toolset{ctx: mcp.ToolContext{Config: &cfg}}
 	result, err := toolset.handleRepoList(context.Background(), mcp.ToolRequest{})
 	if err != nil {
 		t.Fatalf("handleRepoList: %v", err)
@@ -227,7 +227,7 @@ func TestHandleRepoAdd(t *testing.T) {
 	t.Setenv("HELM_REPOSITORY_CACHE", filepath.Join(dir, "cache"))
 
 	cfg := config.DefaultConfig()
-	toolset := &Toolset{ctx: mcp.ToolsetContext{Config: &cfg}}
+	toolset := &Toolset{ctx: mcp.ToolContext{Config: &cfg}}
 	_, err := toolset.handleRepoAdd(context.Background(), mcp.ToolRequest{
 		Arguments: map[string]any{"name": "demo", "url": "http://127.0.0.1:1"},
 	})
@@ -243,7 +243,7 @@ func TestHandleListAndStatus(t *testing.T) {
 		Version:   1,
 		Info:      &release.Info{Status: release.StatusDeployed},
 	}
-	toolset := &Toolset{ctx: mcp.ToolsetContext{Policy: policy.NewAuthorizer()}}
+	toolset := &Toolset{ctx: mcp.ToolContext{Policy: policy.NewAuthorizer()}}
 	toolset.actionConfigOverride = func(namespace string) (*action.Configuration, error) {
 		mem := driver.NewMemory()
 		mem.SetNamespace(namespace)
@@ -290,7 +290,7 @@ func TestHandleListAllNamespaces(t *testing.T) {
 		Version:   1,
 		Info:      &release.Info{Status: release.StatusDeployed},
 	}
-	toolset := &Toolset{ctx: mcp.ToolsetContext{Policy: policy.NewAuthorizer()}}
+	toolset := &Toolset{ctx: mcp.ToolContext{Policy: policy.NewAuthorizer()}}
 	toolset.actionConfigOverride = func(namespace string) (*action.Configuration, error) {
 		mem := driver.NewMemory()
 		mem.SetNamespace(namespace)
@@ -346,7 +346,7 @@ func TestHandleInstallUpgradeUninstall(t *testing.T) {
 
 	cfg := config.DefaultConfig()
 	toolset := New()
-	_ = toolset.Init(mcp.ToolsetContext{Config: &cfg, Clients: &kube.Clients{}, Policy: policy.NewAuthorizer()})
+	_ = toolset.Init(mcp.ToolContext{Config: &cfg, Clients: &kube.Clients{}, Policy: policy.NewAuthorizer()})
 	toolset.actionConfigOverride = func(namespace string) (*action.Configuration, error) {
 		return actionCfg, nil
 	}
@@ -442,7 +442,7 @@ func TestHandleTemplateUninstall(t *testing.T) {
 
 	cfg := config.DefaultConfig()
 	toolset := New()
-	_ = toolset.Init(mcp.ToolsetContext{
+	_ = toolset.Init(mcp.ToolContext{
 		Config:   &cfg,
 		Clients:  clients,
 		Policy:   policy.NewAuthorizer(),
@@ -500,7 +500,7 @@ func TestHandleTemplateUninstallSkipsMissingName(t *testing.T) {
 	mapper := meta.NewDefaultRESTMapper([]schema.GroupVersion{{Group: "", Version: "v1"}})
 	cfg := config.DefaultConfig()
 	toolset := New()
-	_ = toolset.Init(mcp.ToolsetContext{
+	_ = toolset.Init(mcp.ToolContext{
 		Config:   &cfg,
 		Clients:  &kube.Clients{Dynamic: dynamicfake.NewSimpleDynamicClient(runtime.NewScheme())},
 		Policy:   policy.NewAuthorizer(),
@@ -584,7 +584,7 @@ func TestHandleTemplateApply(t *testing.T) {
 		},
 	})
 	toolset := New()
-	_ = toolset.Init(mcp.ToolsetContext{
+	_ = toolset.Init(mcp.ToolContext{
 		Config:   &cfg,
 		Clients:  &kube.Clients{},
 		Policy:   policy.NewAuthorizer(),
@@ -646,7 +646,7 @@ func TestActionConfig(t *testing.T) {
 	mapper := meta.NewDefaultRESTMapper([]schema.GroupVersion{{Group: "", Version: "v1"}})
 	cfg := config.DefaultConfig()
 	toolset := New()
-	_ = toolset.Init(mcp.ToolsetContext{
+	_ = toolset.Init(mcp.ToolContext{
 		Config:  &cfg,
 		Clients: &kube.Clients{RestConfig: &rest.Config{Host: "https://example.com"}, Discovery: discoveryClient, Mapper: mapper},
 		Policy:  policy.NewAuthorizer(),

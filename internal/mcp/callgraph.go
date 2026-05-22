@@ -3,12 +3,14 @@ package mcp
 import "sync"
 
 type CallGraph struct {
-	mu    sync.RWMutex
-	edges map[string]map[string]int
+	mu       sync.RWMutex
+	edges    map[string]map[string]int
+	maxNodes int
+	nodes    int
 }
 
-func NewCallGraph() *CallGraph {
-	return &CallGraph{edges: map[string]map[string]int{}}
+func NewCallGraph(maxEdges int) *CallGraph {
+	return &CallGraph{edges: map[string]map[string]int{}, maxNodes: maxEdges}
 }
 
 func (g *CallGraph) Record(from, to string) {
@@ -17,10 +19,18 @@ func (g *CallGraph) Record(from, to string) {
 	}
 	g.mu.Lock()
 	defer g.mu.Unlock()
+	if existing, ok := g.edges[from][to]; ok {
+		g.edges[from][to] = existing + 1
+		return
+	}
+	if g.maxNodes > 0 && g.nodes >= g.maxNodes {
+		return
+	}
 	if _, ok := g.edges[from]; !ok {
 		g.edges[from] = map[string]int{}
 	}
-	g.edges[from][to]++
+	g.edges[from][to] = 1
+	g.nodes++
 }
 
 func (g *CallGraph) Edges() []map[string]any {

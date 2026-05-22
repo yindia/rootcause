@@ -64,7 +64,7 @@ func RegisterSDKResources(server *sdkmcp.Server, ctx ToolContext) ([]string, []s
 }
 
 func resourceHandler(ctx ToolContext) sdkmcp.ResourceHandler {
-	return func(callCtx context.Context, req *sdkmcp.ReadResourceRequest) (*sdkmcp.ReadResourceResult, error) {
+	return func(callCtx context.Context, req *sdkmcp.ReadResourceRequest) (result *sdkmcp.ReadResourceResult, retErr error) {
 		if req == nil || req.Params == nil {
 			return nil, errors.New("invalid resource request")
 		}
@@ -87,6 +87,15 @@ func resourceHandler(ctx ToolContext) sdkmcp.ResourceHandler {
 		if err != nil {
 			return nil, err
 		}
+		callCtx = withTraceID(callCtx, traceIDFromMeta(req.Params.Meta))
+		resourceSpec := ToolSpec{Name: "resource:" + parsed.Scheme, ToolsetID: "resource", Safety: SafetyReadOnly}
+		defer func() {
+			outcome := "success"
+			if retErr != nil {
+				outcome = "error"
+			}
+			logAudit(callCtx, ctx, resourceSpec, user.ID, nil, []string{uri}, outcome, retErr)
+		}()
 
 		switch parsed.Scheme {
 		case "kubeconfig":

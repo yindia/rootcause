@@ -15,7 +15,7 @@ import (
 )
 
 func TestEC2HandlerValidation(t *testing.T) {
-	ctx := mcp.ToolsetContext{Redactor: redact.New()}
+	ctx := mcp.ToolContext{Redactor: redact.New()}
 	ec2Called := false
 	asgCalled := false
 	elbCalled := false

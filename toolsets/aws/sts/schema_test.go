@@ -19,7 +19,7 @@ func TestSTSSchemas(t *testing.T) {
 }
 
 func TestSTSToolSpecs(t *testing.T) {
-	specs := ToolSpecs(mcp.ToolsetContext{}, "aws", nil)
+	specs := ToolSpecs(mcp.ToolContext{}, "aws", nil)
 	if len(specs) == 0 {
 		t.Fatalf("expected sts tool specs")
 	}

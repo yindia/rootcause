@@ -23,7 +23,7 @@ func TestAddAWSNodeClassEvidenceMissingTools(t *testing.T) {
 	cfg := config.DefaultConfig()
 	reg := mcp.NewRegistry(&cfg)
 	toolset := New()
-	ctx := mcp.ToolsetContext{
+	ctx := mcp.ToolContext{
 		Config:   &cfg,
 		Clients:  &kube.Clients{},
 		Registry: reg,

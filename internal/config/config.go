@@ -25,6 +25,14 @@ type Config struct {
 	Transport          TransportConfig `toml:"transport"`
 	Prompts            PromptsConfig   `toml:"prompts"`
 	Skills             SkillsConfig    `toml:"skills"`
+	Limits             LimitsConfig    `toml:"limits"`
+}
+
+type LimitsConfig struct {
+	MaxCallDepth   int  `toml:"max_call_depth"`
+	MaxResultBytes int  `toml:"max_result_bytes"`
+	MaxCallGraph   int  `toml:"max_call_graph"`
+	StrictSchema   bool `toml:"strict_schema"`
 }
 
 type SafetyConfig struct {
@@ -105,6 +113,11 @@ func DefaultConfig() Config {
 		},
 		Skills: SkillsConfig{
 			CustomDirs: []string{"~/.rootcause/skills"},
+		},
+		Limits: LimitsConfig{
+			MaxCallDepth:   8,
+			MaxResultBytes: 8 * 1024 * 1024,
+			MaxCallGraph:   10000,
 		},
 	}
 }
@@ -237,6 +250,18 @@ func merge(dst *Config, src Config) {
 	}
 	if src.Skills.AllowCustomOverrides {
 		dst.Skills.AllowCustomOverrides = src.Skills.AllowCustomOverrides
+	}
+	if src.Limits.MaxCallDepth > 0 {
+		dst.Limits.MaxCallDepth = src.Limits.MaxCallDepth
+	}
+	if src.Limits.MaxResultBytes > 0 {
+		dst.Limits.MaxResultBytes = src.Limits.MaxResultBytes
+	}
+	if src.Limits.MaxCallGraph > 0 {
+		dst.Limits.MaxCallGraph = src.Limits.MaxCallGraph
+	}
+	if src.Limits.StrictSchema {
+		dst.Limits.StrictSchema = src.Limits.StrictSchema
 	}
 }
 

@@ -177,7 +177,7 @@ func TestVPCListPagination(t *testing.T) {
 	}
 	resolverClient := newResolverSequenceClient(t, resolverResponses)
 	svc := &Service{
-		ctx: mcp.ToolsetContext{Redactor: redact.New()},
+		ctx: mcp.ToolContext{Redactor: redact.New()},
 		ec2Client: func(context.Context, string) (*ec2.Client, string, error) {
 			return ec2Client, "us-east-1", nil
 		},

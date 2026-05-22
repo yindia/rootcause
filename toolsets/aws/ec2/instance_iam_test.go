@@ -18,7 +18,7 @@ import (
 )
 
 func TestEC2GetInstanceIAM(t *testing.T) {
-	ctx := mcp.ToolsetContext{Redactor: redact.New()}
+	ctx := mcp.ToolContext{Redactor: redact.New()}
 
 	noIAM := &Service{
 		ctx:       ctx,

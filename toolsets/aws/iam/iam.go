@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"net/url"
 	"sort"
 	"strings"
@@ -18,12 +19,12 @@ import (
 )
 
 type Service struct {
-	ctx       mcp.ToolsetContext
+	ctx       mcp.ToolContext
 	iamClient func(context.Context, string) (*iam.Client, string, error)
 	toolsetID string
 }
 
-func ToolSpecs(ctx mcp.ToolsetContext, toolsetID string, iamClient func(context.Context, string) (*iam.Client, string, error)) []mcp.ToolSpec {
+func ToolSpecs(ctx mcp.ToolContext, toolsetID string, iamClient func(context.Context, string) (*iam.Client, string, error)) []mcp.ToolSpec {
 	svc := &Service{ctx: ctx, iamClient: iamClient, toolsetID: toolsetID}
 	return []mcp.ToolSpec{
 		{
@@ -239,7 +240,10 @@ func (s *Service) handleIAMUpdateRole(ctx context.Context, req mcp.ToolRequest) 
 			input.Description = aws.String(desc)
 		}
 		if maxSession > 0 {
-			input.MaxSessionDuration = aws.Int32(int32(maxSession))
+			if maxSession > math.MaxInt32 {
+				maxSession = math.MaxInt32
+			}
+			input.MaxSessionDuration = aws.Int32(int32(maxSession)) //nolint:gosec // bounded above by MaxInt32 clamp
 		}
 		if _, err := client.UpdateRole(ctx, input); err != nil {
 			return errorResult(err), err

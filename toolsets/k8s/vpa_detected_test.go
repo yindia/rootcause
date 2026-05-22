@@ -86,7 +86,7 @@ func TestHandleVPADebugDetected(t *testing.T) {
 	clients := &kube.Clients{Typed: client, Dynamic: dyn, Discovery: cached, Mapper: mapper, Metrics: metricsClient}
 	cfg := config.DefaultConfig()
 	toolset := New()
-	_ = toolset.Init(mcp.ToolsetContext{Config: &cfg, Clients: clients, Policy: policy.NewAuthorizer(), Renderer: render.NewRenderer(), Redactor: redact.New(), Evidence: evidence.NewCollector(clients)})
+	_ = toolset.Init(mcp.ToolContext{Config: &cfg, Clients: clients, Policy: policy.NewAuthorizer(), Renderer: render.NewRenderer(), Redactor: redact.New(), Evidence: evidence.NewCollector(clients)})
 
 	_, err := toolset.handleVPADebug(context.Background(), mcp.ToolRequest{User: policy.User{Role: policy.RoleCluster}, Arguments: map[string]any{"namespace": namespace}})
 	if err != nil {

@@ -9,27 +9,29 @@ import (
 
 	sdkjsonrpc "github.com/modelcontextprotocol/go-sdk/jsonrpc"
 	sdkmcp "github.com/modelcontextprotocol/go-sdk/mcp"
+	"github.com/xeipuuv/gojsonschema"
 )
 
-func RegisterSDKTools(server *sdkmcp.Server, reg *ToolRegistry, ctx ToolContext) ([]string, error) {
-	if server == nil || reg == nil {
-		return nil, fmt.Errorf("server and registry are required")
+func RegisterSDKTools(server *sdkmcp.Server, inv *ToolInvoker) ([]string, error) {
+	if server == nil || inv == nil {
+		return nil, fmt.Errorf("server and invoker are required")
 	}
-	toolNames := reg.Names()
+	reg, _, ok := inv.Runtime()
+	if !ok || reg == nil {
+		return nil, fmt.Errorf("invoker runtime not initialized")
+	}
 	for _, spec := range reg.Specs() {
-		schema := spec.InputSchema
-		if schema == nil {
-			schema = map[string]any{"type": "object"}
-		}
-		schema = schemaWithGlobalSkillTags(schema)
-		tool := &sdkmcp.Tool{
-			Name:        spec.Name,
-			Description: spec.Description,
-			InputSchema: schema,
-		}
-		server.AddTool(tool, toolHandler(spec, ctx))
+		AddSDKTool(server, spec, inv)
 	}
-	return toolNames, nil
+	return reg.Names(), nil
+}
+
+func AddSDKTool(server *sdkmcp.Server, spec ToolSpec, inv *ToolInvoker) {
+	server.AddTool(&sdkmcp.Tool{
+		Name:        spec.Name,
+		Description: spec.Description,
+		InputSchema: spec.AugmentedSchema(),
+	}, toolHandler(spec, inv))
 }
 
 func schemaWithGlobalSkillTags(schema map[string]any) map[string]any {
@@ -57,7 +59,7 @@ func schemaWithGlobalSkillTags(schema map[string]any) map[string]any {
 	return out
 }
 
-func toolHandler(spec ToolSpec, ctx ToolContext) sdkmcp.ToolHandler {
+func toolHandler(spec ToolSpec, inv *ToolInvoker) sdkmcp.ToolHandler {
 	return func(callCtx context.Context, req *sdkmcp.CallToolRequest) (*sdkmcp.CallToolResult, error) {
 		args := map[string]any{}
 		if req != nil && req.Params != nil && len(req.Params.Arguments) > 0 {
@@ -66,27 +68,61 @@ func toolHandler(spec ToolSpec, ctx ToolContext) sdkmcp.ToolHandler {
 			}
 		}
 
+		_, tctx, ok := inv.Runtime()
+		if !ok {
+			return nil, &sdkjsonrpc.Error{Code: -32003, Message: "tool invoker not initialized"}
+		}
 		apiKey := apiKeyFromRequest(req)
 		traceID := traceIDFromRequest(req)
-		if ctx.Policy == nil {
+		if tctx.Policy == nil {
 			return nil, &sdkjsonrpc.Error{Code: -32001, Message: "policy is not configured"}
 		}
-		user, err := ctx.Policy.Authenticate(apiKey)
+		user, err := tctx.Policy.Authenticate(apiKey)
 		if err != nil {
 			return nil, &sdkjsonrpc.Error{Code: -32001, Message: err.Error()}
 		}
-		if ctx.Invoker == nil {
-			return nil, &sdkjsonrpc.Error{Code: -32003, Message: "tool invoker not available"}
-		}
 
 		callCtx = withTraceID(callCtx, traceID)
-		result, toolErr := ctx.Invoker.Call(callCtx, user, spec.Name, args)
 
-		return buildCallToolResult(callCtx, result, toolErr), nil
+		if tctx.Config != nil && tctx.Config.Limits.StrictSchema {
+			if schema, schemaErr := spec.CompileSchema(); schemaErr == nil && schema != nil {
+				validation, vErr := schema.Validate(gojsonschema.NewGoLoader(args))
+				if vErr != nil || (validation != nil && !validation.Valid()) {
+					detail := schemaValidationErrors(validation, vErr)
+					envelope := BuildErrorEnvelope(fmt.Errorf("invalid arguments: %s", strings.Join(detail, "; ")), map[string]any{"tool": spec.Name, "violations": detail})
+					result := ToolResult{Data: envelope}
+					return buildCallToolResult(callCtx, result, fmt.Errorf("invalid arguments"), tctx.Config.Limits.MaxResultBytes), nil
+				}
+			}
+		}
+
+		result, toolErr := inv.Call(callCtx, user, spec.Name, args)
+
+		maxBytes := 0
+		if tctx.Config != nil {
+			maxBytes = tctx.Config.Limits.MaxResultBytes
+		}
+		return buildCallToolResult(callCtx, result, toolErr, maxBytes), nil
 	}
 }
 
-func buildCallToolResult(callCtx context.Context, result ToolResult, toolErr error) *sdkmcp.CallToolResult {
+func schemaValidationErrors(result *gojsonschema.Result, err error) []string {
+	if err != nil {
+		return []string{err.Error()}
+	}
+	if result == nil {
+		return nil
+	}
+	out := make([]string, 0, len(result.Errors()))
+	for _, e := range result.Errors() {
+		out = append(out, e.String())
+	}
+	return out
+}
+
+const truncationNotice = "\n... [truncated: result exceeds max_result_bytes; full payload available in StructuredContent]"
+
+func buildCallToolResult(callCtx context.Context, result ToolResult, toolErr error, maxBytes int) *sdkmcp.CallToolResult {
 	res := &sdkmcp.CallToolResult{}
 	meta := sdkmcp.Meta{}
 	if traceID, ok := traceIDFromContext(callCtx); ok && traceID != "" {
@@ -109,8 +145,8 @@ func buildCallToolResult(callCtx context.Context, result ToolResult, toolErr err
 	}
 	if toolErr != nil {
 		res.IsError = true
-		if payload, ok := result.Data.(map[string]any); ok && isErrorEnvelope(payload) {
-			res.StructuredContent = payload
+		if IsErrorEnvelope(result.Data) {
+			res.StructuredContent = result.Data
 		} else {
 			res.StructuredContent = BuildErrorEnvelope(toolErr, result.Data)
 		}
@@ -131,9 +167,17 @@ func buildCallToolResult(callCtx context.Context, result ToolResult, toolErr err
 		}
 		if res.Content == nil {
 			dataJSON, err := json.Marshal(result.Data)
-			if err != nil {
+			switch {
+			case err != nil:
 				res.Content = []sdkmcp.Content{&sdkmcp.TextContent{Text: fmt.Sprintf("%v", result.Data)}}
-			} else {
+			case maxBytes > 0 && len(dataJSON) > maxBytes:
+				if res.Meta == nil {
+					res.Meta = sdkmcp.Meta{}
+				}
+				res.Meta["truncated"] = true
+				res.Meta["originalBytes"] = len(dataJSON)
+				res.Content = []sdkmcp.Content{&sdkmcp.TextContent{Text: string(dataJSON[:maxBytes]) + truncationNotice}}
+			default:
 				res.Content = []sdkmcp.Content{&sdkmcp.TextContent{Text: string(dataJSON)}}
 			}
 		}

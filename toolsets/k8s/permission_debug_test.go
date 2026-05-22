@@ -52,7 +52,7 @@ func TestHandlePermissionDebug(t *testing.T) {
 	clients := &kube.Clients{Typed: client}
 	cfg := config.DefaultConfig()
 	toolset := New()
-	_ = toolset.Init(mcp.ToolsetContext{
+	_ = toolset.Init(mcp.ToolContext{
 		Config:   &cfg,
 		Clients:  clients,
 		Policy:   policy.NewAuthorizer(),
@@ -87,7 +87,7 @@ func TestRoleNameFromARN(t *testing.T) {
 func TestAddAWSRoleEvidenceRegistryMissing(t *testing.T) {
 	analysis := render.NewAnalysis()
 	toolset := New()
-	toolset.ctx = mcp.ToolsetContext{}
+	toolset.ctx = mcp.ToolContext{}
 	toolset.addAWSRoleEvidence(context.Background(), mcp.ToolRequest{}, &analysis, "demo", "", "default", "sa")
 	if len(analysis.Evidence) == 0 {
 		t.Fatalf("expected evidence to be added")
@@ -108,7 +108,7 @@ func TestAddAWSRoleEvidenceWithTool(t *testing.T) {
 		},
 	})
 	toolset := New()
-	ctx := mcp.ToolsetContext{
+	ctx := mcp.ToolContext{
 		Config:   &cfg,
 		Clients:  &kube.Clients{RestConfig: &rest.Config{Host: "https://cluster.eks.amazonaws.com"}},
 		Registry: reg,
@@ -142,7 +142,7 @@ func TestAddAWSRoleEvidenceNonAWSCluster(t *testing.T) {
 		},
 	})
 	toolset := New()
-	ctx := mcp.ToolsetContext{
+	ctx := mcp.ToolContext{
 		Config:   &cfg,
 		Clients:  &kube.Clients{RestConfig: &rest.Config{Host: "https://cluster.gke.example.com"}},
 		Registry: reg,
@@ -172,7 +172,7 @@ func TestHandlePermissionDebugNamespaceRoleNoBindings(t *testing.T) {
 	clients := &kube.Clients{Typed: client}
 	cfg := config.DefaultConfig()
 	toolset := New()
-	_ = toolset.Init(mcp.ToolsetContext{
+	_ = toolset.Init(mcp.ToolContext{
 		Config:   &cfg,
 		Clients:  clients,
 		Policy:   policy.NewAuthorizer(),
@@ -215,7 +215,7 @@ func TestPermissionDebugHelpers(t *testing.T) {
 	clients := &kube.Clients{Typed: client}
 	cfg := config.DefaultConfig()
 	toolset := New()
-	_ = toolset.Init(mcp.ToolsetContext{
+	_ = toolset.Init(mcp.ToolContext{
 		Config:   &cfg,
 		Clients:  clients,
 		Policy:   policy.NewAuthorizer(),

@@ -59,7 +59,7 @@ func newToolsetWithDiscovery(t *testing.T, discovery discovery.CachedDiscoveryIn
 	cfg := config.DefaultConfig()
 	clients := &kube.Clients{Typed: typed, Discovery: discovery}
 	toolset := New()
-	if err := toolset.Init(mcp.ToolsetContext{
+	if err := toolset.Init(mcp.ToolContext{
 		Config:   &cfg,
 		Clients:  clients,
 		Policy:   policy.NewAuthorizer(),

@@ -41,7 +41,7 @@ func TestHandlePortForwardContextCancel(t *testing.T) {
 	clientset, cfg := newRestClientset(t)
 	appCfg := config.DefaultConfig()
 	toolset := New()
-	_ = toolset.Init(mcp.ToolsetContext{
+	_ = toolset.Init(mcp.ToolContext{
 		Config:   &appCfg,
 		Clients:  &kube.Clients{Typed: clientset, RestConfig: cfg},
 		Policy:   policy.NewAuthorizer(),
@@ -69,7 +69,7 @@ func TestHandleExecReadonlyExecCommand(t *testing.T) {
 	appCfg := config.DefaultConfig()
 	appCfg.Exec.AllowedCommands = []string{"ls"}
 	toolset := New()
-	_ = toolset.Init(mcp.ToolsetContext{
+	_ = toolset.Init(mcp.ToolContext{
 		Config:   &appCfg,
 		Clients:  &kube.Clients{Typed: clientset, RestConfig: restCfg},
 		Policy:   policy.NewAuthorizer(),

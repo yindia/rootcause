@@ -9,7 +9,7 @@ import (
 )
 
 type Toolset struct {
-	ctx mcp.ToolsetContext
+	ctx mcp.ToolContext
 }
 
 func New() *Toolset {
@@ -30,7 +30,7 @@ func (t *Toolset) Version() string {
 	return "0.1.0"
 }
 
-func (t *Toolset) Init(ctx mcp.ToolsetContext) error {
+func (t *Toolset) Init(ctx mcp.ToolContext) error {
 	if ctx.Clients == nil {
 		return errors.New("missing kube clients")
 	}
@@ -71,6 +71,7 @@ func (t *Toolset) Register(reg mcp.Registry) error {
 			InputSchema: schemaDelete(),
 			Safety:      mcp.SafetyDestructive,
 			Handler:     t.handleDelete,
+			Preflight:   &mcp.PreflightSpec{GuardTool: "k8s.safe_mutation_preflight", Operation: "delete"},
 		},
 		{
 			Name:        "k8s.apply",
@@ -79,6 +80,7 @@ func (t *Toolset) Register(reg mcp.Registry) error {
 			InputSchema: schemaApply(),
 			Safety:      mcp.SafetyRiskyWrite,
 			Handler:     t.handleApply,
+			Preflight:   &mcp.PreflightSpec{GuardTool: "k8s.safe_mutation_preflight", Operation: "apply"},
 		},
 		{
 			Name:        "k8s.patch",
@@ -87,6 +89,7 @@ func (t *Toolset) Register(reg mcp.Registry) error {
 			InputSchema: schemaPatch(),
 			Safety:      mcp.SafetyRiskyWrite,
 			Handler:     t.handlePatch,
+			Preflight:   &mcp.PreflightSpec{GuardTool: "k8s.safe_mutation_preflight", Operation: "patch"},
 		},
 		{
 			Name:        "k8s.logs",
@@ -255,6 +258,7 @@ func (t *Toolset) Register(reg mcp.Registry) error {
 			InputSchema: schemaCreate(),
 			Safety:      mcp.SafetyWrite,
 			Handler:     t.handleCreate,
+			Preflight:   &mcp.PreflightSpec{GuardTool: "k8s.safe_mutation_preflight", Operation: "create"},
 		},
 		{
 			Name:        "k8s.scale",
@@ -263,6 +267,7 @@ func (t *Toolset) Register(reg mcp.Registry) error {
 			InputSchema: schemaScale(),
 			Safety:      mcp.SafetyWrite,
 			Handler:     t.handleScale,
+			Preflight:   &mcp.PreflightSpec{GuardTool: "k8s.safe_mutation_preflight", Operation: "scale"},
 		},
 		{
 			Name:        "k8s.rollout",
@@ -271,6 +276,7 @@ func (t *Toolset) Register(reg mcp.Registry) error {
 			InputSchema: schemaRollout(),
 			Safety:      mcp.SafetyWrite,
 			Handler:     t.handleRollout,
+			Preflight:   &mcp.PreflightSpec{GuardTool: "k8s.safe_mutation_preflight", Operation: "rollout"},
 		},
 		{
 			Name:        "k8s.restart_safety_check",
@@ -343,6 +349,7 @@ func (t *Toolset) Register(reg mcp.Registry) error {
 			InputSchema: schemaCleanupPods(),
 			Safety:      mcp.SafetyDestructive,
 			Handler:     t.handleCleanupPods,
+			Preflight:   &mcp.PreflightSpec{GuardTool: "k8s.safe_mutation_preflight", Operation: "cleanup_pods"},
 		},
 		{
 			Name:        "k8s.node_management",
@@ -351,6 +358,7 @@ func (t *Toolset) Register(reg mcp.Registry) error {
 			InputSchema: schemaNodeManagement(),
 			Safety:      mcp.SafetyDestructive,
 			Handler:     t.handleNodeManagement,
+			Preflight:   &mcp.PreflightSpec{GuardTool: "k8s.safe_mutation_preflight", Operation: "node_management"},
 		},
 		{
 			Name:        "k8s.diagnose",
@@ -476,13 +484,13 @@ func (t *Toolset) Register(reg mcp.Registry) error {
 		{Name: "kubectl_get", Description: "Alias of k8s.get (kubectl get).", ToolsetID: t.ID(), InputSchema: schemaGet(), Safety: mcp.SafetyReadOnly, Handler: t.handleGet},
 		{Name: "kubectl_list", Description: "Alias of k8s.list (kubectl get -l/-A).", ToolsetID: t.ID(), InputSchema: schemaList(), Safety: mcp.SafetyReadOnly, Handler: t.handleList},
 		{Name: "kubectl_describe", Description: "Alias of k8s.describe (kubectl describe).", ToolsetID: t.ID(), InputSchema: schemaDescribe(), Safety: mcp.SafetyReadOnly, Handler: t.handleDescribe},
-		{Name: "kubectl_create", Description: "Alias of k8s.create (kubectl create).", ToolsetID: t.ID(), InputSchema: schemaCreate(), Safety: mcp.SafetyWrite, Handler: t.handleCreate},
-		{Name: "kubectl_apply", Description: "Alias of k8s.apply (kubectl apply).", ToolsetID: t.ID(), InputSchema: schemaApply(), Safety: mcp.SafetyRiskyWrite, Handler: t.handleApply},
-		{Name: "kubectl_delete", Description: "Alias of k8s.delete (kubectl delete).", ToolsetID: t.ID(), InputSchema: schemaDelete(), Safety: mcp.SafetyDestructive, Handler: t.handleDelete},
+		{Name: "kubectl_create", Description: "Alias of k8s.create (kubectl create).", ToolsetID: t.ID(), InputSchema: schemaCreate(), Safety: mcp.SafetyWrite, Handler: t.handleCreate, Preflight: &mcp.PreflightSpec{GuardTool: "k8s.safe_mutation_preflight", Operation: "create"}},
+		{Name: "kubectl_apply", Description: "Alias of k8s.apply (kubectl apply).", ToolsetID: t.ID(), InputSchema: schemaApply(), Safety: mcp.SafetyRiskyWrite, Handler: t.handleApply, Preflight: &mcp.PreflightSpec{GuardTool: "k8s.safe_mutation_preflight", Operation: "apply"}},
+		{Name: "kubectl_delete", Description: "Alias of k8s.delete (kubectl delete).", ToolsetID: t.ID(), InputSchema: schemaDelete(), Safety: mcp.SafetyDestructive, Handler: t.handleDelete, Preflight: &mcp.PreflightSpec{GuardTool: "k8s.safe_mutation_preflight", Operation: "delete"}},
 		{Name: "kubectl_logs", Description: "Alias of k8s.logs (kubectl logs).", ToolsetID: t.ID(), InputSchema: schemaLogs(), Safety: mcp.SafetyReadOnly, Handler: t.handleLogs},
-		{Name: "kubectl_patch", Description: "Alias of k8s.patch (kubectl patch).", ToolsetID: t.ID(), InputSchema: schemaPatch(), Safety: mcp.SafetyRiskyWrite, Handler: t.handlePatch},
-		{Name: "kubectl_scale", Description: "Alias of k8s.scale (kubectl scale).", ToolsetID: t.ID(), InputSchema: schemaScale(), Safety: mcp.SafetyWrite, Handler: t.handleScale},
-		{Name: "kubectl_rollout", Description: "Alias of k8s.rollout (kubectl rollout).", ToolsetID: t.ID(), InputSchema: schemaRollout(), Safety: mcp.SafetyWrite, Handler: t.handleRollout},
+		{Name: "kubectl_patch", Description: "Alias of k8s.patch (kubectl patch).", ToolsetID: t.ID(), InputSchema: schemaPatch(), Safety: mcp.SafetyRiskyWrite, Handler: t.handlePatch, Preflight: &mcp.PreflightSpec{GuardTool: "k8s.safe_mutation_preflight", Operation: "patch"}},
+		{Name: "kubectl_scale", Description: "Alias of k8s.scale (kubectl scale).", ToolsetID: t.ID(), InputSchema: schemaScale(), Safety: mcp.SafetyWrite, Handler: t.handleScale, Preflight: &mcp.PreflightSpec{GuardTool: "k8s.safe_mutation_preflight", Operation: "scale"}},
+		{Name: "kubectl_rollout", Description: "Alias of k8s.rollout (kubectl rollout).", ToolsetID: t.ID(), InputSchema: schemaRollout(), Safety: mcp.SafetyWrite, Handler: t.handleRollout, Preflight: &mcp.PreflightSpec{GuardTool: "k8s.safe_mutation_preflight", Operation: "rollout"}},
 		{Name: "kubectl_context", Description: "Alias of k8s.context (kubectl config).", ToolsetID: t.ID(), InputSchema: schemaContext(), Safety: mcp.SafetyReadOnly, Handler: t.handleContext},
 		{Name: "kubectl_generic", Description: "Alias of k8s.generic for generic kubectl verbs.", ToolsetID: t.ID(), InputSchema: schemaGeneric(), Safety: mcp.SafetyReadOnly, Handler: t.handleGeneric},
 		{Name: "explain_resource", Description: "Alias of k8s.explain_resource.", ToolsetID: t.ID(), InputSchema: schemaExplain(), Safety: mcp.SafetyReadOnly, Handler: t.handleExplain},

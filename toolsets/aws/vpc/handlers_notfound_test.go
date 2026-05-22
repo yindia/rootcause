@@ -42,7 +42,7 @@ func TestVPCGetNotFoundBranches(t *testing.T) {
 	}
 	client := newEC2TestClient(t, responses)
 	svc := &Service{
-		ctx: mcp.ToolsetContext{Redactor: redact.New()},
+		ctx: mcp.ToolContext{Redactor: redact.New()},
 		ec2Client: func(context.Context, string) (*ec2.Client, string, error) {
 			return client, "us-east-1", nil
 		},
@@ -78,7 +78,7 @@ func TestVPCGetNotFoundBranches(t *testing.T) {
 }
 
 func TestVPCResolverClientMissing(t *testing.T) {
-	svc := &Service{ctx: mcp.ToolsetContext{Redactor: redact.New()}}
+	svc := &Service{ctx: mcp.ToolContext{Redactor: redact.New()}}
 	if _, err := svc.handleGetResolverEndpoint(context.Background(), mcp.ToolRequest{Arguments: map[string]any{"resolverEndpointId": "rslvr-endpoint-1"}}); err == nil {
 		t.Fatalf("expected resolver client error")
 	}

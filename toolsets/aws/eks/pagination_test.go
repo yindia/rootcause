@@ -45,7 +45,7 @@ func TestEKSListPagination(t *testing.T) {
 	}
 	client := newEKSSequenceClient(t, responses)
 	svc := &Service{
-		ctx: mcp.ToolsetContext{Redactor: redact.New()},
+		ctx: mcp.ToolContext{Redactor: redact.New()},
 		eksClient: func(context.Context, string) (*eks.Client, string, error) {
 			return client, "us-east-1", nil
 		},

@@ -15,12 +15,12 @@ import (
 )
 
 type Service struct {
-	ctx       mcp.ToolsetContext
+	ctx       mcp.ToolContext
 	ecrClient func(context.Context, string) (*ecr.Client, string, error)
 	toolsetID string
 }
 
-func ToolSpecs(ctx mcp.ToolsetContext, toolsetID string, ecrClient func(context.Context, string) (*ecr.Client, string, error)) []mcp.ToolSpec {
+func ToolSpecs(ctx mcp.ToolContext, toolsetID string, ecrClient func(context.Context, string) (*ecr.Client, string, error)) []mcp.ToolSpec {
 	svc := &Service{ctx: ctx, ecrClient: ecrClient, toolsetID: toolsetID}
 	return []mcp.ToolSpec{
 		{

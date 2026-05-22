@@ -83,7 +83,7 @@ func newIstioToolsetForLists(t *testing.T) *Toolset {
 		Dynamic:   dynamicClient,
 		Discovery: discoveryClient,
 	}
-	_ = toolset.Init(mcp.ToolsetContext{
+	_ = toolset.Init(mcp.ToolContext{
 		Config:   &cfg,
 		Clients:  clients,
 		Policy:   policy.NewAuthorizer(),
@@ -112,7 +112,7 @@ func TestHandleDiscoverNamespacesEmpty(t *testing.T) {
 	}
 	cfg := config.DefaultConfig()
 	toolset := New()
-	_ = toolset.Init(mcp.ToolsetContext{
+	_ = toolset.Init(mcp.ToolContext{
 		Config:   &cfg,
 		Clients:  &kube.Clients{Typed: client, Discovery: discoveryClient},
 		Policy:   policy.NewAuthorizer(),
@@ -208,7 +208,7 @@ func TestHandleServiceMeshHostsNotDetected(t *testing.T) {
 	discoveryClient := &istioDiscoveryResources{groups: &metav1.APIGroupList{}}
 	cfg := config.DefaultConfig()
 	toolset := New()
-	_ = toolset.Init(mcp.ToolsetContext{
+	_ = toolset.Init(mcp.ToolContext{
 		Config:   &cfg,
 		Clients:  &kube.Clients{Typed: client, Discovery: discoveryClient},
 		Policy:   policy.NewAuthorizer(),
@@ -233,7 +233,7 @@ func TestHandleServiceMeshHostsNoHosts(t *testing.T) {
 	}
 	cfg := config.DefaultConfig()
 	toolset := New()
-	_ = toolset.Init(mcp.ToolsetContext{
+	_ = toolset.Init(mcp.ToolContext{
 		Config:   &cfg,
 		Clients:  &kube.Clients{Typed: client, Dynamic: dynamicfake.NewSimpleDynamicClient(runtime.NewScheme()), Discovery: discoveryClient},
 		Policy:   policy.NewAuthorizer(),
@@ -319,7 +319,7 @@ func TestHandleExternalDependencyCheckAllCovered(t *testing.T) {
 		Discovery: discoveryClient,
 		Mapper:    mapper,
 	}
-	_ = toolset.Init(mcp.ToolsetContext{
+	_ = toolset.Init(mcp.ToolContext{
 		Config:   &cfg,
 		Clients:  clients,
 		Policy:   policy.NewAuthorizer(),
@@ -362,7 +362,7 @@ func TestHandleHealthFallback(t *testing.T) {
 	)
 	cfg := config.DefaultConfig()
 	toolset := New()
-	_ = toolset.Init(mcp.ToolsetContext{
+	_ = toolset.Init(mcp.ToolContext{
 		Config:   &cfg,
 		Clients:  &kube.Clients{Typed: client, Discovery: &istioDiscovery{groups: []string{"networking.istio.io"}}},
 		Policy:   policy.NewAuthorizer(),
@@ -451,7 +451,7 @@ func TestHandleExternalDependencyCheckBranchCoverage(t *testing.T) {
 		Discovery: discoveryClient,
 		Mapper:    mapper,
 	}
-	_ = toolset.Init(mcp.ToolsetContext{
+	_ = toolset.Init(mcp.ToolContext{
 		Config:   &cfg,
 		Clients:  clients,
 		Policy:   policy.NewAuthorizer(),
@@ -500,7 +500,7 @@ func TestHandleCRStatusClusterScopeGatewayClass(t *testing.T) {
 		Discovery: discoveryClient,
 		Mapper:    mapper,
 	}
-	_ = toolset.Init(mcp.ToolsetContext{
+	_ = toolset.Init(mcp.ToolContext{
 		Config:   &cfg,
 		Clients:  clients,
 		Policy:   policy.NewAuthorizer(),
@@ -556,7 +556,7 @@ func TestHandleCRStatusClusterScopeList(t *testing.T) {
 		Discovery: discoveryClient,
 		Mapper:    mapper,
 	}
-	_ = toolset.Init(mcp.ToolsetContext{
+	_ = toolset.Init(mcp.ToolContext{
 		Config:   &cfg,
 		Clients:  clients,
 		Policy:   policy.NewAuthorizer(),
@@ -611,7 +611,7 @@ func TestHandleCRStatusListNamespaceWithStatus(t *testing.T) {
 		Discovery: discoveryClient,
 		Mapper:    mapper,
 	}
-	_ = toolset.Init(mcp.ToolsetContext{
+	_ = toolset.Init(mcp.ToolContext{
 		Config:   &cfg,
 		Clients:  clients,
 		Policy:   policy.NewAuthorizer(),
@@ -692,7 +692,7 @@ func TestHandleCRStatusBranches(t *testing.T) {
 		Discovery: discoveryClient,
 		Mapper:    mapper,
 	}
-	_ = toolset.Init(mcp.ToolsetContext{
+	_ = toolset.Init(mcp.ToolContext{
 		Config:   &cfg,
 		Clients:  clients,
 		Policy:   policy.NewAuthorizer(),
@@ -778,7 +778,7 @@ func TestListObjectsAndServicesDenied(t *testing.T) {
 func TestDetectIstioMissingDiscovery(t *testing.T) {
 	cfg := config.DefaultConfig()
 	toolset := New()
-	_ = toolset.Init(mcp.ToolsetContext{
+	_ = toolset.Init(mcp.ToolContext{
 		Config:   &cfg,
 		Clients:  &kube.Clients{Typed: k8sfake.NewSimpleClientset()},
 		Policy:   policy.NewAuthorizer(),

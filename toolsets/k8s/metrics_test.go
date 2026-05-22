@@ -100,7 +100,7 @@ func TestHandleResourceUsageMetrics(t *testing.T) {
 
 	cfg := config.DefaultConfig()
 	toolset := New()
-	_ = toolset.Init(mcp.ToolsetContext{
+	_ = toolset.Init(mcp.ToolContext{
 		Config:   &cfg,
 		Clients:  clients,
 		Policy:   policy.NewAuthorizer(),
@@ -128,7 +128,7 @@ func TestHandleResourceUsageMetrics(t *testing.T) {
 func TestHandleResourceUsageNoMetricsClient(t *testing.T) {
 	cfg := config.DefaultConfig()
 	toolset := New()
-	_ = toolset.Init(mcp.ToolsetContext{
+	_ = toolset.Init(mcp.ToolContext{
 		Config:   &cfg,
 		Clients:  &kube.Clients{},
 		Policy:   policy.NewAuthorizer(),
@@ -147,7 +147,7 @@ func TestHandleResourceUsageNotDetected(t *testing.T) {
 	clients := &kube.Clients{Typed: client, Metrics: metricsClient, Discovery: &vpaDiscovery{}}
 	cfg := config.DefaultConfig()
 	toolset := New()
-	_ = toolset.Init(mcp.ToolsetContext{
+	_ = toolset.Init(mcp.ToolContext{
 		Config:   &cfg,
 		Clients:  clients,
 		Policy:   policy.NewAuthorizer(),
@@ -177,7 +177,7 @@ func TestHandleResourceUsageNamespaceRoleWarning(t *testing.T) {
 	clients := &kube.Clients{Typed: client, Metrics: metricsClient, Discovery: &metricsDiscovery{}}
 	cfg := config.DefaultConfig()
 	toolset := New()
-	_ = toolset.Init(mcp.ToolsetContext{
+	_ = toolset.Init(mcp.ToolContext{
 		Config:   &cfg,
 		Clients:  clients,
 		Policy:   policy.NewAuthorizer(),
@@ -217,7 +217,7 @@ func TestHandleResourceUsageNodeMetricsNotFound(t *testing.T) {
 	clients := &kube.Clients{Typed: client, Metrics: metricsClient, Discovery: &metricsDiscovery{}}
 	cfg := config.DefaultConfig()
 	toolset := New()
-	_ = toolset.Init(mcp.ToolsetContext{
+	_ = toolset.Init(mcp.ToolContext{
 		Config:   &cfg,
 		Clients:  clients,
 		Policy:   policy.NewAuthorizer(),

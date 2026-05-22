@@ -58,3 +58,20 @@ func TestWithToolTimeoutNoop(t *testing.T) {
 		t.Fatalf("expected context")
 	}
 }
+
+func TestWithToolTimeoutCappedByParent(t *testing.T) {
+	cfg := config.DefaultConfig()
+	cfg.Timeouts.PerTool = map[string]int{"child.tool": 60}
+	parent, cancelParent := context.WithTimeout(context.Background(), 200*time.Millisecond)
+	defer cancelParent()
+	child, cancelChild := withToolTimeout(parent, &cfg, ToolSpec{Name: "child.tool"})
+	defer cancelChild()
+	deadline, ok := child.Deadline()
+	if !ok {
+		t.Fatalf("expected child deadline")
+	}
+	remaining := time.Until(deadline)
+	if remaining > 250*time.Millisecond {
+		t.Fatalf("child deadline %s exceeds parent budget", remaining)
+	}
+}

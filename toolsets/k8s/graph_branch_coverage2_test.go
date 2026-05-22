@@ -94,7 +94,7 @@ func TestIstioAuthorizationPolicyPrincipalsInvalid(t *testing.T) {
 func TestAddNetworkPolicyPeerEdgesInvalidSelector(t *testing.T) {
 	cfg := config.DefaultConfig()
 	toolset := New()
-	_ = toolset.Init(mcp.ToolsetContext{Config: &cfg, Clients: &kube.Clients{}, Policy: policy.NewAuthorizer()})
+	_ = toolset.Init(mcp.ToolContext{Config: &cfg, Clients: &kube.Clients{}, Policy: policy.NewAuthorizer()})
 	graph := newGraphBuilder()
 	peer := networkingv1.NetworkPolicyPeer{
 		NamespaceSelector: &metav1.LabelSelector{MatchLabels: map[string]string{"bad key": "value"}},
@@ -109,7 +109,7 @@ func TestAddNetworkPolicyPeerEdgesInvalidSelector(t *testing.T) {
 func TestAddGroupResourcesWarnings(t *testing.T) {
 	cfg := config.DefaultConfig()
 	toolset := New()
-	_ = toolset.Init(mcp.ToolsetContext{
+	_ = toolset.Init(mcp.ToolContext{
 		Config:  &cfg,
 		Clients: &kube.Clients{Discovery: &errorDiscovery{}},
 		Policy:  policy.NewAuthorizer(),
@@ -196,7 +196,7 @@ func TestAddGatewayAndIstioGraphWarnings(t *testing.T) {
 
 	cfg := config.DefaultConfig()
 	toolset := New()
-	_ = toolset.Init(mcp.ToolsetContext{
+	_ = toolset.Init(mcp.ToolContext{
 		Config:  &cfg,
 		Clients: &kube.Clients{Dynamic: dynamicClient, Discovery: discoveryClient, Mapper: mapper},
 		Policy:  policy.NewAuthorizer(),
@@ -229,7 +229,7 @@ func TestAddServiceGraphPodNotFound(t *testing.T) {
 
 	cfg := config.DefaultConfig()
 	toolset := New()
-	_ = toolset.Init(mcp.ToolsetContext{Config: &cfg, Clients: &kube.Clients{}, Policy: policy.NewAuthorizer()})
+	_ = toolset.Init(mcp.ToolContext{Config: &cfg, Clients: &kube.Clients{}, Policy: policy.NewAuthorizer()})
 	graph := newGraphBuilder()
 	if _, err := toolset.addServiceGraph(context.Background(), graph, namespace, "api", cache); err != nil {
 		t.Fatalf("addServiceGraph pod not found: %v", err)
@@ -261,7 +261,7 @@ func TestAddDeploymentAndDaemonSetSelectorErrors(t *testing.T) {
 
 	cfg := config.DefaultConfig()
 	toolset := New()
-	_ = toolset.Init(mcp.ToolsetContext{Config: &cfg, Clients: &kube.Clients{}, Policy: policy.NewAuthorizer()})
+	_ = toolset.Init(mcp.ToolContext{Config: &cfg, Clients: &kube.Clients{}, Policy: policy.NewAuthorizer()})
 	graph := newGraphBuilder()
 
 	if _, err := toolset.addDeploymentGraph(context.Background(), graph, namespace, "api", cache); err == nil {
@@ -277,7 +277,7 @@ func TestGetPodNotFoundCache(t *testing.T) {
 	cache.podsLoaded = true
 	cfg := config.DefaultConfig()
 	toolset := New()
-	_ = toolset.Init(mcp.ToolsetContext{Config: &cfg, Clients: &kube.Clients{}, Policy: policy.NewAuthorizer()})
+	_ = toolset.Init(mcp.ToolContext{Config: &cfg, Clients: &kube.Clients{}, Policy: policy.NewAuthorizer()})
 	if _, err := toolset.getPod(context.Background(), cache, "default", "missing"); err == nil {
 		t.Fatalf("expected getPod not found")
 	}
@@ -292,7 +292,7 @@ func TestAddReplicaSetPodsSelectorError(t *testing.T) {
 	}
 	cfg := config.DefaultConfig()
 	toolset := New()
-	_ = toolset.Init(mcp.ToolsetContext{Config: &cfg, Clients: &kube.Clients{}, Policy: policy.NewAuthorizer()})
+	_ = toolset.Init(mcp.ToolContext{Config: &cfg, Clients: &kube.Clients{}, Policy: policy.NewAuthorizer()})
 	if _, err := toolset.addReplicaSetPods(context.Background(), newGraphBuilder(), "default", rs, newGraphCache()); err == nil {
 		t.Fatalf("expected selector error")
 	}

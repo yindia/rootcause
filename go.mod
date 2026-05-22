@@ -20,6 +20,8 @@ require (
 	github.com/aws/smithy-go v1.24.0
 	github.com/google/gnostic-models v0.6.8
 	github.com/modelcontextprotocol/go-sdk v1.2.0
+	github.com/spf13/cobra v1.7.0
+	golang.org/x/sync v0.3.0
 	helm.sh/helm/v3 v3.13.3
 	k8s.io/api v0.28.4
 	k8s.io/apimachinery v0.28.4
@@ -124,7 +126,6 @@ require (
 	github.com/shopspring/decimal v1.3.1 // indirect
 	github.com/sirupsen/logrus v1.9.3 // indirect
 	github.com/spf13/cast v1.5.0 // indirect
-	github.com/spf13/cobra v1.7.0 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/xeipuuv/gojsonpointer v0.0.0-20190905194746-02993c407bfb // indirect
 	github.com/xeipuuv/gojsonreference v0.0.0-20180127040603-bd5ef7bd5415 // indirect
@@ -137,7 +138,6 @@ require (
 	golang.org/x/crypto v0.16.0 // indirect
 	golang.org/x/net v0.19.0 // indirect
 	golang.org/x/oauth2 v0.30.0 // indirect
-	golang.org/x/sync v0.3.0 // indirect
 	golang.org/x/sys v0.15.0 // indirect
 	golang.org/x/term v0.15.0 // indirect
 	golang.org/x/text v0.14.0 // indirect

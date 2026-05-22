@@ -100,7 +100,7 @@ func TestHandleStatusDetected(t *testing.T) {
 
 	cfg := config.DefaultConfig()
 	toolset := New()
-	_ = toolset.Init(mcp.ToolsetContext{
+	_ = toolset.Init(mcp.ToolContext{
 		Config:   &cfg,
 		Clients:  &kube.Clients{Typed: client, Discovery: &karpenterDiscovery{groups: []string{"karpenter.sh"}}},
 		Policy:   policy.NewAuthorizer(),
@@ -131,7 +131,7 @@ func TestHandleStatusNotDetected(t *testing.T) {
 	client := fake.NewSimpleClientset()
 	cfg := config.DefaultConfig()
 	toolset := New()
-	_ = toolset.Init(mcp.ToolsetContext{
+	_ = toolset.Init(mcp.ToolContext{
 		Config:   &cfg,
 		Clients:  &kube.Clients{Typed: client, Discovery: &karpenterDiscovery{groups: []string{}}},
 		Policy:   policy.NewAuthorizer(),

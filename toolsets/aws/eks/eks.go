@@ -23,7 +23,7 @@ import (
 )
 
 type Service struct {
-	ctx       mcp.ToolsetContext
+	ctx       mcp.ToolContext
 	eksClient func(context.Context, string) (*eks.Client, string, error)
 	ec2Client func(context.Context, string) (*ec2.Client, string, error)
 	asgClient func(context.Context, string) (*autoscaling.Client, string, error)
@@ -34,7 +34,7 @@ type Service struct {
 }
 
 func ToolSpecs(
-	ctx mcp.ToolsetContext,
+	ctx mcp.ToolContext,
 	toolsetID string,
 	eksClient func(context.Context, string) (*eks.Client, string, error),
 	ec2Client func(context.Context, string) (*ec2.Client, string, error),

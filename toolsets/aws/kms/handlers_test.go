@@ -16,7 +16,7 @@ import (
 )
 
 func TestKMSHandlerValidation(t *testing.T) {
-	ctx := mcp.ToolsetContext{Redactor: redact.New()}
+	ctx := mcp.ToolContext{Redactor: redact.New()}
 	called := false
 	svc := &Service{
 		ctx: ctx,
@@ -59,7 +59,7 @@ func TestKMSHandlersWithStubbedClient(t *testing.T) {
 	}
 	client := newKMSTestClient(t, responses)
 	svc := &Service{
-		ctx: mcp.ToolsetContext{Redactor: redact.New()},
+		ctx: mcp.ToolContext{Redactor: redact.New()},
 		kmsClient: func(context.Context, string) (*kms.Client, string, error) {
 			return client, "us-east-1", nil
 		},

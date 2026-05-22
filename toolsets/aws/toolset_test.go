@@ -10,10 +10,10 @@ import (
 
 func TestToolsetInitAndRegister(t *testing.T) {
 	toolset := New()
-	if err := toolset.Init(mcp.ToolsetContext{}); err == nil {
+	if err := toolset.Init(mcp.ToolContext{}); err == nil {
 		t.Fatalf("expected error for missing clients")
 	}
-	ctx := mcp.ToolsetContext{Clients: &kube.Clients{}}
+	ctx := mcp.ToolContext{Clients: &kube.Clients{}}
 	if err := toolset.Init(ctx); err != nil {
 		t.Fatalf("init: %v", err)
 	}
