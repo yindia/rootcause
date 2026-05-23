@@ -395,6 +395,52 @@ func TestHandleIncidentBundleTimelineMode(t *testing.T) {
 	}
 }
 
+func TestDefaultBundleChainGatesGCPOnRegistryAndWorkload(t *testing.T) {
+	cfg := config.DefaultConfig()
+
+	// Without GCP tools: no gcp.* steps even when workload is supplied.
+	regNoGCP := mcp.NewRegistry(&cfg)
+	tsNoGCP := New()
+	if err := tsNoGCP.Init(mcp.ToolContext{Config: &cfg, Registry: regNoGCP, Invoker: mcp.NewToolInvoker(regNoGCP, mcp.ToolContext{Config: &cfg, Registry: regNoGCP})}); err != nil {
+		t.Fatalf("init: %v", err)
+	}
+	steps := tsNoGCP.defaultBundleChain("payments", "", "api", 100, 50, true)
+	if hasStep(steps, "gcp.metrics.workload") || hasStep(steps, "gcp.logs.workload") {
+		t.Fatalf("did not expect gcp.* steps when GCP tools are absent: %#v", steps)
+	}
+
+	// With GCP tools registered AND workload provided: both steps appear.
+	regWithGCP := mcp.NewRegistry(&cfg)
+	addFakeTool(t, regWithGCP, "gcp.metrics.workload")
+	addFakeTool(t, regWithGCP, "gcp.logs.workload")
+	tsGCP := New()
+	if err := tsGCP.Init(mcp.ToolContext{Config: &cfg, Registry: regWithGCP, Invoker: mcp.NewToolInvoker(regWithGCP, mcp.ToolContext{Config: &cfg, Registry: regWithGCP})}); err != nil {
+		t.Fatalf("init: %v", err)
+	}
+	stepsWith := tsGCP.defaultBundleChain("payments", "", "api", 100, 50, true)
+	if !hasStep(stepsWith, "gcp.metrics.workload") {
+		t.Fatalf("expected gcp.metrics.workload step")
+	}
+	if !hasStep(stepsWith, "gcp.logs.workload") {
+		t.Fatalf("expected gcp.logs.workload step")
+	}
+
+	// With GCP tools registered but no workload: gcp.* steps skipped.
+	stepsNoWorkload := tsGCP.defaultBundleChain("payments", "", "", 100, 50, true)
+	if hasStep(stepsNoWorkload, "gcp.metrics.workload") || hasStep(stepsNoWorkload, "gcp.logs.workload") {
+		t.Fatalf("did not expect gcp.* steps when workload is empty: %#v", stepsNoWorkload)
+	}
+}
+
+func hasStep(steps []bundleChainStep, tool string) bool {
+	for _, s := range steps {
+		if s.Tool == tool {
+			return true
+		}
+	}
+	return false
+}
+
 func addFakeTool(t *testing.T, reg mcp.Registry, name string) {
 	t.Helper()
 	err := reg.Add(mcp.ToolSpec{

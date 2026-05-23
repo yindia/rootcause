@@ -66,6 +66,7 @@ func (t *Toolset) handleIncidentBundle(ctx context.Context, req mcp.ToolRequest)
 	args := req.Arguments
 	namespace := toString(args["namespace"])
 	keyword := toString(args["keyword"])
+	workload := toString(args["workload"])
 	eventLimit := intOrDefault(args["eventLimit"], 200)
 	releaseLimit := intOrDefault(args["releaseLimit"], 50)
 	timelineLimit := intOrDefault(args["timelineLimit"], 200)
@@ -88,7 +89,7 @@ func (t *Toolset) handleIncidentBundle(ctx context.Context, req mcp.ToolRequest)
 
 	steps := make([]bundleChainStep, 0)
 	if includeDefault {
-		steps = append(steps, defaultBundleChain(namespace, keyword, eventLimit, releaseLimit, includeHelm)...)
+		steps = append(steps, t.defaultBundleChain(namespace, keyword, workload, eventLimit, releaseLimit, includeHelm)...)
 	}
 	if custom, ok := parseCustomChain(args["toolChain"]); ok {
 		steps = append(steps, custom...)
@@ -153,7 +154,7 @@ func metadataForNamespace(namespace string) mcp.ToolMetadata {
 	return metadata
 }
 
-func defaultBundleChain(namespace, keyword string, eventLimit, releaseLimit int, includeHelm bool) []bundleChainStep {
+func (t *Toolset) defaultBundleChain(namespace, keyword, workload string, eventLimit, releaseLimit int, includeHelm bool) []bundleChainStep {
 	steps := make([]bundleChainStep, 0)
 	overviewArgs := map[string]any{}
 	if namespace != "" {
@@ -182,6 +183,17 @@ func defaultBundleChain(namespace, keyword string, eventLimit, releaseLimit int,
 		}
 		steps = append(steps, bundleChainStep{Tool: "helm.list", Section: "helmReleases", Args: helmArgs})
 	}
+
+	if namespace != "" && workload != "" && t.ctx.Registry != nil {
+		gcpArgs := map[string]any{"namespace": namespace, "workload": workload}
+		if _, ok := t.ctx.Registry.Get("gcp.metrics.workload"); ok {
+			steps = append(steps, bundleChainStep{Tool: "gcp.metrics.workload", Section: "gcpMetrics", Args: cloneMap(gcpArgs)})
+		}
+		if _, ok := t.ctx.Registry.Get("gcp.logs.workload"); ok {
+			steps = append(steps, bundleChainStep{Tool: "gcp.logs.workload", Section: "gcpLogs", Args: cloneMap(gcpArgs)})
+		}
+	}
+
 	return steps
 }
 

@@ -92,7 +92,7 @@ Power users can map these prompts to concrete tools in this README (`Complete Fe
 | Terraform analysis (`terraform.*`) | Modules/providers/resources/data source discovery + plan debugging |
 | Service mesh (`istio.*`, `linkerd.*`) | Proxy/config/status diagnostics, policy/routing visibility, mesh resource health |
 | Cluster autoscaling (`karpenter.*`) | Provisioning, nodepool/nodeclass, interruption and scheduling diagnostics |
-| Cloud context (`aws.*`) | IAM, VPC, EC2, EKS, ECR, STS, KMS diagnostics for cross-layer incident analysis |
+| Cloud context (`aws.*`, `gcp.*`) | AWS: IAM, VPC, EC2, EKS, ECR, STS, KMS diagnostics. GCP: Cloud Monitoring metrics + SLOs, Cloud Logging entries, workload-scoped error timelines for cross-layer incident analysis |
 | Safety and controls | Read-only mode, destructive gating, explicit confirmation, auto preflight checks before mutating K8s operations |
 
 ## Agent Skills
@@ -687,6 +687,7 @@ Enabled by default:
 | `istio` | Service mesh configuration and proxy diagnostics | Istio control plane |
 | `helm` | Chart registry/release workflows and diffing | Helm 3 and cluster access |
 | `aws` | EKS/EC2/VPC/IAM/ECR/KMS/STS diagnostics | AWS credentials |
+| `gcp` | Cloud Monitoring metrics + SLOs, Cloud Logging analysis for GKE workloads | GCP credentials (ADC or `GOOGLE_APPLICATION_CREDENTIALS`); project from `GOOGLE_CLOUD_PROJECT`, `GCP_PROJECT`, or current GKE kubeconfig context |
 | `terraform` | Registry and plan impact analysis | Terraform workflows |
 | `rootcause` | Incident bundles, RCA, timeline, postmortem export | Kubernetes access |
 | `browser` (optional) | Browser automation via agent-browser | `MCP_BROWSER_ENABLED=true` + agent-browser install |
@@ -811,6 +812,20 @@ Prompt templates for common debugging flows are in `prompts/prompt.md`.
 
 - `aws.kms.list_keys`, `aws.kms.list_aliases`, `aws.kms.describe_key`, `aws.kms.get_key_policy`
 
+### GCP Metrics (`gcp.metrics.*`)
+
+- `gcp.metrics.query` — run a raw Cloud Monitoring MQL query and return time series.
+- `gcp.metrics.workload` — CPU, memory, and restart count metrics for a Kubernetes workload over a time window.
+- `gcp.metrics.list_descriptors` — list Cloud Monitoring metric descriptors for discoverability (accepts a Monitoring filter).
+- `gcp.metrics.slo_status` — enumerate Service Monitoring services and their SLOs (goal, period, indicator type).
+
+### GCP Logs (`gcp.logs.*`)
+
+- `gcp.logs.query` — run a raw Cloud Logging filter and return matching entries.
+- `gcp.logs.workload` — recent errors/warnings for a Kubernetes workload over a time window.
+- `gcp.logs.error_timeline` — bucketed error/warning counts for spotting the inflection point.
+- `gcp.logs.correlated_with_bundle` — pull log entries matching a `rootcause.incident_bundle` event window (accepts the bundle object or explicit `startTime`/`endTime`).
+
 ### Terraform (`terraform.*`)
 
 - `terraform.debug_plan`
@@ -890,6 +905,21 @@ If `--config` is not set, RootCause will use the `ROOTCAUSE_CONFIG` environment 
 ## AWS Credentials
 
 The AWS IAM tools use the standard AWS credential chain and region resolution. Set `AWS_REGION` or `AWS_DEFAULT_REGION` (defaults to `us-east-1`), optionally select a profile with `AWS_PROFILE` or `AWS_DEFAULT_PROFILE`, and use any of the normal credential sources (env vars, shared config/credentials files, SSO, or instance metadata).
+
+---
+
+## GCP Credentials
+
+The `gcp.*` tools use Application Default Credentials by default. Either run `gcloud auth application-default login` or set `GOOGLE_APPLICATION_CREDENTIALS` to a service-account key path.
+
+Project ID resolution order:
+
+1. Explicit `projectId` argument on the tool call.
+2. `GOOGLE_CLOUD_PROJECT` env var.
+3. `GCP_PROJECT` env var.
+4. Auto-detect from the current kubeconfig context when it matches the GKE pattern `gke_PROJECT_REGION_CLUSTER` (created by `gcloud container clusters get-credentials`).
+
+When `gcp.metrics.workload` and `gcp.logs.workload` are enabled and `rootcause.incident_bundle` is called with both `namespace` and `workload`, the default bundle chain auto-includes GCP workload metrics and logs alongside the k8s evidence.
 
 ---
 
@@ -984,7 +1014,7 @@ Design focus today:
 
 ## Future Cloud Readiness
 
-AWS IAM support is now available. The toolset system is designed to add deeper cloud integrations (EKS/EC2/VPC/GCP/Azure) without changing the core MCP or shared Kubernetes libraries.
+AWS IAM and GCP Cloud Monitoring/Logging support are now available. The toolset system is designed to add deeper cloud integrations (EKS/EC2/VPC/Azure/extended GCP services) without changing the core MCP or shared Kubernetes libraries.
 
 ---
 

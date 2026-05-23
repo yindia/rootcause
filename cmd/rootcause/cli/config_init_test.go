@@ -49,7 +49,7 @@ func TestInitHomeConfigWritesAllEnabledConfigAndSkillsDir(t *testing.T) {
 	if err != nil {
 		t.Fatalf("decode config: %v", err)
 	}
-	expectedToolsets := []string{"k8s", "linkerd", "karpenter", "istio", "helm", "aws", "terraform", "rootcause"}
+	expectedToolsets := []string{"k8s", "linkerd", "karpenter", "istio", "helm", "aws", "gcp", "terraform", "rootcause"}
 	if strings.Join(cfg.Toolsets, ",") != strings.Join(expectedToolsets, ",") {
 		t.Fatalf("expected all toolsets enabled, got %#v", cfg.Toolsets)
 	}

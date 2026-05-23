@@ -123,6 +123,7 @@ func schemaIncidentBundle() map[string]any {
 		"properties": map[string]any{
 			"namespace":           map[string]any{"type": "string"},
 			"keyword":             map[string]any{"type": "string"},
+			"workload":            map[string]any{"type": "string", "description": "Optional workload name; when provided alongside namespace, the default chain also pulls gcp.metrics.workload and gcp.logs.workload when the GCP toolset is enabled."},
 			"outputMode":          map[string]any{"type": "string", "enum": []string{"bundle", "timeline"}},
 			"eventLimit":          map[string]any{"type": "number"},
 			"releaseLimit":        map[string]any{"type": "number"},

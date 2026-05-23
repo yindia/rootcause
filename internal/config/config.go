@@ -88,7 +88,7 @@ type Overrides struct {
 func DefaultConfig() Config {
 	return Config{
 		Kubeconfig: "",
-		Toolsets:   []string{"k8s", "linkerd", "karpenter", "istio", "helm", "aws", "terraform", "rootcause"},
+		Toolsets:   []string{"k8s", "linkerd", "karpenter", "istio", "helm", "aws", "gcp", "terraform", "rootcause"},
 		LogLevel:   "info",
 		Timeouts: TimeoutConfig{
 			DefaultSeconds: 60,
