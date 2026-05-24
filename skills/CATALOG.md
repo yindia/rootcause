@@ -3,13 +3,19 @@
 Auto-generated from `internal/skills/catalog/manifest.json`.
 Do not edit manually; run `go run ./cmd/cataloggen`.
 
-Schema: `1.0.0` | Catalog version: `2026.03.16` | Total skills: `21`
+Schema: `1.0.0` | Catalog version: `2026.03.16` | Total skills: `22`
 
 ## Browser Automation
 
 | Skill | Description | Source Path |
 |---|---|---|
 | `k8s-browser` | Browser-driven ingress checks, screenshots, and dashboard exports. | `skills/claude/k8s-browser/SKILL.md` |
+
+## Cloud Observability
+
+| Skill | Description | Source Path |
+|---|---|---|
+| `k8s-gcp` | GCP Cloud Monitoring + Cloud Logging triage for K8s workloads shipping telemetry to GCP. | `skills/claude/k8s-gcp/SKILL.md` |
 
 ## Core and Operations
 
