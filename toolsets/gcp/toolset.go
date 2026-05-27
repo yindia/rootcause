@@ -40,9 +40,9 @@ func (t *Toolset) ID() string      { return "gcp" }
 func (t *Toolset) Version() string { return "0.1.0" }
 
 func (t *Toolset) Init(ctx mcp.ToolContext) error {
-	if ctx.Clients == nil {
-		return errors.New("missing kube clients")
-	}
+	// The GCP toolset talks only to GCP APIs; it does not use kube clients, so
+	// it can initialize without a cluster (e.g. an EKS/AKS cluster shipping
+	// telemetry to GCP, or a workstation with no kubeconfig at all).
 	t.ctx = ctx
 	t.cache = sync.Map{}
 	t.sf = singleflight.Group{}

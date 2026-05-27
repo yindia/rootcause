@@ -2,7 +2,6 @@ package aws
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"strings"
 	"sync"
@@ -60,9 +59,8 @@ func (t *Toolset) Version() string {
 }
 
 func (t *Toolset) Init(ctx mcp.ToolContext) error {
-	if ctx.Clients == nil {
-		return errors.New("missing kube clients")
-	}
+	// The AWS toolset talks only to AWS APIs; it does not use kube clients, so
+	// it can initialize without a cluster.
 	t.ctx = ctx
 	t.cache = sync.Map{}
 	t.sf = singleflight.Group{}

@@ -137,24 +137,35 @@ func Run(ctx context.Context, opts Options) error {
 				}
 			}
 			toolNames = newNames
-			if len(promptNames) > 0 {
-				server.RemovePrompts(promptNames...)
+
+			// Prompts: probe the load before removing the live set, so a bad
+			// prompt edit on reload never leaves the server with zero prompts.
+			if _, probeErr := rcmcp.LoadPromptSpecsForCLI(newCtx); probeErr != nil {
+				fmt.Fprintf(errOut, "prompt reload skipped, keeping previous prompts: %v\n", probeErr)
+			} else {
+				if len(promptNames) > 0 {
+					server.RemovePrompts(promptNames...)
+				}
+				if names, perr := rcmcp.RegisterSDKPrompts(server, newCtx); perr != nil {
+					fmt.Fprintf(errOut, "prompt registration failed: %v\n", perr)
+				} else {
+					promptNames = names
+				}
 			}
+
+			// Resources: remove + re-register independently of prompts so a
+			// failure in one surface never wipes the other.
 			if len(resourceURIs) > 0 {
 				server.RemoveResources(resourceURIs...)
 			}
 			if len(resourceTemplates) > 0 {
 				server.RemoveResourceTemplates(resourceTemplates...)
 			}
-			promptNames, err = rcmcp.RegisterSDKPrompts(server, newCtx)
-			if err != nil {
-				fmt.Fprintf(errOut, "prompt registration failed: %v\n", err)
-				continue
-			}
-			resourceURIs, resourceTemplates, err = rcmcp.RegisterSDKResources(server, newCtx)
-			if err != nil {
-				fmt.Fprintf(errOut, "resource registration failed: %v\n", err)
-				continue
+			if uris, tmpls, rerr := rcmcp.RegisterSDKResources(server, newCtx); rerr != nil {
+				fmt.Fprintf(errOut, "resource registration failed: %v\n", rerr)
+				resourceURIs, resourceTemplates = nil, nil
+			} else {
+				resourceURIs, resourceTemplates = uris, tmpls
 			}
 		}
 	}()
@@ -223,12 +234,17 @@ func Run(ctx context.Context, opts Options) error {
 }
 
 func buildRuntime(cfg config.Config, errOut io.Writer, existingInvoker *rcmcp.ToolInvoker) (rcmcp.ToolContext, *rcmcp.ToolRegistry, error) {
+	// A missing/unreachable kubeconfig is non-fatal: cloud-only toolsets (gcp,
+	// aws, terraform) and rootcause can still start. Toolsets that genuinely
+	// need a cluster (k8s, helm, istio, karpenter, linkerd) fail their own Init
+	// with a clear "missing kube clients" error when they're enabled.
 	clients, err := kube.NewClients(kube.Config{
 		Kubeconfig: cfg.Kubeconfig,
 		Context:    cfg.Context,
 	})
 	if err != nil {
-		return rcmcp.ToolContext{}, nil, err
+		fmt.Fprintf(errOut, "rootcause: kubeconfig unavailable, k8s-dependent toolsets will be disabled: %v\n", err)
+		clients = nil
 	}
 	authorizer := policy.NewAuthorizer()
 	redactor := redact.New()

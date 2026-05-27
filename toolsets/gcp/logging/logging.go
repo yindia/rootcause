@@ -136,6 +136,10 @@ func (s *Service) handleErrorTimeline(ctx context.Context, req mcp.ToolRequest) 
 		err := fmt.Errorf("namespace is required")
 		return errorResult(err), err
 	}
+	resourceType := strings.TrimSpace(toString(req.Arguments["resourceType"]))
+	if resourceType == "" {
+		resourceType = "k8s_container"
+	}
 	window := parseDuration(toString(req.Arguments["duration"]), time.Hour)
 	bucketSize := parseDuration(toString(req.Arguments["bucketSize"]), 5*time.Minute)
 	if bucketSize <= 0 {
@@ -147,7 +151,7 @@ func (s *Service) handleErrorTimeline(ctx context.Context, req mcp.ToolRequest) 
 		return errorResult(err), err
 	}
 
-	mql := errorTimelineMQL(namespace, workload, severities, window, bucketSize)
+	mql := errorTimelineMQL(resourceType, namespace, workload, severities, window, bucketSize)
 	series, usedProject, err := s.metricsAPI.RunMQL(ctx, project, mql)
 	if err != nil {
 		return errorResult(err), err
@@ -169,6 +173,7 @@ func (s *Service) handleErrorTimeline(ctx context.Context, req mcp.ToolRequest) 
 		"severity":       severity,
 		"window":         window.String(),
 		"bucketSize":     bucketSize.String(),
+		"resourceType":   resourceType,
 		"source":         "logging.googleapis.com/log_entry_count",
 		"mql":            mql,
 		"buckets":        buckets,
@@ -433,7 +438,9 @@ func scanTimes(value any, observe func(time.Time)) {
 
 // errorTimelineMQL builds the MQL query that produces per-bucket, per-severity
 // log entry counts from the Cloud Monitoring `log_entry_count` metric.
-func errorTimelineMQL(namespace, workload string, severities []string, window, bucketSize time.Duration) string {
+// resourceType selects the monitored resource (default k8s_container); pass e.g.
+// generic_node for self-managed clusters routing logs via the Ops Agent.
+func errorTimelineMQL(resourceType, namespace, workload string, severities []string, window, bucketSize time.Duration) string {
 	filterParts := []string{
 		fmt.Sprintf("resource.namespace_name == '%s'", escape(namespace)),
 	}
@@ -447,13 +454,29 @@ func errorTimelineMQL(namespace, workload string, severities []string, window, b
 	severityFilter := strings.Join(severityClauses, " || ")
 
 	return fmt.Sprintf(
-		"fetch k8s_container::logging.googleapis.com/log_entry_count | filter %s | filter %s | align delta(%s) | every %s | group_by [metric.severity], sum(val()) | within %s",
+		"fetch %s::logging.googleapis.com/log_entry_count | filter %s | filter %s | align delta(%s) | every %s | group_by [metric.severity], sum(val()) | within %s",
+		mqlResourceLiteral(resourceType),
 		strings.Join(filterParts, " && "),
 		severityFilter,
 		monitoring.DurationLiteral(bucketSize),
 		monitoring.DurationLiteral(bucketSize),
 		monitoring.DurationLiteral(window),
 	)
+}
+
+// mqlResourceLiteral defends against MQL injection via the resourceType arg by
+// allowing only the GCP monitored-resource identifier charset.
+func mqlResourceLiteral(resourceType string) string {
+	rt := strings.TrimSpace(resourceType)
+	if rt == "" {
+		return "k8s_container"
+	}
+	for _, r := range rt {
+		if !(r >= 'a' && r <= 'z') && !(r >= 'A' && r <= 'Z') && !(r >= '0' && r <= '9') && r != '_' {
+			return "k8s_container"
+		}
+	}
+	return rt
 }
 
 // severitiesAtOrAbove returns the ordered list of severities at or above min.
@@ -644,9 +667,10 @@ func schemaErrorTimeline() map[string]any {
 			"projectId":  map[string]any{"type": "string", "description": "GCP project ID. Falls back to GOOGLE_CLOUD_PROJECT or GCP_PROJECT env. Observability project is independent of the cluster (EKS/AKS can also ship to GCP), so set it explicitly."},
 			"namespace":  map[string]any{"type": "string", "description": "Kubernetes namespace (required)."},
 			"workload":   map[string]any{"type": "string", "description": "Optional workload name to narrow to a single deployment/statefulset."},
-			"severity":   map[string]any{"type": "string", "description": "Minimum severity (default ERROR). Counts include this severity and all above."},
-			"duration":   map[string]any{"type": "string", "description": "Window duration. Default 1h."},
-			"bucketSize": map[string]any{"type": "string", "description": "Bucket size (e.g. '1m', '5m'). Default 5m."},
+			"severity":     map[string]any{"type": "string", "description": "Minimum severity (default ERROR). Counts include this severity and all above."},
+			"duration":     map[string]any{"type": "string", "description": "Window duration. Default 1h."},
+			"bucketSize":   map[string]any{"type": "string", "description": "Bucket size (e.g. '1m', '5m'). Default 5m."},
+			"resourceType": map[string]any{"type": "string", "description": "Monitored resource type (default k8s_container). Use e.g. generic_node for self-managed clusters routing logs via the Ops Agent."},
 		},
 		"required":             []string{"namespace"},
 		"additionalProperties": true,

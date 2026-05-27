@@ -296,7 +296,7 @@ hidden body`), 0o600)
 	// Unknown extensions are skipped.
 	_ = os.WriteFile(filepath.Join(dir, "notes.txt"), []byte("ignored"), 0o600)
 
-	specs, err := loadPromptSpecsFromDir(dir)
+	specs, _, err := loadPromptSpecsFromDir(dir)
 	if err != nil {
 		t.Fatalf("loadPromptSpecsFromDir: %v", err)
 	}
@@ -306,6 +306,52 @@ hidden body`), 0o600)
 	names := []string{specs[0].Name, specs[1].Name}
 	if names[0] != "a_prompt" || names[1] != "b_prompt" {
 		t.Errorf("unexpected alphabetical ordering: %v", names)
+	}
+}
+
+func TestLoadPromptSpecsFromDirSkipsBadFilesWithWarning(t *testing.T) {
+	dir := t.TempDir()
+	// Valid prompt.
+	_ = os.WriteFile(filepath.Join(dir, "good.md"), []byte("---\nname: good\ndescription: ok\n---\n\nBody.\n"), 0o600)
+	// Malformed: empty body.
+	_ = os.WriteFile(filepath.Join(dir, "empty.md"), []byte("---\nname: empty\ndescription: x\n---\n\n"), 0o600)
+	// Malformed: no front-matter (stray markdown).
+	_ = os.WriteFile(filepath.Join(dir, "README.md"), []byte("# Just notes, not a prompt\n"), 0o600)
+	// Malformed: unterminated front-matter.
+	_ = os.WriteFile(filepath.Join(dir, "broken.md"), []byte("---\nname: broken\n"), 0o600)
+
+	specs, warnings, err := loadPromptSpecsFromDir(dir)
+	if err != nil {
+		t.Fatalf("loadPromptSpecsFromDir must not hard-fail on bad files: %v", err)
+	}
+	if len(specs) != 1 || specs[0].Name != "good" {
+		t.Fatalf("expected only the valid prompt to load, got %+v", specs)
+	}
+	if len(warnings) != 3 {
+		t.Fatalf("expected 3 skip warnings (empty, README, broken), got %d: %v", len(warnings), warnings)
+	}
+}
+
+func TestLoadPromptSpecsFromDirWarnsOnDuplicateName(t *testing.T) {
+	dir := t.TempDir()
+	_ = os.WriteFile(filepath.Join(dir, "a.md"), []byte("---\nname: dup\ndescription: first\n---\n\nA.\n"), 0o600)
+	_ = os.WriteFile(filepath.Join(dir, "b.md"), []byte("---\nname: dup\ndescription: second\n---\n\nB.\n"), 0o600)
+
+	specs, warnings, err := loadPromptSpecsFromDir(dir)
+	if err != nil {
+		t.Fatalf("loadPromptSpecsFromDir: %v", err)
+	}
+	if len(specs) != 1 {
+		t.Fatalf("expected 1 prompt after dedupe, got %d", len(specs))
+	}
+	foundDupWarning := false
+	for _, w := range warnings {
+		if strings.Contains(w, "duplicate prompt name") {
+			foundDupWarning = true
+		}
+	}
+	if !foundDupWarning {
+		t.Errorf("expected a duplicate-name warning, got: %v", warnings)
 	}
 }
 

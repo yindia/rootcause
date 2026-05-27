@@ -531,9 +531,12 @@ func loadPromptSpecs(ctx ToolContext) ([]promptSpec, error) {
 	// Directory scan first (recommended layout, one prompt per file).
 	dir := resolvePromptConfigDir(ctx)
 	if dir != "" {
-		dirSpecs, err := loadPromptSpecsFromDir(dir)
+		dirSpecs, warnings, err := loadPromptSpecsFromDir(dir)
 		if err != nil {
 			return nil, err
+		}
+		for _, w := range warnings {
+			fmt.Fprintf(os.Stderr, "rootcause: prompt load warning: %s\n", w)
 		}
 		for _, spec := range dirSpecs {
 			if _, exists := merged[spec.Name]; !exists {
@@ -604,15 +607,19 @@ func resolvePromptConfigDir(ctx ToolContext) string {
 // determinism). *.md files are parsed as markdown with YAML front-matter (one
 // prompt per file). *.toml files are parsed via the legacy [[prompt]] format.
 // Other files are ignored. Hidden files (leading dot) are skipped.
-func loadPromptSpecsFromDir(dir string) ([]promptSpec, error) {
+// A single malformed file never aborts the load: it is skipped and a warning
+// is returned so the server still boots with the valid prompts. The returned
+// error is non-nil only when the directory itself cannot be read.
+func loadPromptSpecsFromDir(dir string) ([]promptSpec, []string, error) {
 	entries, err := os.ReadDir(dir)
 	if err != nil {
-		return nil, fmt.Errorf("read prompts dir %s: %w", dir, err)
+		return nil, nil, fmt.Errorf("read prompts dir %s: %w", dir, err)
 	}
 	sort.Slice(entries, func(i, j int) bool { return entries[i].Name() < entries[j].Name() })
 
 	merged := map[string]promptSpec{}
 	order := make([]string, 0, len(entries))
+	var warnings []string
 	for _, e := range entries {
 		if e.IsDir() {
 			continue
@@ -627,20 +634,24 @@ func loadPromptSpecsFromDir(dir string) ([]promptSpec, error) {
 		case ".md":
 			spec, err := loadPromptSpecFromMarkdown(full)
 			if err != nil {
-				return nil, err
+				warnings = append(warnings, fmt.Sprintf("skipped prompt file %s: %v", name, err))
+				continue
 			}
 			specs = []promptSpec{spec}
 		case ".toml":
 			loaded, err := loadPromptSpecsFromTOML(full)
 			if err != nil {
-				return nil, err
+				warnings = append(warnings, fmt.Sprintf("skipped prompt file %s: %v", name, err))
+				continue
 			}
 			specs = loaded
 		default:
 			continue
 		}
 		for _, s := range specs {
-			if _, exists := merged[s.Name]; !exists {
+			if _, exists := merged[s.Name]; exists {
+				warnings = append(warnings, fmt.Sprintf("duplicate prompt name %q in %s overrides an earlier definition", s.Name, name))
+			} else {
 				order = append(order, s.Name)
 			}
 			merged[s.Name] = s
@@ -650,7 +661,7 @@ func loadPromptSpecsFromDir(dir string) ([]promptSpec, error) {
 	for _, n := range order {
 		out = append(out, merged[n])
 	}
-	return out, nil
+	return out, warnings, nil
 }
 
 // promptMarkdownFront is the YAML front-matter schema for per-file prompts.
@@ -679,11 +690,15 @@ func loadPromptSpecFromMarkdown(path string) (promptSpec, error) {
 	if err != nil {
 		return promptSpec{}, fmt.Errorf("parse front-matter in %s: %w", path, err)
 	}
+	if len(front) == 0 {
+		// Require YAML front-matter so stray markdown files (READMEs, notes)
+		// dropped into the prompts directory are not silently registered as
+		// prompts.
+		return promptSpec{}, fmt.Errorf("%s has no YAML front-matter; prompt files must start with a `---` block", path)
+	}
 	var meta promptMarkdownFront
-	if len(front) > 0 {
-		if err := yaml.Unmarshal(front, &meta); err != nil {
-			return promptSpec{}, fmt.Errorf("decode front-matter in %s: %w", path, err)
-		}
+	if err := yaml.Unmarshal(front, &meta); err != nil {
+		return promptSpec{}, fmt.Errorf("decode front-matter in %s: %w", path, err)
 	}
 	name := strings.TrimSpace(meta.Name)
 	if name == "" {

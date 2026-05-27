@@ -197,6 +197,24 @@ func TestHandleErrorTimelineUsesMQLAndBuckets(t *testing.T) {
 	}
 }
 
+func TestHandleErrorTimelineHonorsResourceType(t *testing.T) {
+	metrics := &fakeMetricsAPI{project: "obs-proj"}
+	svc := newService(&fakeLoggingAPI{}, metrics)
+	res, err := svc.handleErrorTimeline(context.Background(), mcp.ToolRequest{Arguments: map[string]any{
+		"namespace":    "payments",
+		"resourceType": "generic_node",
+	}})
+	if err != nil {
+		t.Fatalf("handleErrorTimeline: %v", err)
+	}
+	if !strings.Contains(metrics.seenMQL, "fetch generic_node::logging.googleapis.com/log_entry_count") {
+		t.Errorf("expected generic_node in MQL, got: %s", metrics.seenMQL)
+	}
+	if res.Data.(map[string]any)["resourceType"] != "generic_node" {
+		t.Errorf("expected resourceType echoed in output, got %v", res.Data.(map[string]any)["resourceType"])
+	}
+}
+
 func TestHandleErrorTimelinePropagatesMQLError(t *testing.T) {
 	metrics := &fakeMetricsAPI{err: errors.New("permission denied")}
 	svc := newService(&fakeLoggingAPI{}, metrics)

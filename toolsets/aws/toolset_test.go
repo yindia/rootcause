@@ -10,8 +10,9 @@ import (
 
 func TestToolsetInitAndRegister(t *testing.T) {
 	toolset := New()
-	if err := toolset.Init(mcp.ToolContext{}); err == nil {
-		t.Fatalf("expected error for missing clients")
+	// The AWS toolset uses only AWS APIs; it must initialize without kube clients.
+	if err := toolset.Init(mcp.ToolContext{}); err != nil {
+		t.Fatalf("expected AWS toolset to init without kube clients, got: %v", err)
 	}
 	ctx := mcp.ToolContext{Clients: &kube.Clients{}}
 	if err := toolset.Init(ctx); err != nil {

@@ -18,11 +18,16 @@ type ToolDependency struct {
 func RequiredToolDependencies() []ToolDependency {
 	deps := []ToolDependency{
 		{
+			// k8s.* steps are Optional, not Required: the bundle chain calls
+			// them when present and records a per-step error when absent, so
+			// enabling `rootcause` without `k8s` degrades gracefully instead
+			// of aborting server startup.
 			Tool:     "rootcause.incident_bundle",
-			Requires: []string{"k8s.overview", "k8s.events_timeline", "k8s.diagnose"},
-			Optional: []string{"gcp.metrics.workload", "gcp.logs.workload"},
+			Optional: []string{"k8s.overview", "k8s.events_timeline", "k8s.diagnose", "gcp.metrics.workload", "gcp.logs.workload"},
 		},
-		{Tool: "rootcause.change_timeline", Requires: []string{"k8s.events_timeline"}},
+		{Tool: "rootcause.change_timeline", Optional: []string{"k8s.events_timeline"}},
+		// Intra-k8s dependencies stay Required: if k8s.diagnose is registered,
+		// its debug_flow/graph backing tools must be too (same toolset).
 		{Tool: "k8s.diagnose", Requires: []string{"k8s.debug_flow"}},
 		{Tool: "k8s.debug_flow", Requires: []string{"k8s.graph"}},
 		{

@@ -18,10 +18,13 @@ func TestNewToolset(t *testing.T) {
 	}
 }
 
-func TestToolsetInitRequiresClients(t *testing.T) {
+func TestToolsetInitWithoutClients(t *testing.T) {
+	// The GCP toolset uses only GCP APIs, so it must initialize without kube
+	// clients (e.g. an EKS/AKS cluster shipping telemetry to GCP, or a
+	// workstation with no kubeconfig).
 	ts := New()
-	if err := ts.Init(mcp.ToolContext{}); err == nil {
-		t.Fatalf("expected error when ctx.Clients is nil")
+	if err := ts.Init(mcp.ToolContext{}); err != nil {
+		t.Fatalf("expected GCP toolset to init without kube clients, got: %v", err)
 	}
 }
 

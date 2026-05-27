@@ -192,7 +192,7 @@ func TestSeveritiesAtOrAbove(t *testing.T) {
 }
 
 func TestErrorTimelineMQLShape(t *testing.T) {
-	mql := errorTimelineMQL("payments", "api", []string{"ERROR", "CRITICAL"}, time.Hour, 5*time.Minute)
+	mql := errorTimelineMQL("k8s_container", "payments", "api", []string{"ERROR", "CRITICAL"}, time.Hour, 5*time.Minute)
 	for _, must := range []string{
 		"fetch k8s_container::logging.googleapis.com/log_entry_count",
 		"resource.namespace_name == 'payments'",
@@ -209,9 +209,21 @@ func TestErrorTimelineMQLShape(t *testing.T) {
 		}
 	}
 
-	mql = errorTimelineMQL("payments", "", []string{"ERROR"}, 30*time.Minute, time.Minute)
+	mql = errorTimelineMQL("k8s_container", "payments", "", []string{"ERROR"}, 30*time.Minute, time.Minute)
 	if strings.Contains(mql, "pod_name") {
 		t.Errorf("expected no pod_name filter when workload empty: %s", mql)
+	}
+
+	// Custom resource type is honored.
+	mql = errorTimelineMQL("generic_node", "payments", "api", []string{"ERROR"}, time.Hour, time.Minute)
+	if !strings.Contains(mql, "fetch generic_node::logging.googleapis.com/log_entry_count") {
+		t.Errorf("expected generic_node resource in MQL, got: %s", mql)
+	}
+
+	// Injection attempt falls back to the safe default.
+	mql = errorTimelineMQL("k8s_container | delete", "payments", "api", []string{"ERROR"}, time.Hour, time.Minute)
+	if !strings.Contains(mql, "fetch k8s_container::") || strings.Contains(mql, "delete") {
+		t.Errorf("expected injection to fall back to k8s_container, got: %s", mql)
 	}
 }
 
