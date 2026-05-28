@@ -118,6 +118,36 @@ func TestUnifiedSyncRejectsBothPromptsOnlyAndSkillsOnly(t *testing.T) {
 	}
 }
 
+// TestResolveSyncConfigPathChain verifies the same resolution order the
+// server uses: explicit --config, then ROOTCAUSE_CONFIG env, then standard
+// filesystem candidates. Without one of these, sync falls back to env vars
+// and default prompt-search behavior.
+func TestResolveSyncConfigPathChain(t *testing.T) {
+	t.Setenv("ROOTCAUSE_CONFIG", "")
+
+	// 1. Explicit flag wins.
+	if got := resolveSyncConfigPath("/tmp/x.yaml"); got != "/tmp/x.yaml" {
+		t.Errorf("explicit flag should win, got %q", got)
+	}
+
+	// 2. ROOTCAUSE_CONFIG when no flag.
+	t.Setenv("ROOTCAUSE_CONFIG", "/tmp/env.yaml")
+	if got := resolveSyncConfigPath(""); got != "/tmp/env.yaml" {
+		t.Errorf("env should win when no flag, got %q", got)
+	}
+
+	// 3. Falls back to "" (no candidates exist) when neither set.
+	t.Setenv("ROOTCAUSE_CONFIG", "")
+	t.Setenv("HOME", t.TempDir()) // ensures no ~/.rootcause/config.yaml exists
+	if got := resolveSyncConfigPath(""); got != "" {
+		// Could match ./config.yaml in working dir — just assert it doesn't
+		// pick a phantom path.
+		if _, statErr := os.Stat(got); statErr != nil {
+			t.Errorf("resolveSyncConfigPath returned non-existent path %q", got)
+		}
+	}
+}
+
 // TestUnifiedSyncCustomPromptIsIncludedByDefault confirms a user's custom
 // prompt in ~/.rootcause/prompts/ is picked up without --include-custom (the
 // flag is gone; customs are on by default).

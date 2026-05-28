@@ -23,7 +23,7 @@ func RequiredToolDependencies() []ToolDependency {
 			// enabling `rootcause` without `k8s` degrades gracefully instead
 			// of aborting server startup.
 			Tool:     "rootcause.incident_bundle",
-			Optional: []string{"k8s.overview", "k8s.events_timeline", "k8s.diagnose", "gcp.metrics.workload", "gcp.logs.workload"},
+			Optional: []string{"k8s.overview", "k8s.events_timeline", "k8s.diagnose", "observability.metrics.workload", "observability.logs.workload"},
 		},
 		{Tool: "rootcause.change_timeline", Optional: []string{"k8s.events_timeline"}},
 		// Intra-k8s dependencies stay Required: if k8s.diagnose is registered,
@@ -31,7 +31,7 @@ func RequiredToolDependencies() []ToolDependency {
 		{Tool: "k8s.diagnose", Requires: []string{"k8s.debug_flow"}},
 		{Tool: "k8s.debug_flow", Requires: []string{"k8s.graph"}},
 		{
-			Tool:     "gcp.logs.correlated_with_bundle",
+			Tool:     "observability.logs.correlated_with_bundle",
 			Optional: []string{"rootcause.incident_bundle"},
 		},
 	}

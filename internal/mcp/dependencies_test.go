@@ -75,11 +75,11 @@ func TestRequiredToolDependenciesDeclaresGCPOptional(t *testing.T) {
 	if found.Tool == "" {
 		t.Fatalf("expected rootcause.incident_bundle entry")
 	}
-	if !containsString(found.Optional, "gcp.metrics.workload") {
-		t.Errorf("expected gcp.metrics.workload as optional, got %v", found.Optional)
+	if !containsString(found.Optional, "observability.metrics.workload") {
+		t.Errorf("expected observability.metrics.workload as optional, got %v", found.Optional)
 	}
-	if !containsString(found.Optional, "gcp.logs.workload") {
-		t.Errorf("expected gcp.logs.workload as optional, got %v", found.Optional)
+	if !containsString(found.Optional, "observability.logs.workload") {
+		t.Errorf("expected observability.logs.workload as optional, got %v", found.Optional)
 	}
 }
 

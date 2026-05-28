@@ -15,7 +15,7 @@ Schema: `1.0.0` | Catalog version: `2026.03.16` | Total skills: `22`
 
 | Skill | Description | Source Path |
 |---|---|---|
-| `k8s-gcp` | GCP Cloud Monitoring + Cloud Logging triage for K8s workloads shipping telemetry to GCP. | `skills/claude/k8s-gcp/SKILL.md` |
+| `k8s-observability` | Vendor-neutral metrics + logs triage via observability.* tools; the configured backend (GCP today, Prometheus/CloudWatch later) serves the data transparently. | `skills/claude/k8s-observability/SKILL.md` |
 
 ## Core and Operations
 

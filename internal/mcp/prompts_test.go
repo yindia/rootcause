@@ -19,16 +19,16 @@ func TestRenderPromptTemplate(t *testing.T) {
 	}
 }
 
-func TestGCPWorkloadDiagnoseRendering(t *testing.T) {
+func TestObservabilityWorkloadDiagnoseRendering(t *testing.T) {
 	var spec promptSpec
 	for _, p := range builtinPrompts {
-		if p.Name == "gcp_workload_diagnose" {
+		if p.Name == "observability_workload_diagnose" {
 			spec = p
 			break
 		}
 	}
 	if spec.Name == "" {
-		t.Fatalf("expected gcp_workload_diagnose to be defined")
+		t.Fatalf("expected observability_workload_diagnose to be defined")
 	}
 	if len(spec.Arguments) < 2 {
 		t.Fatalf("expected at least namespace + workload args")
@@ -46,12 +46,13 @@ func TestGCPWorkloadDiagnoseRendering(t *testing.T) {
 	text := res.Messages[0].Content.(*sdkmcp.TextContent).Text
 	for _, must := range []string{
 		"payments/checkout-api",
-		"Project: my-obs-proj",
+		"my-obs-proj",
 		"Window: 1h",
 		"rootcause.incident_bundle",
-		"gcp.logs.error_timeline",
-		"gcp.logs.correlated_with_bundle",
-		"gcp.metrics.slo_list",
+		"observability.metrics.workload",
+		"observability.logs.error_timeline",
+		"observability.logs.correlated_with_bundle",
+		"observability.metrics.slo_list",
 	} {
 		if !strings.Contains(text, must) {
 			t.Errorf("rendered prompt missing %q\n--- rendered ---\n%s", must, text)
@@ -96,7 +97,7 @@ func TestRegisterSDKPrompts(t *testing.T) {
 		"istio_mesh_diagnose":       false,
 		"terraform_drift_triage":    false,
 		"aws_eks_operational_check": false,
-		"gcp_workload_diagnose":     false,
+		"observability_workload_diagnose":     false,
 	}
 	for _, name := range names {
 		if _, ok := required[name]; ok {
@@ -110,26 +111,25 @@ func TestRegisterSDKPrompts(t *testing.T) {
 	}
 }
 
-func TestLoadPromptSpecsFromTOML(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "prompts.toml")
+func TestLoadPromptSpecsFromYAML(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "prompts.yaml")
 	content := `
-[[prompt]]
-name = "custom_incident"
-title = "Custom Incident"
-description = "Detailed incident flow"
-template = "Investigate {{service|payments}}"
-
-  [[prompt.arguments]]
-  name = "service"
-  description = "Service name"
-  required = false
+prompts:
+  - name: custom_incident
+    title: Custom Incident
+    description: Detailed incident flow
+    template: "Investigate {{service|payments}}"
+    arguments:
+      - name: service
+        description: Service name
+        required: false
 `
 	if err := os.WriteFile(path, []byte(content), 0600); err != nil {
 		t.Fatalf("write prompt config: %v", err)
 	}
-	specs, err := loadPromptSpecsFromTOML(path)
+	specs, err := loadPromptSpecsFromYAML(path)
 	if err != nil {
-		t.Fatalf("loadPromptSpecsFromTOML: %v", err)
+		t.Fatalf("loadPromptSpecsFromYAML: %v", err)
 	}
 	if len(specs) != 1 {
 		t.Fatalf("expected one prompt, got %d", len(specs))
@@ -279,13 +279,13 @@ Body of a.
 `), 0o600); err != nil {
 		t.Fatalf("write a.md: %v", err)
 	}
-	if err := os.WriteFile(filepath.Join(dir, "b.toml"), []byte(`
-[[prompt]]
-name = "b_prompt"
-description = "beta"
-template = "Body of b."
+	if err := os.WriteFile(filepath.Join(dir, "b.yaml"), []byte(`
+prompts:
+  - name: b_prompt
+    description: beta
+    template: "Body of b."
 `), 0o600); err != nil {
-		t.Fatalf("write b.toml: %v", err)
+		t.Fatalf("write b.yaml: %v", err)
 	}
 	// Files starting with dot are skipped.
 	_ = os.WriteFile(filepath.Join(dir, ".hidden.md"), []byte(`---
@@ -306,6 +306,46 @@ hidden body`), 0o600)
 	names := []string{specs[0].Name, specs[1].Name}
 	if names[0] != "a_prompt" || names[1] != "b_prompt" {
 		t.Errorf("unexpected alphabetical ordering: %v", names)
+	}
+}
+
+func TestValidatePromptTokens(t *testing.T) {
+	// Undeclared {{foo}} token plus unused declared "bar".
+	spec := promptSpec{
+		Name: "demo",
+		Arguments: []sdkmcp.PromptArgument{
+			{Name: "bar", Required: false},
+		},
+		Template: "Hello {{foo}}, world.",
+	}
+	warnings := validatePromptTokens(spec)
+	if len(warnings) != 2 {
+		t.Fatalf("expected 2 warnings (undeclared foo, unused bar), got %v", warnings)
+	}
+	wantSubstrings := []string{`undeclared argument "foo"`, `never references it`}
+	for _, want := range wantSubstrings {
+		found := false
+		for _, w := range warnings {
+			if strings.Contains(w, want) {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Errorf("expected warning containing %q, got %v", want, warnings)
+		}
+	}
+
+	// All matched → no warnings.
+	clean := promptSpec{
+		Name: "ok",
+		Arguments: []sdkmcp.PromptArgument{
+			{Name: "namespace", Required: true},
+		},
+		Template: "Look at {{namespace|default}}.",
+	}
+	if w := validatePromptTokens(clean); len(w) != 0 {
+		t.Errorf("expected no warnings for well-formed prompt, got %v", w)
 	}
 }
 
@@ -370,12 +410,12 @@ Body.
 `), 0o600); err != nil {
 		t.Fatalf("write dir prompt: %v", err)
 	}
-	legacy := filepath.Join(dir, "legacy.toml")
+	legacy := filepath.Join(dir, "legacy.yaml")
 	if err := os.WriteFile(legacy, []byte(`
-[[prompt]]
-name = "from_legacy"
-description = "loaded from legacy file"
-template = "Hello"
+prompts:
+  - name: from_legacy
+    description: loaded from legacy file
+    template: Hello
 `), 0o600); err != nil {
 		t.Fatalf("write legacy file: %v", err)
 	}
@@ -405,25 +445,24 @@ template = "Hello"
 	}
 }
 
-func TestLoadPromptSpecsFromTOMLLegacyArgumentKey(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "prompts.toml")
+func TestLoadPromptSpecsFromYAMLArgumentsKey(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "prompts.yaml")
 	content := `
-[[prompt]]
-name = "legacy_prompt"
-description = "Legacy argument key"
-template = "Investigate {{service|payments}}"
-
-  [[prompt.argument]]
-  name = "service"
-  description = "Service name"
-  required = false
+prompts:
+  - name: legacy_prompt
+    description: Argument list
+    template: "Investigate {{service|payments}}"
+    arguments:
+      - name: service
+        description: Service name
+        required: false
 `
 	if err := os.WriteFile(path, []byte(content), 0600); err != nil {
 		t.Fatalf("write prompt config: %v", err)
 	}
-	specs, err := loadPromptSpecsFromTOML(path)
+	specs, err := loadPromptSpecsFromYAML(path)
 	if err != nil {
-		t.Fatalf("loadPromptSpecsFromTOML: %v", err)
+		t.Fatalf("loadPromptSpecsFromYAML: %v", err)
 	}
 	if len(specs) != 1 {
 		t.Fatalf("expected one prompt, got %d", len(specs))
@@ -434,12 +473,12 @@ template = "Investigate {{service|payments}}"
 }
 
 func TestLoadPromptSpecs_CustomOverridesBuiltin(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "prompts.toml")
+	path := filepath.Join(t.TempDir(), "prompts.yaml")
 	content := `
-[[prompt]]
-name = "security_audit"
-description = "Custom security workflow"
-template = "Custom security audit for {{namespace|team-a}}"
+prompts:
+  - name: security_audit
+    description: Custom security workflow
+    template: "Custom security audit for {{namespace|team-a}}"
 `
 	if err := os.WriteFile(path, []byte(content), 0600); err != nil {
 		t.Fatalf("write prompt config: %v", err)

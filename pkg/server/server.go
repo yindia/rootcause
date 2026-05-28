@@ -102,13 +102,19 @@ func Run(ctx context.Context, opts Options) error {
 	if err != nil {
 		return fmt.Errorf("tool registration failed: %w", err)
 	}
+	// Prompt and resource registration failures are non-fatal — they're often
+	// caused by user-edited files (custom prompts) or cluster-state probes
+	// (resources) that shouldn't prevent the server from serving its tools.
+	// Matches the (newly) lenient reload behavior in the goroutine below.
 	promptNames, err := rcmcp.RegisterSDKPrompts(server, toolCtx)
 	if err != nil {
-		return fmt.Errorf("prompt registration failed: %w", err)
+		fmt.Fprintf(errOut, "rootcause: prompt registration failed at startup, continuing without prompts: %v\n", err)
+		promptNames = nil
 	}
 	resourceURIs, resourceTemplates, err := rcmcp.RegisterSDKResources(server, toolCtx)
 	if err != nil {
-		return fmt.Errorf("resource registration failed: %w", err)
+		fmt.Fprintf(errOut, "rootcause: resource registration failed at startup, continuing without resources: %v\n", err)
+		resourceURIs, resourceTemplates = nil, nil
 	}
 	_ = reg
 

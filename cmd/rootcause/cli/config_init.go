@@ -1,19 +1,18 @@
 package cli
 
 import (
-	"bytes"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
 
-	"github.com/BurntSushi/toml"
 	"github.com/spf13/cobra"
+	"gopkg.in/yaml.v3"
 
 	rcconfig "rootcause/internal/config"
 )
 
-const defaultConfigFileName = "config.toml"
+const defaultConfigFileName = "config.yaml"
 
 func newInitConfigCmd(stderr io.Writer) *cobra.Command {
 	var overwrite bool
@@ -78,6 +77,7 @@ func initHomeConfig(path string, overwrite bool) (string, error) {
 	cfg.ReadOnly = false
 	cfg.DisableDestructive = false
 	cfg.Skills.CustomDirs = []string{"~/.rootcause/skills"}
+	cfg.Prompts.Dir = "~/.rootcause/prompts"
 	data, err := encodeConfig(cfg)
 	if err != nil {
 		return "", err
@@ -90,14 +90,18 @@ func initHomeConfig(path string, overwrite bool) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("create custom skills directory: %w", err)
 	}
+	err = os.MkdirAll(filepath.Join(filepath.Dir(path), "prompts"), 0o755)
+	if err != nil {
+		return "", fmt.Errorf("create custom prompts directory: %w", err)
+	}
 	return path, nil
 }
 
 func encodeConfig(cfg rcconfig.Config) ([]byte, error) {
-	var buf bytes.Buffer
-	err := toml.NewEncoder(&buf).Encode(cfg)
+	out, err := yaml.Marshal(cfg)
 	if err != nil {
 		return nil, fmt.Errorf("encode config: %w", err)
 	}
-	return buf.Bytes(), nil
+	header := []byte("# RootCause configuration. Edit and reload (or restart the MCP server).\n# See README \"Config and Flags\" + \"GCP/AWS Credentials\" sections for details.\n\n")
+	return append(header, out...), nil
 }

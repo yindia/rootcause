@@ -188,12 +188,12 @@ func (t *Toolset) defaultBundleChain(namespace, keyword, workload string, eventL
 	}
 
 	if namespace != "" && workload != "" && t.ctx.Registry != nil {
-		gcpArgs := map[string]any{"namespace": namespace, "workload": workload}
-		if _, ok := t.ctx.Registry.Get("gcp.metrics.workload"); ok {
-			steps = append(steps, bundleChainStep{Tool: "gcp.metrics.workload", Section: "gcpMetrics", Args: cloneMap(gcpArgs)})
+		obsArgs := map[string]any{"namespace": namespace, "workload": workload}
+		if _, ok := t.ctx.Registry.Get("observability.metrics.workload"); ok {
+			steps = append(steps, bundleChainStep{Tool: "observability.metrics.workload", Section: "observabilityMetrics", Args: cloneMap(obsArgs)})
 		}
-		if _, ok := t.ctx.Registry.Get("gcp.logs.workload"); ok {
-			steps = append(steps, bundleChainStep{Tool: "gcp.logs.workload", Section: "gcpLogs", Args: cloneMap(gcpArgs)})
+		if _, ok := t.ctx.Registry.Get("observability.logs.workload"); ok {
+			steps = append(steps, bundleChainStep{Tool: "observability.logs.workload", Section: "observabilityLogs", Args: cloneMap(obsArgs)})
 		}
 	}
 

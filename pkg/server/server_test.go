@@ -114,8 +114,8 @@ current-context: test
 	if err := os.WriteFile(kubeconfigPath, []byte(kubeconfig), 0600); err != nil {
 		t.Fatalf("write kubeconfig: %v", err)
 	}
-	configPath := filepath.Join(dir, "config.toml")
-	if err := os.WriteFile(configPath, []byte(`toolsets = ["k8s"]`), 0600); err != nil {
+	configPath := filepath.Join(dir, "config.yaml")
+	if err := os.WriteFile(configPath, []byte(`toolsets: ["k8s"]`), 0600); err != nil {
 		t.Fatalf("write config: %v", err)
 	}
 
@@ -172,7 +172,7 @@ current-context: test
 func TestRunConfigLoadError(t *testing.T) {
 	t.Setenv("ROOTCAUSE_CONFIG", "")
 	err := Run(context.Background(), Options{
-		ConfigPath: filepath.Join(t.TempDir(), "missing.toml"),
+		ConfigPath: filepath.Join(t.TempDir(), "missing.yaml"),
 		Version:    "test",
 		Stderr:     io.Discard,
 		Transport:  fakeTransport{},
@@ -206,8 +206,8 @@ current-context: test
 	if err := os.WriteFile(kubeconfigPath, []byte(kubeconfig), 0600); err != nil {
 		t.Fatalf("write kubeconfig: %v", err)
 	}
-	configPath := filepath.Join(dir, "config.toml")
-	if err := os.WriteFile(configPath, []byte(fmt.Sprintf("kubeconfig = %q\ntoolsets = [\"k8s\"]\n", kubeconfigPath)), 0600); err != nil {
+	configPath := filepath.Join(dir, "config.yaml")
+	if err := os.WriteFile(configPath, []byte(fmt.Sprintf("kubeconfig: %q\ntoolsets: [\"k8s\"]\n", kubeconfigPath)), 0600); err != nil {
 		t.Fatalf("write config: %v", err)
 	}
 	t.Setenv("ROOTCAUSE_CONFIG", configPath)
@@ -247,8 +247,8 @@ current-context: test
 	if err := os.WriteFile(kubeconfigPath, []byte(kubeconfig), 0600); err != nil {
 		t.Fatalf("write kubeconfig: %v", err)
 	}
-	configPath := filepath.Join(dir, "config.toml")
-	if err := os.WriteFile(configPath, []byte(fmt.Sprintf("kubeconfig = %q\ntoolsets = [\"k8s\"]\n", kubeconfigPath)), 0600); err != nil {
+	configPath := filepath.Join(dir, "config.yaml")
+	if err := os.WriteFile(configPath, []byte(fmt.Sprintf("kubeconfig: %q\ntoolsets: [\"k8s\"]\n", kubeconfigPath)), 0600); err != nil {
 		t.Fatalf("write config: %v", err)
 	}
 	err := Run(context.Background(), Options{
@@ -286,8 +286,8 @@ current-context: test
 	if err := os.WriteFile(kubeconfigPath, []byte(kubeconfig), 0600); err != nil {
 		t.Fatalf("write kubeconfig: %v", err)
 	}
-	configPath := filepath.Join(dir, "config.toml")
-	if err := os.WriteFile(configPath, []byte(`toolsets = ["k8s"]`), 0600); err != nil {
+	configPath := filepath.Join(dir, "config.yaml")
+	if err := os.WriteFile(configPath, []byte(`toolsets: ["k8s"]`), 0600); err != nil {
 		t.Fatalf("write config: %v", err)
 	}
 	toolsets := []string{"k8s"}
@@ -334,8 +334,8 @@ current-context: test
 	if err := os.WriteFile(kubeconfigPath, []byte(kubeconfig), 0600); err != nil {
 		t.Fatalf("write kubeconfig: %v", err)
 	}
-	configPath := filepath.Join(dir, "config.toml")
-	if err := os.WriteFile(configPath, []byte(fmt.Sprintf("kubeconfig = %q\ntoolsets = [\"missing\"]\n", kubeconfigPath)), 0600); err != nil {
+	configPath := filepath.Join(dir, "config.yaml")
+	if err := os.WriteFile(configPath, []byte(fmt.Sprintf("kubeconfig: %q\ntoolsets: [\"missing\"]\n", kubeconfigPath)), 0600); err != nil {
 		t.Fatalf("write config: %v", err)
 	}
 	err := Run(context.Background(), Options{
@@ -373,8 +373,8 @@ current-context: test
 	if err := os.WriteFile(kubeconfigPath, []byte(kubeconfig), 0600); err != nil {
 		t.Fatalf("write kubeconfig: %v", err)
 	}
-	configPath := filepath.Join(dir, "config.toml")
-	if err := os.WriteFile(configPath, []byte(fmt.Sprintf("kubeconfig = %q\ntoolsets = [\"k8s\"]\n", kubeconfigPath)), 0600); err != nil {
+	configPath := filepath.Join(dir, "config.yaml")
+	if err := os.WriteFile(configPath, []byte(fmt.Sprintf("kubeconfig: %q\ntoolsets: [\"k8s\"]\n", kubeconfigPath)), 0600); err != nil {
 		t.Fatalf("write config: %v", err)
 	}
 	done := make(chan struct{})

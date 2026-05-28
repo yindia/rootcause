@@ -124,7 +124,8 @@ func (t *Toolset) loadClient(ctx context.Context, service, region string, build 
 		if raw, ok := t.cache.Load(fullKey); ok {
 			return raw, nil
 		}
-		cfg, err := awslib.LoadConfig(ctx, region)
+		cfgRegion, cfgProfile, cfgCreds := t.awsConfigDefaults()
+		cfg, err := awslib.LoadConfigWithSecrets(ctx, region, cfgRegion, cfgProfile, cfgCreds)
 		if err != nil {
 			return nil, err
 		}
@@ -212,8 +213,9 @@ func (t *Toolset) stsClient(ctx context.Context, region string) (*sts.Client, st
 }
 
 func (t *Toolset) clientCacheKey(region string) string {
-	regionKey := awslib.ResolveRegion(region)
-	profile := awslib.ResolveProfile()
+	cfgRegion, cfgProfile, _ := t.awsConfigDefaults()
+	regionKey := awslib.ResolveRegionWithConfig(region, cfgRegion)
+	profile := awslib.ResolveProfileWithConfig(cfgProfile)
 	cacheKey := regionKey
 	if cacheKey == "" {
 		cacheKey = "default"
@@ -222,4 +224,13 @@ func (t *Toolset) clientCacheKey(region string) string {
 		cacheKey = strings.TrimSpace(profile) + "|" + cacheKey
 	}
 	return cacheKey
+}
+
+// awsConfigDefaults returns the [aws] section values from config when bound,
+// else empty strings.
+func (t *Toolset) awsConfigDefaults() (region, profile, credentialsFile string) {
+	if t.ctx.Config == nil {
+		return "", "", ""
+	}
+	return t.ctx.Config.AWS.Region, t.ctx.Config.AWS.Profile, t.ctx.Config.AWS.CredentialsFile
 }

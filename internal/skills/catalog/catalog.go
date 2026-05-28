@@ -72,6 +72,11 @@ func LoadWithCustom(opts CustomOptions) (Manifest, error) {
 	return manifest, nil
 }
 
+// DiscoverCustom scans the given directories for custom skills. A single bad
+// subdirectory (missing SKILL.md, unreadable file, duplicate name) is skipped
+// with a warning to os.Stderr so the rest still load. Only an unreadable
+// top-level directory remains a fatal error — that signals a misconfigured
+// path the user explicitly asked for.
 func DiscoverCustom(dirs []string) ([]Skill, error) {
 	var skills []Skill
 	seen := map[string]struct{}{}
@@ -99,14 +104,17 @@ func DiscoverCustom(dirs []string) ([]Skill, error) {
 			data, err := os.ReadFile(file)
 			if err != nil {
 				if os.IsNotExist(err) {
-					return nil, fmt.Errorf("custom skill %s missing SKILL.md at %s", name, file)
+					fmt.Fprintf(os.Stderr, "rootcause: skill load warning: skipped %s — missing SKILL.md at %s\n", name, file)
+				} else {
+					fmt.Fprintf(os.Stderr, "rootcause: skill load warning: skipped %s — read error: %v\n", name, err)
 				}
-				return nil, fmt.Errorf("read custom skill %s: %w", name, err)
+				continue
 			}
 			meta, body := parseSkillFrontMatter(data)
 			key := strings.ToLower(name)
 			if _, ok := seen[key]; ok {
-				return nil, fmt.Errorf("duplicate custom skill: %s", name)
+				fmt.Fprintf(os.Stderr, "rootcause: skill load warning: duplicate custom skill %q in %s — keeping the first\n", name, resolved)
+				continue
 			}
 			seen[key] = struct{}{}
 			category := strings.TrimSpace(meta.Category)

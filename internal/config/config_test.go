@@ -8,11 +8,11 @@ import (
 
 func TestLoadWithOverridesAndDropIns(t *testing.T) {
 	dir := t.TempDir()
-	mainCfg := filepath.Join(dir, "config.toml")
+	mainCfg := filepath.Join(dir, "config.yaml")
 	if err := os.WriteFile(mainCfg, []byte(`
-toolsets = ["k8s"]
-read_only = true
-log_level = "debug"
+toolsets: ["k8s"]
+read_only: true
+log_level: "debug"
 `), 0600); err != nil {
 		t.Fatalf("write main config: %v", err)
 	}
@@ -21,15 +21,15 @@ log_level = "debug"
 	if err := os.MkdirAll(dropInDir, 0700); err != nil {
 		t.Fatalf("mkdir dropins: %v", err)
 	}
-	if err := os.WriteFile(filepath.Join(dropInDir, "10-base.toml"), []byte(`
-disable_destructive = true
-log_level = "info"
+	if err := os.WriteFile(filepath.Join(dropInDir, "10-base.yaml"), []byte(`
+disable_destructive: true
+log_level: "info"
 `), 0600); err != nil {
 		t.Fatalf("write dropin: %v", err)
 	}
-	if err := os.WriteFile(filepath.Join(dropInDir, "20-override.toml"), []byte(`
-log_level = "warn"
-toolsets = ["k8s","aws"]
+	if err := os.WriteFile(filepath.Join(dropInDir, "20-override.yaml"), []byte(`
+log_level: "warn"
+toolsets: ["k8s","aws"]
 `), 0600); err != nil {
 		t.Fatalf("write dropin: %v", err)
 	}
@@ -59,21 +59,21 @@ toolsets = ["k8s","aws"]
 
 func TestLoadExecAndSafetyConfig(t *testing.T) {
 	dir := t.TempDir()
-	mainCfg := filepath.Join(dir, "config.toml")
+	mainCfg := filepath.Join(dir, "config.yaml")
 	if err := os.WriteFile(mainCfg, []byte(`
-[exec_readonly]
-enabled = true
-allowed_commands = ["echo"]
+exec_readonly:
+  enabled: true
+  allowed_commands: ["echo"]
 
-[safety]
-allow_destructive_tools = ["k8s.delete"]
+safety:
+  allow_destructive_tools: ["k8s.delete"]
 
-[prompts]
-file = "./rootcause-prompts.toml"
+prompts:
+  file: "./rootcause-prompts.yaml"
 
-[skills]
-custom_dirs = ["./skills/custom"]
-allow_custom_overrides = true
+skills:
+  custom_dirs: ["./skills/custom"]
+  allow_custom_overrides: true
 `), 0600); err != nil {
 		t.Fatalf("write config: %v", err)
 	}
@@ -87,7 +87,7 @@ allow_custom_overrides = true
 	if len(cfg.Safety.AllowDestructiveTools) != 1 || cfg.Safety.AllowDestructiveTools[0] != "k8s.delete" {
 		t.Fatalf("unexpected safety config: %#v", cfg.Safety)
 	}
-	if cfg.Prompts.File != "./rootcause-prompts.toml" {
+	if cfg.Prompts.File != "./rootcause-prompts.yaml" {
 		t.Fatalf("unexpected prompts config: %#v", cfg.Prompts)
 	}
 	if len(cfg.Skills.CustomDirs) != 1 || cfg.Skills.CustomDirs[0] != "./skills/custom" || !cfg.Skills.AllowCustomOverrides {
@@ -106,21 +106,22 @@ func TestDropInFilesMissingDir(t *testing.T) {
 }
 
 func TestReadFileMissing(t *testing.T) {
-	_, err := readFile(filepath.Join(t.TempDir(), "missing.toml"))
+	_, err := readFile(filepath.Join(t.TempDir(), "missing.yaml"))
 	if err == nil {
 		t.Fatalf("expected error for missing file")
 	}
 }
 
-func TestReadFileInvalidTOML(t *testing.T) {
+func TestReadFileInvalidYAML(t *testing.T) {
 	dir := t.TempDir()
-	path := filepath.Join(dir, "bad.toml")
-	if err := os.WriteFile(path, []byte("invalid = ["), 0600); err != nil {
+	path := filepath.Join(dir, "bad.yaml")
+	// Invalid YAML: unterminated flow sequence.
+	if err := os.WriteFile(path, []byte("toolsets: [k8s, aws\nread_only: true"), 0600); err != nil {
 		t.Fatalf("write file: %v", err)
 	}
 	_, err := readFile(path)
 	if err == nil {
-		t.Fatalf("expected error for invalid toml")
+		t.Fatalf("expected error for invalid yaml")
 	}
 }
 
@@ -142,7 +143,7 @@ func TestMergeTimeoutsAndCache(t *testing.T) {
 			Enabled:         true,
 			AllowedCommands: []string{"echo"},
 		},
-		Prompts: PromptsConfig{File: "/tmp/prompts.toml"},
+		Prompts: PromptsConfig{File: "/tmp/prompts.yaml"},
 		Skills: SkillsConfig{
 			CustomDirs:           []string{"/tmp/skills"},
 			AllowCustomOverrides: true,
@@ -164,7 +165,7 @@ func TestMergeTimeoutsAndCache(t *testing.T) {
 	if !dst.Exec.Enabled || len(dst.Exec.AllowedCommands) != 1 {
 		t.Fatalf("unexpected exec config: %#v", dst.Exec)
 	}
-	if dst.Prompts.File != "/tmp/prompts.toml" {
+	if dst.Prompts.File != "/tmp/prompts.yaml" {
 		t.Fatalf("unexpected prompts config: %#v", dst.Prompts)
 	}
 	if len(dst.Skills.CustomDirs) != 1 || dst.Skills.CustomDirs[0] != "/tmp/skills" || !dst.Skills.AllowCustomOverrides {

@@ -8,7 +8,6 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/BurntSushi/toml"
 	sdkmcp "github.com/modelcontextprotocol/go-sdk/mcp"
 	"sigs.k8s.io/yaml"
 )
@@ -22,33 +21,32 @@ type promptSpec struct {
 }
 
 type promptFileConfig struct {
-	Prompts []promptFilePrompt `toml:"prompt"`
+	Prompts []promptFilePrompt `yaml:"prompts" json:"prompts"`
 }
 
 type promptFilePrompt struct {
-	Name        string               `toml:"name"`
-	Title       string               `toml:"title"`
-	Description string               `toml:"description"`
-	Template    string               `toml:"template"`
-	Arguments   []promptFileArgument `toml:"arguments"`
-	Argument    []promptFileArgument `toml:"argument"`
+	Name        string               `yaml:"name" json:"name"`
+	Title       string               `yaml:"title" json:"title"`
+	Description string               `yaml:"description" json:"description"`
+	Template    string               `yaml:"template" json:"template"`
+	Arguments   []promptFileArgument `yaml:"arguments" json:"arguments"`
 }
 
 type promptFileArgument struct {
-	Name        string `toml:"name"`
-	Description string `toml:"description"`
-	Required    bool   `toml:"required"`
+	Name        string `yaml:"name" json:"name"`
+	Description string `yaml:"description" json:"description"`
+	Required    bool   `yaml:"required" json:"required"`
 }
 
 var defaultPromptConfigPaths = []string{
-	"~/.rootcause/prompts.toml",
-	"~/.config/rootcause/prompts.toml",
-	"./rootcause-prompts.toml",
+	"~/.rootcause/prompts.yaml",
+	"~/.config/rootcause/prompts.yaml",
+	"./rootcause-prompts.yaml",
 }
 
 // defaultPromptDirs are scanned (in order) when no explicit prompts directory is
 // configured. The first directory that exists is used. Per-file prompts (.md /
-// .toml) inside that directory are loaded as customs that override built-ins by
+// .yaml) inside that directory are loaded as customs that override built-ins by
 // name.
 var defaultPromptDirs = []string{
 	"~/.rootcause/prompts",
@@ -468,31 +466,32 @@ Workload: {{workload|all pending workloads}}
 - Fastest safe mitigation and long-term fix`,
 	},
 	{
-		Name:        "gcp_workload_diagnose",
-		Title:       "GCP Workload Diagnose",
-		Description: "Triage a Kubernetes workload using GCP Cloud Monitoring metrics and Cloud Logging signals. Works for any cluster (GKE, EKS, AKS) shipping telemetry to a GCP project.",
+		Name:        "observability_workload_diagnose",
+		Title:       "Observability Workload Diagnose",
+		Description: "Triage a Kubernetes workload via the configured observability backend (GCP today; Prometheus/CloudWatch later). Works for any cluster (GKE, EKS, AKS) shipping telemetry to the backend.",
 		Arguments: []sdkmcp.PromptArgument{
 			{Name: "namespace", Description: "Workload namespace", Required: true},
 			{Name: "workload", Description: "Workload (Deployment / StatefulSet / DaemonSet) name", Required: true},
-			{Name: "project_id", Description: "GCP observability project ID (falls back to GOOGLE_CLOUD_PROJECT)", Required: false},
+			{Name: "project_id", Description: "Backend-specific project / scope id (GCP: falls back to GOOGLE_CLOUD_PROJECT / observability.gcp.project)", Required: false},
 			{Name: "duration", Description: "Lookback window (e.g. 30m, 1h)", Required: false},
 		},
-		Template: `# GCP Workload Diagnose: {{namespace}}/{{workload}}
+		Template: `# Observability Workload Diagnose: {{namespace}}/{{workload}}
 
-Project: {{project_id|GOOGLE_CLOUD_PROJECT env}}
+Project / scope: {{project_id|configured backend default}}
 Window: {{duration|30m}}
 
 ## Investigation Flow
-1. Build evidence with rootcause.incident_bundle (namespace, workload set so GCP steps trigger)
-2. Inspect gcp.metrics.workload for CPU/memory/restart anomalies in the window
-3. Run gcp.logs.error_timeline to find the inflection point (bucketSize 1m for tight windows)
-4. Pull correlated logs via gcp.logs.correlated_with_bundle using the bundle's time range
+1. Build evidence with rootcause.incident_bundle (set namespace + workload so the observability steps fire)
+2. Inspect observability.metrics.workload for CPU/memory/restart anomalies in the window
+3. Run observability.logs.error_timeline to find the inflection point (bucketSize 1m for tight windows; pass resourceType for non-GKE clusters)
+4. Pull correlated logs via observability.logs.correlated_with_bundle using the bundle's time range
 5. Cross-reference k8s events and helm releases from the bundle for change correlation
-6. If SLOs exist, list them with gcp.metrics.slo_list and check current goals against observed metrics
+6. If SLOs exist, list them with observability.metrics.slo_list and check current goals against observed metrics
 
 ## Output Contract
-- Time-aligned summary (k8s events vs GCP error spike vs deploy/release)
+- Time-aligned summary (k8s events vs observability error spike vs deploy/release)
 - Identified inflection point with bucket evidence
+- Backend identifier (from the "backend" field in tool responses)
 - Root-cause hypothesis with metric + log evidence references
 - Remediation actions and validation checks`,
 	},
@@ -549,7 +548,7 @@ func loadPromptSpecs(ctx ToolContext) ([]promptSpec, error) {
 	// Legacy single-file path (still supported; merges on top of dir results).
 	path := resolvePromptConfigPath(ctx)
 	if path != "" {
-		fileSpecs, err := loadPromptSpecsFromTOML(path)
+		fileSpecs, err := loadPromptSpecsFromYAML(path)
 		if err != nil {
 			return nil, err
 		}
@@ -558,6 +557,9 @@ func loadPromptSpecs(ctx ToolContext) ([]promptSpec, error) {
 				order = append(order, spec.Name)
 			}
 			merged[spec.Name] = spec
+			for _, w := range validatePromptTokens(spec) {
+				fmt.Fprintf(os.Stderr, "rootcause: prompt load warning: %s\n", w)
+			}
 		}
 	}
 
@@ -605,8 +607,9 @@ func resolvePromptConfigDir(ctx ToolContext) string {
 
 // loadPromptSpecsFromDir scans dir for prompt files (alphabetical order for
 // determinism). *.md files are parsed as markdown with YAML front-matter (one
-// prompt per file). *.toml files are parsed via the legacy [[prompt]] format.
-// Other files are ignored. Hidden files (leading dot) are skipped.
+// prompt per file). *.yaml / *.yml files are parsed as a top-level
+// `prompts:` list (legacy multi-prompt single-file format). Other files are
+// ignored. Hidden files (leading dot) are skipped.
 // A single malformed file never aborts the load: it is skipped and a warning
 // is returned so the server still boots with the valid prompts. The returned
 // error is non-nil only when the directory itself cannot be read.
@@ -638,8 +641,8 @@ func loadPromptSpecsFromDir(dir string) ([]promptSpec, []string, error) {
 				continue
 			}
 			specs = []promptSpec{spec}
-		case ".toml":
-			loaded, err := loadPromptSpecsFromTOML(full)
+		case ".yaml", ".yml":
+			loaded, err := loadPromptSpecsFromYAML(full)
 			if err != nil {
 				warnings = append(warnings, fmt.Sprintf("skipped prompt file %s: %v", name, err))
 				continue
@@ -655,6 +658,7 @@ func loadPromptSpecsFromDir(dir string) ([]promptSpec, []string, error) {
 				order = append(order, s.Name)
 			}
 			merged[s.Name] = s
+			warnings = append(warnings, validatePromptTokens(s)...)
 		}
 	}
 	out := make([]promptSpec, 0, len(order))
@@ -730,6 +734,52 @@ func loadPromptSpecFromMarkdown(path string) (promptSpec, error) {
 		Arguments:   args,
 		Template:    template,
 	}, nil
+}
+
+// validatePromptTokens scans the template for {{name}} substitutions and
+// flags two kinds of inconsistency:
+//   - tokens referenced in the body but not declared in arguments (typo or
+//     forgotten arg declaration);
+//   - arguments declared but never referenced in the body (dead arg, would
+//     waste a positional slot in synced slash commands).
+//
+// Returns one human-readable warning per inconsistency.
+func validatePromptTokens(spec promptSpec) []string {
+	declared := map[string]struct{}{}
+	for _, a := range spec.Arguments {
+		declared[a.Name] = struct{}{}
+	}
+	used := map[string]struct{}{}
+	body := spec.Template
+	for {
+		start := strings.Index(body, "{{")
+		if start < 0 {
+			break
+		}
+		end := strings.Index(body[start+2:], "}}")
+		if end < 0 {
+			break
+		}
+		token := strings.TrimSpace(body[start+2 : start+2+end])
+		key := strings.TrimSpace(strings.SplitN(token, "|", 2)[0])
+		if key != "" {
+			used[key] = struct{}{}
+		}
+		body = body[start+2+end+2:]
+	}
+	var warnings []string
+	for k := range used {
+		if _, ok := declared[k]; !ok {
+			warnings = append(warnings, fmt.Sprintf("prompt %q references undeclared argument %q in template", spec.Name, k))
+		}
+	}
+	for k := range declared {
+		if _, ok := used[k]; !ok {
+			warnings = append(warnings, fmt.Sprintf("prompt %q declares argument %q but never references it in template", spec.Name, k))
+		}
+	}
+	sort.Strings(warnings)
+	return warnings
 }
 
 // splitFrontMatter separates a leading `--- ... ---` YAML block from the body.
@@ -834,9 +884,13 @@ func fileExists(path string) bool {
 	return !info.IsDir()
 }
 
-func loadPromptSpecsFromTOML(path string) ([]promptSpec, error) {
+func loadPromptSpecsFromYAML(path string) ([]promptSpec, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("read prompt config %s: %w", path, err)
+	}
 	var cfg promptFileConfig
-	if _, err := toml.DecodeFile(path, &cfg); err != nil {
+	if err := yaml.Unmarshal(data, &cfg); err != nil {
 		return nil, fmt.Errorf("decode prompt config %s: %w", path, err)
 	}
 	out := make([]promptSpec, 0, len(cfg.Prompts))
@@ -848,9 +902,6 @@ func loadPromptSpecsFromTOML(path string) ([]promptSpec, error) {
 			return nil, fmt.Errorf("invalid prompt in %s: name and template are required", path)
 		}
 		fileArgs := item.Arguments
-		if len(fileArgs) == 0 && len(item.Argument) > 0 {
-			fileArgs = item.Argument
-		}
 		args := make([]sdkmcp.PromptArgument, 0, len(fileArgs))
 		for _, arg := range fileArgs {
 			argName := strings.TrimSpace(arg.Name)

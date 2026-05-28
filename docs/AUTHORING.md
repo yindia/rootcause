@@ -371,21 +371,21 @@ need a new tool.
 │   │   └── SKILL.md
 │   └── no-friday-deploys/
 │       └── SKILL.md
-└── prompts.toml                          # (optional, legacy single-file mode)
+└── prompts.yaml                          # (optional, legacy single-file mode)
 ```
 
 ### Resolution order (first existing wins for the dir; legacy file merges on top)
 
 **Prompts directory:**
 1. `ROOTCAUSE_PROMPTS_DIR` env var
-2. `[prompts].dir` in `config.toml`
+2. `[prompts].dir` in `config.yaml`
 3. `~/.rootcause/prompts/`
 4. `~/.config/rootcause/prompts/`
 5. `./rootcause-prompts.d/`
 
 **Skills directories** (from `[skills].custom_dirs`, all scanned):
 - Default: `~/.rootcause/skills`
-- Add more in `config.toml` for org-wide / project-local skills.
+- Add more in `config.yaml` for org-wide / project-local skills.
 
 ---
 
@@ -419,7 +419,7 @@ rootcause sync --agent claude --overwrite
 rootcause sync --agent claude --dry-run
 
 # Use a specific config file (loads [prompts].dir / [skills].custom_dirs)
-rootcause sync --agent claude --config /etc/rootcause/config.toml
+rootcause sync --agent claude --config /etc/rootcause/config.yaml
 ```
 
 ---
@@ -488,7 +488,7 @@ for team-scoped guidance that shouldn't bleed into other teams' investigations.
   can all attach to a single PrivateLink debug session.
 - **Project-local runbooks.** Drop a `.rootcause-prompts.d/` directory in your
   service's repo and commit team-specific prompts there. Set
-  `[prompts].dir = "./.rootcause-prompts.d"` in the project's `config.toml`.
+  `[prompts].dir = "./.rootcause-prompts.d"` in the project's `config.yaml`.
 - **Override a built-in.** Author a prompt named `troubleshoot_workload` in
   your dir and it replaces the built-in. Same for skills with
   `allow_custom_overrides = true`.

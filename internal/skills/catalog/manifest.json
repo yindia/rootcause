@@ -24,6 +24,6 @@
     {"name": "k8s-autoscaling", "category": "Cost and Scaling", "description": "HPA, VPA, and Karpenter provisioning diagnostics.", "path": "skills/claude/k8s-autoscaling/SKILL.md"},
     {"name": "k8s-storage", "category": "Storage", "description": "PVC/PV/VolumeAttachment and storage class troubleshooting.", "path": "skills/claude/k8s-storage/SKILL.md"},
     {"name": "k8s-browser", "category": "Browser Automation", "description": "Browser-driven ingress checks, screenshots, and dashboard exports.", "path": "skills/claude/k8s-browser/SKILL.md"},
-    {"name": "k8s-gcp", "category": "Cloud Observability", "description": "GCP Cloud Monitoring + Cloud Logging triage for K8s workloads shipping telemetry to GCP.", "path": "skills/claude/k8s-gcp/SKILL.md"}
+    {"name": "k8s-observability", "category": "Cloud Observability", "description": "Vendor-neutral metrics + logs triage via observability.* tools; the configured backend (GCP today, Prometheus/CloudWatch later) serves the data transparently.", "path": "skills/claude/k8s-observability/SKILL.md"}
   ]
 }

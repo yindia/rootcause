@@ -130,18 +130,21 @@ func TestDiscoverCustomSkillsIgnoresFilesAndBlankDirs(t *testing.T) {
 	}
 }
 
-func TestDiscoverCustomSkillsRejectsDuplicateCustomNamesAcrossDirs(t *testing.T) {
+func TestDiscoverCustomSkillsSkipsDuplicateAcrossDirs(t *testing.T) {
+	// A duplicate custom skill name across directories is a warning, not an
+	// error: the first occurrence wins and the second is skipped silently so
+	// one misconfigured directory doesn't poison every tool call.
 	firstDir := t.TempDir()
 	secondDir := t.TempDir()
 	writeCustomSkill(t, firstDir, "team-runbook", "# First\n")
 	writeCustomSkill(t, secondDir, "team-runbook", "# Second\n")
 
-	_, err := DiscoverCustom([]string{firstDir, secondDir})
-	if err == nil {
-		t.Fatalf("expected duplicate custom skill error")
+	skills, err := DiscoverCustom([]string{firstDir, secondDir})
+	if err != nil {
+		t.Fatalf("DiscoverCustom must not hard-fail on duplicate names: %v", err)
 	}
-	if !strings.Contains(err.Error(), "duplicate custom skill") {
-		t.Fatalf("expected duplicate custom skill error, got %v", err)
+	if len(skills) != 1 {
+		t.Fatalf("expected the first occurrence to win, got %d skills", len(skills))
 	}
 }
 
@@ -175,18 +178,18 @@ func TestEmbeddedManifestIncludesGCPSkill(t *testing.T) {
 	}
 	var found Skill
 	for _, s := range manifest.Skills {
-		if s.Name == "k8s-gcp" {
+		if s.Name == "k8s-observability" {
 			found = s
 			break
 		}
 	}
 	if found.Name == "" {
-		t.Fatalf("expected k8s-gcp skill in embedded manifest")
+		t.Fatalf("expected k8s-observability skill in embedded manifest")
 	}
 	if found.Category != "Cloud Observability" {
 		t.Errorf("expected category 'Cloud Observability', got %q", found.Category)
 	}
-	if found.Path != "skills/claude/k8s-gcp/SKILL.md" {
+	if found.Path != "skills/claude/k8s-observability/SKILL.md" {
 		t.Errorf("unexpected path: %s", found.Path)
 	}
 }
@@ -268,18 +271,27 @@ func TestMergeRejectsDuplicateBuiltInSkill(t *testing.T) {
 	}
 }
 
-func TestDiscoverCustomSkillsRequiresSkillFile(t *testing.T) {
+func TestDiscoverCustomSkillsSkipsSubdirMissingSkillFile(t *testing.T) {
 	dir := t.TempDir()
+	// "broken" is missing SKILL.md — must be skipped, not fatal.
 	if err := os.MkdirAll(filepath.Join(dir, "broken"), 0o755); err != nil {
-		t.Fatalf("mkdir custom skill: %v", err)
+		t.Fatalf("mkdir broken skill: %v", err)
+	}
+	// "good" is valid — must still load alongside the skipped one.
+	good := filepath.Join(dir, "good")
+	if err := os.MkdirAll(good, 0o755); err != nil {
+		t.Fatalf("mkdir good skill: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(good, "SKILL.md"), []byte("---\ntags: [test]\n---\n# Good\n"), 0o644); err != nil {
+		t.Fatalf("write good SKILL.md: %v", err)
 	}
 
-	_, err := DiscoverCustom([]string{dir})
-	if err == nil {
-		t.Fatalf("expected missing SKILL.md error")
+	skills, err := DiscoverCustom([]string{dir})
+	if err != nil {
+		t.Fatalf("DiscoverCustom must not hard-fail on bad subdir: %v", err)
 	}
-	if !strings.Contains(err.Error(), "missing SKILL.md") {
-		t.Fatalf("expected missing SKILL.md error, got %v", err)
+	if len(skills) != 1 || skills[0].Name != "good" {
+		t.Fatalf("expected only the valid skill to load, got %#v", skills)
 	}
 }
 

@@ -398,37 +398,37 @@ func TestHandleIncidentBundleTimelineMode(t *testing.T) {
 func TestDefaultBundleChainGatesGCPOnRegistryAndWorkload(t *testing.T) {
 	cfg := config.DefaultConfig()
 
-	// Without GCP tools: no gcp.* steps even when workload is supplied.
+	// Without observability tools registered: no observability.* steps even when workload is supplied.
 	regNoGCP := mcp.NewRegistry(&cfg)
 	tsNoGCP := New()
 	if err := tsNoGCP.Init(mcp.ToolContext{Config: &cfg, Registry: regNoGCP, Invoker: mcp.NewToolInvoker(regNoGCP, mcp.ToolContext{Config: &cfg, Registry: regNoGCP})}); err != nil {
 		t.Fatalf("init: %v", err)
 	}
 	steps := tsNoGCP.defaultBundleChain("payments", "", "api", 100, 50, true)
-	if hasStep(steps, "gcp.metrics.workload") || hasStep(steps, "gcp.logs.workload") {
-		t.Fatalf("did not expect gcp.* steps when GCP tools are absent: %#v", steps)
+	if hasStep(steps, "observability.metrics.workload") || hasStep(steps, "observability.logs.workload") {
+		t.Fatalf("did not expect observability.* steps when observability tools are absent: %#v", steps)
 	}
 
-	// With GCP tools registered AND workload provided: both steps appear.
-	regWithGCP := mcp.NewRegistry(&cfg)
-	addFakeTool(t, regWithGCP, "gcp.metrics.workload")
-	addFakeTool(t, regWithGCP, "gcp.logs.workload")
-	tsGCP := New()
-	if err := tsGCP.Init(mcp.ToolContext{Config: &cfg, Registry: regWithGCP, Invoker: mcp.NewToolInvoker(regWithGCP, mcp.ToolContext{Config: &cfg, Registry: regWithGCP})}); err != nil {
+	// With observability tools registered AND workload provided: both steps appear.
+	regWithObs := mcp.NewRegistry(&cfg)
+	addFakeTool(t, regWithObs, "observability.metrics.workload")
+	addFakeTool(t, regWithObs, "observability.logs.workload")
+	tsObs := New()
+	if err := tsObs.Init(mcp.ToolContext{Config: &cfg, Registry: regWithObs, Invoker: mcp.NewToolInvoker(regWithObs, mcp.ToolContext{Config: &cfg, Registry: regWithObs})}); err != nil {
 		t.Fatalf("init: %v", err)
 	}
-	stepsWith := tsGCP.defaultBundleChain("payments", "", "api", 100, 50, true)
-	if !hasStep(stepsWith, "gcp.metrics.workload") {
-		t.Fatalf("expected gcp.metrics.workload step")
+	stepsWith := tsObs.defaultBundleChain("payments", "", "api", 100, 50, true)
+	if !hasStep(stepsWith, "observability.metrics.workload") {
+		t.Fatalf("expected observability.metrics.workload step")
 	}
-	if !hasStep(stepsWith, "gcp.logs.workload") {
-		t.Fatalf("expected gcp.logs.workload step")
+	if !hasStep(stepsWith, "observability.logs.workload") {
+		t.Fatalf("expected observability.logs.workload step")
 	}
 
-	// With GCP tools registered but no workload: gcp.* steps skipped.
-	stepsNoWorkload := tsGCP.defaultBundleChain("payments", "", "", 100, 50, true)
-	if hasStep(stepsNoWorkload, "gcp.metrics.workload") || hasStep(stepsNoWorkload, "gcp.logs.workload") {
-		t.Fatalf("did not expect gcp.* steps when workload is empty: %#v", stepsNoWorkload)
+	// With observability tools registered but no workload: observability.* steps skipped.
+	stepsNoWorkload := tsObs.defaultBundleChain("payments", "", "", 100, 50, true)
+	if hasStep(stepsNoWorkload, "observability.metrics.workload") || hasStep(stepsNoWorkload, "observability.logs.workload") {
+		t.Fatalf("did not expect observability.* steps when workload is empty: %#v", stepsNoWorkload)
 	}
 }
 

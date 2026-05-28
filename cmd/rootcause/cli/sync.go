@@ -195,19 +195,48 @@ Existing files are NOT overwritten unless --overwrite is passed.`,
 	return cmd
 }
 
-// buildToolContextForSync loads the config file (if provided) so directory
-// fields like [prompts].dir and [skills].custom_dirs are honored by the
-// downstream loaders. Returns an empty context if no config is given — the
-// loaders then fall back to env vars and default filesystem paths.
+// buildToolContextForSync loads the config file so directory fields like
+// [prompts].dir and [skills].custom_dirs are honored by the downstream
+// loaders. Resolution order matches the server: --config flag, then
+// ROOTCAUSE_CONFIG env, then standard paths (~/.rootcause/config.yaml,
+// ~/.config/rootcause/config.yaml, ./config.yaml). When no config is
+// discoverable the loaders fall back to env vars and default filesystem
+// paths.
 func buildToolContextForSync(configPath string) (rcmcp.ToolContext, error) {
-	if strings.TrimSpace(configPath) == "" {
+	resolved := resolveSyncConfigPath(configPath)
+	if resolved == "" {
 		return rcmcp.ToolContext{}, nil
 	}
-	cfg, err := rccfg.Load(configPath, "", rccfg.Overrides{})
+	cfg, err := rccfg.Load(resolved, "", rccfg.Overrides{})
 	if err != nil {
-		return rcmcp.ToolContext{}, fmt.Errorf("load config %s: %w", configPath, err)
+		return rcmcp.ToolContext{}, fmt.Errorf("load config %s: %w", resolved, err)
 	}
 	return rcmcp.ToolContext{Config: &cfg}, nil
+}
+
+// resolveSyncConfigPath finds the first existing config path. Returns "" when
+// none exists — callers should fall back to env / default search behavior.
+func resolveSyncConfigPath(explicit string) string {
+	if p := strings.TrimSpace(explicit); p != "" {
+		return p
+	}
+	if env := strings.TrimSpace(os.Getenv("ROOTCAUSE_CONFIG")); env != "" {
+		return env
+	}
+	for _, candidate := range []string{
+		"~/.rootcause/config.yaml",
+		"~/.config/rootcause/config.yaml",
+		"./config.yaml",
+	} {
+		expanded, _ := expandPromptHome(candidate)
+		if expanded == "" {
+			continue
+		}
+		if info, err := os.Stat(expanded); err == nil && !info.IsDir() {
+			return expanded
+		}
+	}
+	return ""
 }
 
 // unifiedAgentKeys returns the intersection of agents that support both prompt

@@ -1,0 +1,62 @@
+# RootCause configuration. Edit and reload (or restart the MCP server).
+# See README "Config and Flags" + "GCP/AWS Credentials" sections for details.
+
+kubeconfig: ""
+context: ""
+toolsets:
+    - k8s
+    - linkerd
+    - karpenter
+    - istio
+    - helm
+    - aws
+    - terraform
+    - observability
+    - rootcause
+read_only: false
+disable_destructive: false
+log_level: info
+safety:
+    allow_destructive_tools: []
+exec_readonly:
+    enabled: false
+    allowed_commands: []
+timeouts:
+    default_seconds: 60
+    max_seconds: 900
+    per_tool:
+        helm.install: 300
+        helm.uninstall: 180
+        helm.upgrade: 300
+        k8s.port_forward: 600
+cache:
+    discovery_ttl_seconds: 300
+    graph_ttl_seconds: 30
+    aws_list_ttl_seconds: 60
+transport:
+    mode: stdio
+    host: 127.0.0.1
+    port: 8000
+    path: /mcp
+prompts:
+    file: ""
+    dir: ~/.rootcause/prompts
+skills:
+    custom_dirs:
+        - ~/.rootcause/skills
+    allow_custom_overrides: false
+limits:
+    max_call_depth: 8
+    max_result_bytes: 8388608
+    max_call_graph: 10000
+    strict_schema: false
+gcp:
+    credentials_file: ""
+aws:
+    region: ""
+    profile: ""
+    credentials_file: ""
+observability:
+    gcp:
+        project: ""
+        credentials_file: ""

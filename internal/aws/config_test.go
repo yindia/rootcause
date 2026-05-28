@@ -62,3 +62,59 @@ func TestLoadConfigUsesRegion(t *testing.T) {
 		t.Fatalf("expected region ap-south-1, got %q", cfg.Region)
 	}
 }
+
+func TestResolveRegionWithConfigPrecedence(t *testing.T) {
+	t.Setenv("AWS_REGION", "us-west-2")
+	t.Setenv("AWS_DEFAULT_REGION", "")
+	if got := ResolveRegionWithConfig("explicit-1", "cfg-region"); got != "explicit-1" {
+		t.Errorf("explicit should win, got %q", got)
+	}
+	if got := ResolveRegionWithConfig("", "cfg-region"); got != "us-west-2" {
+		t.Errorf("env should beat config, got %q", got)
+	}
+	t.Setenv("AWS_REGION", "")
+	if got := ResolveRegionWithConfig("", "cfg-region"); got != "cfg-region" {
+		t.Errorf("config should win when others empty, got %q", got)
+	}
+	if got := ResolveRegionWithConfig("", ""); got != "" {
+		t.Errorf("expected empty, got %q", got)
+	}
+}
+
+func TestResolveProfileWithConfigPrecedence(t *testing.T) {
+	t.Setenv("AWS_PROFILE", "env-prof")
+	t.Setenv("AWS_DEFAULT_PROFILE", "")
+	if got := ResolveProfileWithConfig("cfg-prof"); got != "env-prof" {
+		t.Errorf("env should win, got %q", got)
+	}
+	t.Setenv("AWS_PROFILE", "")
+	if got := ResolveProfileWithConfig("cfg-prof"); got != "cfg-prof" {
+		t.Errorf("config should win when env empty, got %q", got)
+	}
+}
+
+func TestLoadConfigWithSecretsAppliesCredentialsFile(t *testing.T) {
+	t.Setenv("AWS_ACCESS_KEY_ID", "")
+	t.Setenv("AWS_SECRET_ACCESS_KEY", "")
+	t.Setenv("AWS_PROFILE", "")
+	dir := t.TempDir()
+	credentialsPath := filepath.Join(dir, "creds")
+	content := `[acme]
+aws_access_key_id = AKIATEST
+aws_secret_access_key = secrettest
+`
+	if err := os.WriteFile(credentialsPath, []byte(content), 0o600); err != nil {
+		t.Fatalf("write creds: %v", err)
+	}
+	cfg, err := LoadConfigWithSecrets(context.Background(), "us-east-1", "", "acme", credentialsPath)
+	if err != nil {
+		t.Fatalf("load: %v", err)
+	}
+	creds, err := cfg.Credentials.Retrieve(context.Background())
+	if err != nil {
+		t.Fatalf("retrieve creds: %v", err)
+	}
+	if creds.AccessKeyID != "AKIATEST" {
+		t.Errorf("expected acme profile creds from [aws].credentials_file, got AccessKeyID=%q", creds.AccessKeyID)
+	}
+}

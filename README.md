@@ -138,7 +138,7 @@ rootcause sync --all-agents
 # Granular control
 rootcause sync --agent claude --prompts-only
 rootcause sync --agent claude --skills-only
-rootcause sync --agent claude --prompt gcp_workload_diagnose
+rootcause sync --agent claude --prompt observability_workload_diagnose
 rootcause sync --agent claude --skill k8s-incident
 
 # Existing files are NOT overwritten by default. Opt in:
@@ -221,10 +221,12 @@ rootcause init-config
 
 or adding them to config manually:
 
-```toml
-[skills]
-custom_dirs = ["~/.rootcause/skills", "./skills/custom"]
-allow_custom_overrides = false
+```yaml
+skills:
+  custom_dirs:
+    - "~/.rootcause/skills"
+    - "./skills/custom"
+  allow_custom_overrides: false
 ```
 
 MCP clients can read `skill://catalog` for the merged skill list and `skill://team-runbook` for the skill content. Custom names cannot collide with built-ins unless overrides are explicitly enabled.
@@ -312,7 +314,7 @@ Pre-built workflow prompts for Kubernetes and platform operations:
 | `terraform_drift_triage` | Investigate Terraform drift and plan safety |
 | `aws_eks_operational_check` | EKS health, nodegroup, and IAM integration diagnostics |
 | `karpenter_capacity_debug` | Debug Karpenter provisioning and scheduling issues |
-| `gcp_workload_diagnose` | Triage a workload using GCP Cloud Monitoring + Cloud Logging (any cluster shipping to a GCP project) |
+| `observability_workload_diagnose` | Triage a workload via the configured observability backend (works for any cluster) |
 
 ### Authoring custom prompts and skills
 
@@ -370,25 +372,24 @@ Resolution order (first match wins for the directory; the legacy single-file pat
 | Priority | Directory (recommended) | Single file (legacy) |
 |---|---|---|
 | 1 | `ROOTCAUSE_PROMPTS_DIR` env | `MCP_PROMPTS_FILE` env |
-| 2 | `[prompts].dir` in `config.toml` | `ROOTCAUSE_PROMPTS_FILE` env |
-| 3 | `~/.rootcause/prompts/` | `[prompts].file` in `config.toml` |
-| 4 | `~/.config/rootcause/prompts/` | `~/.rootcause/prompts.toml` |
-| 5 | `./rootcause-prompts.d/` | `~/.config/rootcause/prompts.toml`, `./rootcause-prompts.toml` |
+| 2 | `[prompts].dir` in `config.yaml` | `ROOTCAUSE_PROMPTS_FILE` env |
+| 3 | `~/.rootcause/prompts/` | `[prompts].file` in `config.yaml` |
+| 4 | `~/.config/rootcause/prompts/` | `~/.rootcause/prompts.yaml` |
+| 5 | `./rootcause-prompts.d/` | `~/.config/rootcause/prompts.yaml`, `./rootcause-prompts.yaml` |
 
 A custom prompt whose `name:` matches a built-in **replaces** it — useful for org-specific overrides of `troubleshoot_workload` etc.
 
-Legacy multi-prompt TOML files are still supported. Place a `*.toml` file inside the prompts directory and it will be parsed in the `[[prompt]]` format:
+Multi-prompt YAML files are also supported. Place a `*.yaml` file inside the prompts directory with a top-level `prompts:` list:
 
-```toml
-# ~/.rootcause/prompts/security.toml
-[[prompt]]
-name = "security_audit"
-description = "Org-specific security policy checks"
-template = "Run security audit for {{namespace|all namespaces}} with CIS and policy controls."
-
-  [[prompt.arguments]]
-  name = "namespace"
-  required = false
+```yaml
+# ~/.rootcause/prompts/security.yaml
+prompts:
+  - name: security_audit
+    description: Org-specific security policy checks
+    template: "Run security audit for {{namespace|all namespaces}} with CIS and policy controls."
+    arguments:
+      - name: namespace
+        required: false
 ```
 
 ### Key Capabilities
@@ -406,7 +407,7 @@ template = "Run security audit for {{namespace|all namespaces}} with CIS and pol
 ### 1) Run RootCause
 
 ```bash
-go run . --config config.toml
+go run . --config config.yaml
 ```
 
 ### 2) Connect your MCP client
@@ -424,7 +425,7 @@ Use stdio transport and point your MCP client to the `rootcause` command.
 1) Run the server:
 
 ```
-go run . --config config.example.toml
+go run . --config config.example.yaml
 ```
 
 2) Use your existing kubeconfig (default) or point to one:
@@ -499,12 +500,12 @@ Initialize a home config with every built-in toolset enabled and custom skills c
 rootcause init-config
 ```
 
-This writes `${HOME}/.rootcause/config.toml` on macOS/Linux and `%USERPROFILE%\.rootcause\config.toml` on Windows, creates the sibling `skills/` directory, and refuses to overwrite unless `--overwrite` is passed.
+This writes `${HOME}/.rootcause/config.yaml` on macOS/Linux and `%USERPROFILE%\.rootcause\config.yaml` on Windows, creates the sibling `skills/` directory, and refuses to overwrite unless `--overwrite` is passed.
 
 Run with a config file:
 
 ```
-rootcause --config config.toml
+rootcause --config config.yaml
 ```
 
 Enable a subset of toolchains:
@@ -533,7 +534,7 @@ See [`docs/AUTHORING.md`](docs/AUTHORING.md) for an end-to-end walkthrough that 
 
 All MCP clients use the same core values:
 - `command`: `rootcause`
-- `args`: usually `--config /path/to/config.toml`
+- `args`: usually `--config /path/to/config.yaml`
 - `env`: optional `KUBECONFIG`
 
 ### Universal template
@@ -543,7 +544,7 @@ All MCP clients use the same core values:
   "mcpServers": {
     "rootcause": {
       "command": "rootcause",
-      "args": ["--config", "/Users/you/.config/rootcause/config.toml"],
+      "args": ["--config", "/Users/you/.config/rootcause/config.yaml"],
       "env": { "KUBECONFIG": "/Users/you/.kube/config" }
     }
   }
@@ -561,7 +562,7 @@ File: `~/Library/Application Support/Claude/claude_desktop_config.json`
   "mcpServers": {
     "rootcause": {
       "command": "rootcause",
-      "args": ["--config", "/Users/you/.config/rootcause/config.toml"],
+      "args": ["--config", "/Users/you/.config/rootcause/config.yaml"],
       "env": { "KUBECONFIG": "/Users/you/.kube/config" }
     }
   }
@@ -577,7 +578,7 @@ File: `~/.config/claude-code/mcp.json`
   "mcpServers": {
     "rootcause": {
       "command": "rootcause",
-      "args": ["--config", "/Users/you/.config/rootcause/config.toml"],
+      "args": ["--config", "/Users/you/.config/rootcause/config.yaml"],
       "env": { "KUBECONFIG": "/Users/you/.kube/config" }
     }
   }
@@ -593,7 +594,7 @@ File: `~/.cursor/mcp.json`
   "mcpServers": {
     "rootcause": {
       "command": "rootcause",
-      "args": ["--config", "/Users/you/.config/rootcause/config.toml"],
+      "args": ["--config", "/Users/you/.config/rootcause/config.yaml"],
       "env": { "KUBECONFIG": "/Users/you/.kube/config" }
     }
   }
@@ -609,7 +610,7 @@ File: VS Code `settings.json` (MCP-enabled builds)
   "mcp.servers": {
     "rootcause": {
       "command": "rootcause",
-      "args": ["--config", "/Users/you/.config/rootcause/config.toml"],
+      "args": ["--config", "/Users/you/.config/rootcause/config.yaml"],
       "env": { "KUBECONFIG": "/Users/you/.kube/config" }
     }
   }
@@ -623,7 +624,7 @@ Format can vary by release. Equivalent TOML entry:
 ```toml
 [mcp.servers.rootcause]
 command = "rootcause"
-args = ["--config", "/Users/you/.config/rootcause/config.toml"]
+args = ["--config", "/Users/you/.config/rootcause/config.yaml"]
 env = { KUBECONFIG = "/Users/you/.kube/config" }
 ```
 
@@ -637,7 +638,7 @@ extensions:
     command: rootcause
     args:
       - --config
-      - /Users/you/.config/rootcause/config.toml
+      - /Users/you/.config/rootcause/config.yaml
 ```
 
 ### Gemini CLI
@@ -649,7 +650,7 @@ File: `~/.gemini/settings.json`
   "mcpServers": {
     "rootcause": {
       "command": "rootcause",
-      "args": ["--config", "/Users/you/.config/rootcause/config.toml"],
+      "args": ["--config", "/Users/you/.config/rootcause/config.yaml"],
       "env": { "KUBECONFIG": "/Users/you/.kube/config" }
     }
   }
@@ -665,7 +666,7 @@ File: `~/.config/roo-code/mcp.json` or `~/.config/kilo-code/mcp.json`
   "mcpServers": {
     "rootcause": {
       "command": "rootcause",
-      "args": ["--config", "/Users/you/.config/rootcause/config.toml"],
+      "args": ["--config", "/Users/you/.config/rootcause/config.yaml"],
       "env": { "KUBECONFIG": "/Users/you/.kube/config" }
     }
   }
@@ -681,7 +682,7 @@ File: `~/.config/windsurf/mcp.json`
   "mcpServers": {
     "rootcause": {
       "command": "rootcause",
-      "args": ["--config", "/Users/you/.config/rootcause/config.toml"],
+      "args": ["--config", "/Users/you/.config/rootcause/config.yaml"],
       "env": { "KUBECONFIG": "/Users/you/.kube/config" }
     }
   }
@@ -725,7 +726,7 @@ Works seamlessly with MCP-compatible AI assistants:
 ## MCP Client Example (stdio)
 
 ```bash
-rootcause --config config.toml
+rootcause --config config.yaml
 ```
 
 Point your MCP client to run the command above and use stdio transport.
@@ -968,7 +969,7 @@ Safety workflow recommendation:
 ## Config and Flags
 
 ```
-rootcause --config config.example.toml --toolsets k8s,linkerd,istio,karpenter,helm,aws
+rootcause --config config.example.yaml --toolsets k8s,linkerd,istio,karpenter,helm,aws
 ```
 
 Create a cross-platform home config first if you do not already have one:
@@ -999,23 +1000,99 @@ If `--config` is not set, RootCause will use the `ROOTCAUSE_CONFIG` environment 
 
 ## AWS Credentials
 
-The AWS IAM tools use the standard AWS credential chain and region resolution. Set `AWS_REGION` or `AWS_DEFAULT_REGION` (defaults to `us-east-1`), optionally select a profile with `AWS_PROFILE` or `AWS_DEFAULT_PROFILE`, and use any of the normal credential sources (env vars, shared config/credentials files, SSO, or instance metadata).
+The AWS toolset uses the standard AWS credential chain and region resolution. You can supply these via env vars (recommended for ad-hoc use) **or** via the `aws:` section of `config.yaml` (recommended for repeatable setups).
+
+### SSO setup (most common today)
+
+SSO does **not** need `credentials_file`. Run `aws configure sso` to create a profile in `~/.aws/config`, then point RootCause at that profile name:
+
+```yaml
+aws:
+  region: "us-east-1"
+  profile: "platform-sso"
+  # credentials_file is intentionally unset for SSO
+```
+
+Before the first call (and whenever the SSO session expires) the user runs `aws sso login --profile platform-sso`. The SDK picks up the cached SSO session from `~/.aws/sso/cache/` automatically — no static keys required.
+
+### Static-key setup (legacy / CI)
+
+For static `AKIA*` keys in a non-default shared credentials file:
+
+```yaml
+aws:
+  region: "us-east-1"
+  profile: "platform"
+  credentials_file: "~/.aws/credentials.team"
+```
+
+### Resolution order (priority high → low)
+
+1. Tool-call argument (per call where applicable)
+2. `AWS_REGION` / `AWS_PROFILE` / `AWS_DEFAULT_REGION` / `AWS_DEFAULT_PROFILE` env vars
+3. `aws.region` / `aws.profile` / `aws.credentials_file` in `config.yaml`
+4. SDK default discovery (shared config, SSO, instance metadata)
+5. `us-east-1` region fallback if nothing resolved
+
+`aws.credentials_file` is added to the SDK's shared-credentials path list, so a team-specific credentials file can live alongside the SDK default without touching the env. SSO setups should leave this empty.
 
 ---
 
-## GCP Credentials
+## Observability Credentials
 
-The `gcp.*` tools use Application Default Credentials by default. Either run `gcloud auth application-default login` or set `GOOGLE_APPLICATION_CREDENTIALS` to a service-account key path.
+Observability is a separate config concern from per-cloud auth, because the cloud the workload runs in is often *not* the cloud where its telemetry lives. A common pattern:
 
-Project ID resolution order:
+- EKS workloads shipping logs and metrics into a centralized GCP project.
+- GKE workloads in many projects fanning into one shared "ops" project.
+- AWS workloads + Datadog for metrics + GCP Cloud Logging for audit.
+
+Today RootCause ships the GCP backend (Cloud Monitoring + Cloud Logging). Future backends (Datadog, CloudWatch, Grafana/Prometheus) will slot in as siblings.
+
+### GCP backend
+
+```yaml
+observability:
+  gcp:
+    # The GCP project that hosts Cloud Monitoring + Cloud Logging.
+    project: "my-ops-project"
+    # Optional: override gcp.credentials_file just for observability calls
+    # (useful when telemetry lives in a different GCP account than the rest
+    # of your estate). Leave empty to reuse gcp.credentials_file.
+    # credentials_file: "~/keys/observability-sa.json"
+```
+
+### Resolution chains
+
+GCP project (every `gcp.*` observability tool):
 
 1. Explicit `projectId` argument on the tool call.
 2. `GOOGLE_CLOUD_PROJECT` env var.
 3. `GCP_PROJECT` env var.
+4. `observability.gcp.project` from `config.yaml`.
+
+GCP credentials (when targeting observability):
+
+1. `GOOGLE_APPLICATION_CREDENTIALS` env var.
+2. `observability.gcp.credentials_file` (per-backend override).
+3. `gcp.credentials_file` (cross-cutting GCP auth).
+4. Application Default Credentials (`gcloud auth application-default login`).
 
 The observability project is **not** auto-detected from the kubeconfig context — an EKS or AKS cluster can also ship logs and metrics to GCP, so the project must come from the user, not from the cluster's control-plane identity.
 
 When `gcp.metrics.workload` and `gcp.logs.workload` are enabled and `rootcause.incident_bundle` is called with both `namespace` and `workload`, the default bundle chain auto-includes GCP workload metrics and logs alongside the k8s evidence.
+
+## GCP Credentials (non-observability)
+
+The `gcp:` section configures auth for *any* future GCP tool that isn't observability — control-plane operations against the workload's project, IAM, etc.
+
+```yaml
+gcp:
+  # Service-account key applied to all gcp.* calls unless an observability
+  # override is present. Leave empty for ADC (gcloud auth).
+  credentials_file: "~/keys/rootcause-sa.json"
+```
+
+Today no non-observability GCP tools exist, so in practice this section is consumed only as a credentials fallback for the observability backend.
 
 ---
 
@@ -1092,13 +1169,13 @@ Examples:
 
 ```bash
 # stdio
-rootcause --config config.toml --transport stdio
+rootcause --config config.yaml --transport stdio
 
 # HTTP (streamable)
-rootcause --config config.toml --transport http --host 127.0.0.1 --port 8000 --path /mcp
+rootcause --config config.yaml --transport http --host 127.0.0.1 --port 8000 --path /mcp
 
 # SSE
-rootcause --config config.toml --transport sse --host 127.0.0.1 --port 8000 --path /mcp
+rootcause --config config.yaml --transport sse --host 127.0.0.1 --port 8000 --path /mcp
 ```
 
 Design focus today:
@@ -1142,7 +1219,7 @@ go test ./...
 
 - Contribution rules: `CONTRIBUTING.md`
 - Plugin SDK and external toolsets: `PLUGINS.md`
-- Config example: `config.toml`
+- Config example: `config.yaml`
 - MCP eval harness: `eval/README.md`
 
 ### PR quality checklist

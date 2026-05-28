@@ -109,7 +109,7 @@ Note: this repository currently uses module path `rootcause` (see `go.mod`), so 
 
 ## Enable Your Toolchain
 
-Example `config.toml`:
+Example `config.yaml`:
 
 ```toml
 toolsets = ["k8s", "linkerd", "aws"]

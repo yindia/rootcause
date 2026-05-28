@@ -37,7 +37,7 @@ Create the default cross-platform config and custom skill folder first:
 rootcause init-config
 ```
 
-This writes `${HOME}/.rootcause/config.toml` on macOS/Linux and `%USERPROFILE%\.rootcause\config.toml` on Windows, with all built-in toolsets enabled and `~/.rootcause/skills` configured.
+This writes `${HOME}/.rootcause/config.yaml` on macOS/Linux and `%USERPROFILE%\.rootcause\config.yaml` on Windows, with all built-in toolsets enabled and `~/.rootcause/skills` configured.
 
 Users can add their own skills in any folder that follows the same directory shape:
 

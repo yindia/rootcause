@@ -11,7 +11,7 @@ import (
 
 func TestSlugifyPromptName(t *testing.T) {
 	cases := map[string]string{
-		"gcp_workload_diagnose":    "gcp-workload-diagnose",
+		"observability_workload_diagnose":    "observability-workload-diagnose",
 		"sre_incident_commander":   "sre-incident-commander",
 		"no_underscores_here_only": "no-underscores-here-only",
 		"alreadykebab":             "alreadykebab",
@@ -84,10 +84,10 @@ func TestCommandFileNameByFormat(t *testing.T) {
 		format commandFormat
 		want   string
 	}{
-		{"gcp_workload_diagnose", formatClaudeCommand, "gcp-workload-diagnose.md"},
-		{"gcp_workload_diagnose", formatCopilotPrompt, "gcp-workload-diagnose.prompt.md"},
-		{"gcp_workload_diagnose", formatCursorCommand, "gcp-workload-diagnose.md"},
-		{"gcp_workload_diagnose", formatGenericMD, "gcp-workload-diagnose.md"},
+		{"observability_workload_diagnose", formatClaudeCommand, "observability-workload-diagnose.md"},
+		{"observability_workload_diagnose", formatCopilotPrompt, "observability-workload-diagnose.prompt.md"},
+		{"observability_workload_diagnose", formatCursorCommand, "observability-workload-diagnose.md"},
+		{"observability_workload_diagnose", formatGenericMD, "observability-workload-diagnose.md"},
 	}
 	for _, c := range cases {
 		if got := commandFileName(c.name, c.format); got != c.want {

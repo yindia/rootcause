@@ -10,12 +10,12 @@ import (
 
 	_ "rootcause/toolsets/aws"
 	_ "rootcause/toolsets/browser"
-	_ "rootcause/toolsets/gcp"
 	_ "rootcause/toolsets/helm"
 	_ "rootcause/toolsets/istio"
 	_ "rootcause/toolsets/k8s"
 	_ "rootcause/toolsets/karpenter"
 	_ "rootcause/toolsets/linkerd"
+	_ "rootcause/toolsets/observability"
 	_ "rootcause/toolsets/rootcause"
 	_ "rootcause/toolsets/terraform"
 )

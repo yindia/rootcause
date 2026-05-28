@@ -324,7 +324,12 @@ func TestCustomSkillGuidanceTruncatesLargeCustomSkillContent(t *testing.T) {
 	}
 }
 
-func TestInvokerAttachesCustomSkillErrorWithoutFailingTool(t *testing.T) {
+func TestInvokerToleratesBadCustomSkillDirSilently(t *testing.T) {
+	// New contract (per the MCP-hardening audit): a subdirectory missing
+	// SKILL.md is skipped with a stderr warning at discovery time and does
+	// NOT pollute every tool response with a customSkillError. Tool calls
+	// continue to succeed cleanly even when the custom-skills directory has
+	// half-finished runbooks lying around.
 	customRoot := t.TempDir()
 	missingSkillDir := filepath.Join(customRoot, "broken-runbook")
 	err := os.MkdirAll(missingSkillDir, 0o755)
@@ -350,17 +355,17 @@ func TestInvokerAttachesCustomSkillErrorWithoutFailingTool(t *testing.T) {
 	invoker := NewToolInvoker(reg, ToolContext{Policy: policy.NewAuthorizer(), Config: &cfg})
 	result, err := invoker.Call(context.Background(), policy.User{Role: policy.RoleCluster}, "demo.inspect", nil)
 	if err != nil {
-		t.Fatalf("expected tool success despite custom skill error: %v", err)
+		t.Fatalf("expected tool success, got error: %v", err)
 	}
-	if result.Metadata.CustomSkillError == "" {
-		t.Fatalf("expected custom skill error metadata")
+	if result.Metadata.CustomSkillError != "" {
+		t.Fatalf("expected no customSkillError metadata after the loader was made lenient, got %q", result.Metadata.CustomSkillError)
 	}
 	root, ok := result.Data.(map[string]any)
 	if !ok {
 		t.Fatalf("expected map result data, got %#v", result.Data)
 	}
-	if root["customSkillError"] == "" {
-		t.Fatalf("expected payload customSkillError, got %#v", root)
+	if e, present := root["customSkillError"]; present && e != "" {
+		t.Fatalf("expected no payload customSkillError, got %v", e)
 	}
 }
 
