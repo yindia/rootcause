@@ -20,10 +20,6 @@ type config struct {
 	configPath         string
 	readOnly           bool
 	disableDestructive bool
-	transportMode      string
-	host               string
-	port               int
-	path               string
 	logLevel           string
 }
 
@@ -43,7 +39,7 @@ func Execute(ctx context.Context, args []string, run RunServerFunc, version stri
 func newRootCmd(ctx context.Context, run RunServerFunc, version string, stderr io.Writer, cfg *config) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:          "rootcause",
-		Short:        "RootCause MCP server",
+		Short:        "RootCause MCP server (stdio)",
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			return run(ctx, cfg.toServerOptions(cmd, version, stderr))
@@ -56,10 +52,6 @@ func newRootCmd(ctx context.Context, run RunServerFunc, version string, stderr i
 	flags.StringVar(&cfg.configPath, "config", "", "config file path")
 	flags.BoolVar(&cfg.readOnly, "read-only", false, "disable write operations")
 	flags.BoolVar(&cfg.disableDestructive, "disable-destructive", false, "disable destructive operations")
-	flags.StringVar(&cfg.transportMode, "transport", "stdio", "transport mode: stdio|http|sse")
-	flags.StringVar(&cfg.host, "host", "127.0.0.1", "host for HTTP/SSE transport")
-	flags.IntVar(&cfg.port, "port", 8000, "port for HTTP/SSE transport")
-	flags.StringVar(&cfg.path, "path", "/mcp", "path for HTTP/SSE transport")
 	flags.StringVar(&cfg.logLevel, "log-level", "", "log level")
 	cmd.AddCommand(newSyncCmd(stderr))
 	cmd.AddCommand(newInitConfigCmd(stderr))
@@ -74,10 +66,6 @@ func (cfg *config) toServerOptions(cmd *cobra.Command, version string, stderr io
 		Toolsets:           nil,
 		ReadOnly:           false,
 		DisableDestructive: false,
-		TransportMode:      "",
-		Host:               "",
-		Port:               0,
-		Path:               "",
 		LogLevel:           "",
 		Version:            version,
 		Stderr:             stderr,
@@ -96,18 +84,6 @@ func (cfg *config) toServerOptions(cmd *cobra.Command, version string, stderr io
 	}
 	if cmd.Flags().Lookup("disable-destructive").Changed {
 		options.DisableDestructive = cfg.disableDestructive
-	}
-	if cmd.Flags().Lookup("transport").Changed {
-		options.TransportMode = cfg.transportMode
-	}
-	if cmd.Flags().Lookup("host").Changed {
-		options.Host = cfg.host
-	}
-	if cmd.Flags().Lookup("port").Changed {
-		options.Port = cfg.port
-	}
-	if cmd.Flags().Lookup("path").Changed {
-		options.Path = cfg.path
 	}
 	if cmd.Flags().Lookup("log-level").Changed {
 		options.LogLevel = cfg.logLevel

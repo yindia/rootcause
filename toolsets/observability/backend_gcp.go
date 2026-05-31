@@ -26,19 +26,34 @@ import (
 type gcpBackend struct {
 	cfgProject string // observability.gcp.project — used when projectId arg is empty
 	credsFile  string // resolved credentials file (env > observability.gcp > [gcp])
-	clientPool sync.Map
-	sf         singleflight.Group
+
+	// clientPool is bounded by maxClientPoolEntries to prevent a caller that
+	// passes many distinct projectId values from exhausting FDs and memory
+	// (each entry holds a gRPC connection). When the cap is hit we evict the
+	// least-recently-used entry under poolMu. sync.Map is unsuitable here
+	// because it doesn't expose ordering.
+	poolMu      sync.Mutex
+	clientPool  map[string]*clientEntry
+	poolOrder   []string // LRU: oldest at index 0, newest at end
+	sf          singleflight.Group
 }
+
+const maxClientPoolEntries = 32
 
 // newGCPBackend constructs the GCP backend. cfgProject is the
 // observability.gcp.project from config; cfgCreds is the resolved credentials
 // path (observability.gcp.credentials_file with [gcp].credentials_file
 // fallback).
 func newGCPBackend(cfgProject, cfgCreds string) *gcpBackend {
-	return &gcpBackend{cfgProject: cfgProject, credsFile: cfgCreds}
+	return &gcpBackend{
+		cfgProject: cfgProject,
+		credsFile:  cfgCreds,
+		clientPool: map[string]*clientEntry{},
+		poolOrder:  make([]string, 0, maxClientPoolEntries),
+	}
 }
 
-func (b *gcpBackend) Name() string       { return "gcp" }
+func (b *gcpBackend) Name() string        { return "gcp" }
 func (b *gcpBackend) Metrics() MetricsAPI { return &gcpMetrics{backend: b} }
 func (b *gcpBackend) Logs() LogsAPI       { return &gcpLogs{backend: b} }
 
@@ -55,13 +70,12 @@ func (b *gcpBackend) loadClient(ctx context.Context, service, projectExplicit st
 		return nil, "", errors.New("gcp project id is required: pass projectId, set GOOGLE_CLOUD_PROJECT / GCP_PROJECT, or set observability.gcp.project in config.yaml (observability project is independent of the cluster's control plane — EKS/AKS clusters can also ship to GCP)")
 	}
 	fullKey := service + "|" + project
-	if raw, ok := b.clientPool.Load(fullKey); ok {
-		entry := raw.(*clientEntry)
+	if entry := b.poolGet(fullKey); entry != nil {
 		return entry.client, entry.project, nil
 	}
 	resolved, err, _ := b.sf.Do(fullKey, func() (any, error) {
-		if raw, ok := b.clientPool.Load(fullKey); ok {
-			return raw, nil
+		if entry := b.poolGet(fullKey); entry != nil {
+			return entry, nil
 		}
 		opts := []option.ClientOption{}
 		if creds := gcpcfg.CredentialsFileWithConfig(b.credsFile); creds != "" {
@@ -72,13 +86,67 @@ func (b *gcpBackend) loadClient(ctx context.Context, service, projectExplicit st
 			return nil, err
 		}
 		entry := &clientEntry{client: client, project: project}
-		b.clientPool.Store(fullKey, entry)
+		b.poolPut(fullKey, entry)
 		return entry, nil
 	})
 	if err != nil {
 		return nil, "", err
 	}
 	return resolved.(*clientEntry).client, resolved.(*clientEntry).project, nil
+}
+
+// poolGet returns the entry for key (if any) and bumps it to MRU position.
+func (b *gcpBackend) poolGet(key string) *clientEntry {
+	b.poolMu.Lock()
+	defer b.poolMu.Unlock()
+	entry, ok := b.clientPool[key]
+	if !ok {
+		return nil
+	}
+	b.bumpMRULocked(key)
+	return entry
+}
+
+// poolPut inserts entry under key, evicting the LRU entry if the pool is
+// already full. Closing the evicted client's network connection is best-
+// effort — SDK types vary in whether they expose Close().
+func (b *gcpBackend) poolPut(key string, entry *clientEntry) {
+	b.poolMu.Lock()
+	defer b.poolMu.Unlock()
+	if _, exists := b.clientPool[key]; exists {
+		b.clientPool[key] = entry
+		b.bumpMRULocked(key)
+		return
+	}
+	if len(b.clientPool) >= maxClientPoolEntries && len(b.poolOrder) > 0 {
+		oldest := b.poolOrder[0]
+		b.poolOrder = b.poolOrder[1:]
+		if evicted, ok := b.clientPool[oldest]; ok {
+			closeClientBestEffort(evicted.client)
+			delete(b.clientPool, oldest)
+		}
+	}
+	b.clientPool[key] = entry
+	b.poolOrder = append(b.poolOrder, key)
+}
+
+func (b *gcpBackend) bumpMRULocked(key string) {
+	for i, k := range b.poolOrder {
+		if k == key {
+			b.poolOrder = append(b.poolOrder[:i], b.poolOrder[i+1:]...)
+			break
+		}
+	}
+	b.poolOrder = append(b.poolOrder, key)
+}
+
+// closeClientBestEffort runs Close on SDK clients that expose it; ignored
+// otherwise. Used during LRU eviction to release gRPC connections.
+func closeClientBestEffort(c any) {
+	type closer interface{ Close() error }
+	if cc, ok := c.(closer); ok {
+		_ = cc.Close()
+	}
 }
 
 func (b *gcpBackend) queryClient(ctx context.Context, project string) (*monitoring.QueryClient, string, error) {
@@ -317,6 +385,16 @@ func (l *gcpLogs) fetch(ctx context.Context, project, filter string, limit int) 
 
 // --- shared encoding + query builders (moved from toolsets/gcp/...) ---
 
+const (
+	maxMQLSeries          = 200
+	maxMQLPointsPerSeries = 5000
+)
+
+// runMQL fetches up to maxMQLSeries time series, each capped at
+// maxMQLPointsPerSeries points. Each returned series carries a `truncated`
+// boolean when its point list was capped; the parent shape gains
+// `seriesTruncated: true` when the series count itself was capped so callers
+// can detect either kind of clipping.
 func runMQL(ctx context.Context, client *monitoring.QueryClient, project, mql string) ([]map[string]any, string, error) {
 	if client == nil {
 		return nil, project, fmt.Errorf("monitoring query client is nil")
@@ -326,6 +404,7 @@ func runMQL(ctx context.Context, client *monitoring.QueryClient, project, mql st
 		Query: mql,
 	})
 	out := make([]map[string]any, 0)
+	seriesTruncated := false
 	for {
 		resp, err := it.Next()
 		if err == iterator.Done {
@@ -334,10 +413,16 @@ func runMQL(ctx context.Context, client *monitoring.QueryClient, project, mql st
 		if err != nil {
 			return out, project, err
 		}
-		out = append(out, encodeTimeSeriesData(resp))
-		if len(out) >= 200 {
+		if len(out) >= maxMQLSeries {
+			// Sentinel: surface that more results exist on the wire so the
+			// caller (and ultimately the AI) knows the picture is partial.
+			seriesTruncated = true
 			break
 		}
+		out = append(out, encodeTimeSeriesData(resp))
+	}
+	if seriesTruncated && len(out) > 0 {
+		out[0]["seriesTruncated"] = true
 	}
 	return out, project, nil
 }
@@ -347,8 +432,14 @@ func encodeTimeSeriesData(ts *monitoringpb.TimeSeriesData) map[string]any {
 	for _, lv := range ts.LabelValues {
 		labels = append(labels, lv.GetStringValue())
 	}
-	points := make([]map[string]any, 0, len(ts.PointData))
-	for _, p := range ts.PointData {
+	pointsTruncated := false
+	pointSrc := ts.PointData
+	if len(pointSrc) > maxMQLPointsPerSeries {
+		pointSrc = pointSrc[:maxMQLPointsPerSeries]
+		pointsTruncated = true
+	}
+	points := make([]map[string]any, 0, len(pointSrc))
+	for _, p := range pointSrc {
 		pt := map[string]any{}
 		if p.TimeInterval != nil {
 			if p.TimeInterval.StartTime != nil {
@@ -363,11 +454,15 @@ func encodeTimeSeriesData(ts *monitoringpb.TimeSeriesData) map[string]any {
 		}
 		points = append(points, pt)
 	}
-	return map[string]any{
+	out := map[string]any{
 		"labelValues": labels,
 		"points":      points,
 		"pointCount":  len(points),
 	}
+	if pointsTruncated {
+		out["pointsTruncated"] = true
+	}
+	return out
 }
 
 func encodeTypedValue(tv *monitoringpb.TypedValue) any {

@@ -483,10 +483,11 @@ docker build -t rootcause:local .
 
 # Run stdio mode (default)
 docker run --rm -it rootcause:local
-
-# Run HTTP transport
-docker run --rm -p 8000:8000 rootcause:local --transport http --host 0.0.0.0 --port 8000 --path /mcp
 ```
+
+RootCause is stdio-only. To expose it to a remote MCP client, run it inside a
+process supervisor (or container) and front the stdio pipes with a reverse
+proxy (Caddy/Nginx/Tailscale Funnel/SSH).
 
 CI image publishing is configured via GitHub Actions in `.github/workflows/docker.yml` and pushes to GHCR (`ghcr.io/<owner>/rootcause`) on `main` and release tags.
 
@@ -988,11 +989,12 @@ The generated config enables `k8s`, `linkerd`, `karpenter`, `istio`, `helm`, `aw
 - `--config`
 - `--read-only`
 - `--disable-destructive`
-- `--transport` (`stdio|http|sse`)
-- `--host` (for HTTP/SSE)
-- `--port` (for HTTP/SSE)
-- `--path` (for HTTP/SSE)
 - `--log-level`
+
+RootCause speaks **stdio only**. The MCP client spawns the binary and talks to
+it over the pipes; there is no HTTP/SSE listener and no in-app auth. For
+remote access, put RootCause behind a reverse proxy or SSH and let the proxy
+handle TLS + authn.
 
 If `--config` is not set, RootCause will use the `ROOTCAUSE_CONFIG` environment variable when present.
 
@@ -1163,20 +1165,18 @@ On Windows, SIGHUP is not supported; restart the process to reload config.
 
 ## MCP Transport
 
-RootCause supports MCP over `stdio` (default), `http` (streamable HTTP), and `sse`.
-
-Examples:
+RootCause speaks **stdio only** — the MCP client (Claude Desktop, Claude
+Code, Cline, etc.) launches the binary as a child process and exchanges
+JSON-RPC over stdin/stdout. There is no HTTP/SSE listener and no built-in
+auth, by design: the trust boundary is the local user.
 
 ```bash
-# stdio
-rootcause --config config.yaml --transport stdio
-
-# HTTP (streamable)
-rootcause --config config.yaml --transport http --host 127.0.0.1 --port 8000 --path /mcp
-
-# SSE
-rootcause --config config.yaml --transport sse --host 127.0.0.1 --port 8000 --path /mcp
+rootcause --config config.yaml
 ```
+
+For remote access, run RootCause on the box that owns the kubeconfig and
+front it with a reverse proxy or SSH-tunnel that terminates TLS and handles
+authentication. RootCause itself stays a small, local-first tool.
 
 Design focus today:
 - best-in-class local reliability for AI-assisted SRE workflows

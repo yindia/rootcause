@@ -22,7 +22,6 @@ type Config struct {
 	Exec               ExecConfig      `yaml:"exec_readonly"`
 	Timeouts           TimeoutConfig   `yaml:"timeouts"`
 	Cache              CacheConfig     `yaml:"cache"`
-	Transport          TransportConfig `yaml:"transport"`
 	Prompts            PromptsConfig   `yaml:"prompts"`
 	Skills             SkillsConfig    `yaml:"skills"`
 	Limits             LimitsConfig    `yaml:"limits"`
@@ -124,13 +123,6 @@ type CacheConfig struct {
 	AWSListTTLSeconds   int `yaml:"aws_list_ttl_seconds"`
 }
 
-type TransportConfig struct {
-	Mode string `yaml:"mode"`
-	Host string `yaml:"host"`
-	Port int    `yaml:"port"`
-	Path string `yaml:"path"`
-}
-
 type PromptsConfig struct {
 	// File points at a single YAML file containing a top-level `prompts:`
 	// list (one entry per prompt). Optional; the directory layout below is
@@ -155,10 +147,6 @@ type Overrides struct {
 	ReadOnly           *bool
 	DisableDestructive *bool
 	LogLevel           *string
-	TransportMode      *string
-	TransportHost      *string
-	TransportPort      *int
-	TransportPath      *string
 }
 
 func DefaultConfig() Config {
@@ -180,12 +168,6 @@ func DefaultConfig() Config {
 			DiscoveryTTLSeconds: 300,
 			GraphTTLSeconds:     30,
 			AWSListTTLSeconds:   60,
-		},
-		Transport: TransportConfig{
-			Mode: "stdio",
-			Host: "127.0.0.1",
-			Port: 8000,
-			Path: "/mcp",
 		},
 		Skills: SkillsConfig{
 			CustomDirs: []string{"~/.rootcause/skills"},
@@ -307,18 +289,6 @@ func merge(dst *Config, src Config) {
 	if src.Cache.AWSListTTLSeconds > 0 {
 		dst.Cache.AWSListTTLSeconds = src.Cache.AWSListTTLSeconds
 	}
-	if src.Transport.Mode != "" {
-		dst.Transport.Mode = src.Transport.Mode
-	}
-	if src.Transport.Host != "" {
-		dst.Transport.Host = src.Transport.Host
-	}
-	if src.Transport.Port > 0 {
-		dst.Transport.Port = src.Transport.Port
-	}
-	if src.Transport.Path != "" {
-		dst.Transport.Path = src.Transport.Path
-	}
 	if src.Prompts.File != "" {
 		dst.Prompts.File = src.Prompts.File
 	}
@@ -381,17 +351,5 @@ func applyOverrides(cfg *Config, overrides Overrides) {
 	}
 	if overrides.LogLevel != nil {
 		cfg.LogLevel = *overrides.LogLevel
-	}
-	if overrides.TransportMode != nil {
-		cfg.Transport.Mode = *overrides.TransportMode
-	}
-	if overrides.TransportHost != nil {
-		cfg.Transport.Host = *overrides.TransportHost
-	}
-	if overrides.TransportPort != nil {
-		cfg.Transport.Port = *overrides.TransportPort
-	}
-	if overrides.TransportPath != nil {
-		cfg.Transport.Path = *overrides.TransportPath
 	}
 }

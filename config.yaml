@@ -33,11 +33,6 @@ cache:
     discovery_ttl_seconds: 300
     graph_ttl_seconds: 30
     aws_list_ttl_seconds: 60
-transport:
-    mode: stdio
-    host: 127.0.0.1
-    port: 8000
-    path: /mcp
 prompts:
     file: ""
     dir: ~/.rootcause/prompts

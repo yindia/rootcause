@@ -2,13 +2,10 @@ package server
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"io"
-	"net/http"
 	"os"
 	"strings"
-	"time"
 
 	sdkmcp "github.com/modelcontextprotocol/go-sdk/mcp"
 
@@ -33,11 +30,10 @@ type Options struct {
 	LogLevel           string
 	Version            string
 	Stderr             io.Writer
-	Transport          sdkmcp.Transport
-	TransportMode      string
-	Host               string
-	Port               int
-	Path               string
+	// Transport is an optional injection point for tests. When nil, stdio
+	// is used. Rootcause only speaks stdio — remote/network access should
+	// be fronted by a reverse proxy that exposes the stdio transport.
+	Transport sdkmcp.Transport
 }
 
 func Run(ctx context.Context, opts Options) error {
@@ -70,29 +66,12 @@ func Run(ctx context.Context, opts Options) error {
 	if opts.LogLevel != "" {
 		overrides.LogLevel = &opts.LogLevel
 	}
-	if strings.TrimSpace(opts.TransportMode) != "" {
-		value := strings.TrimSpace(opts.TransportMode)
-		overrides.TransportMode = &value
-	}
-	if strings.TrimSpace(opts.Host) != "" {
-		value := strings.TrimSpace(opts.Host)
-		overrides.TransportHost = &value
-	}
-	if opts.Port > 0 {
-		value := opts.Port
-		overrides.TransportPort = &value
-	}
-	if strings.TrimSpace(opts.Path) != "" {
-		value := strings.TrimSpace(opts.Path)
-		overrides.TransportPath = &value
-	}
-
 	cfg, err := config.Load(configPath, "", overrides)
 	if err != nil {
 		return fmt.Errorf("config load failed: %w", err)
 	}
 
-	toolCtx, reg, err := buildRuntime(cfg, errOut, nil)
+	toolCtx, _, err := buildRuntime(cfg, errOut, nil)
 	if err != nil {
 		return fmt.Errorf("init failed: %w", err)
 	}
@@ -116,7 +95,6 @@ func Run(ctx context.Context, opts Options) error {
 		fmt.Fprintf(errOut, "rootcause: resource registration failed at startup, continuing without resources: %v\n", err)
 		resourceURIs, resourceTemplates = nil, nil
 	}
-	_ = reg
 
 	reloadCh := make(chan os.Signal, 1)
 	notifyReload(reloadCh)
@@ -176,64 +154,11 @@ func Run(ctx context.Context, opts Options) error {
 		}
 	}()
 
-	_ = invoker
-
-	mode := strings.ToLower(strings.TrimSpace(cfg.Transport.Mode))
-	if mode == "" {
-		mode = "stdio"
+	transport := opts.Transport
+	if transport == nil {
+		transport = &sdkmcp.StdioTransport{}
 	}
-	if mode == "stdio" {
-		transport := opts.Transport
-		if transport == nil {
-			transport = &sdkmcp.StdioTransport{}
-		}
-		if err := server.Run(ctx, transport); err != nil {
-			return fmt.Errorf("server error: %w", err)
-		}
-		return nil
-	}
-
-	host := strings.TrimSpace(cfg.Transport.Host)
-	if host == "" {
-		host = "127.0.0.1"
-	}
-	port := cfg.Transport.Port
-	if port <= 0 {
-		port = 8000
-	}
-	path := strings.TrimSpace(cfg.Transport.Path)
-	if path == "" {
-		path = "/mcp"
-	}
-	if !strings.HasPrefix(path, "/") {
-		path = "/" + path
-	}
-
-	addr := fmt.Sprintf("%s:%d", host, port)
-	mux := http.NewServeMux()
-	switch mode {
-	case "http":
-		handler := sdkmcp.NewStreamableHTTPHandler(func(*http.Request) *sdkmcp.Server { return server }, nil)
-		mux.Handle(path, handler)
-	case "sse":
-		handler := sdkmcp.NewSSEHandler(func(*http.Request) *sdkmcp.Server { return server }, nil)
-		mux.Handle(path, handler)
-	default:
-		return fmt.Errorf("unsupported transport mode: %s", mode)
-	}
-	httpServer := &http.Server{
-		Addr:              addr,
-		Handler:           mux,
-		ReadHeaderTimeout: 10 * time.Second,
-	}
-	go func() {
-		<-ctx.Done()
-		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
-		_ = httpServer.Shutdown(shutdownCtx)
-	}()
-	err = httpServer.ListenAndServe()
-	if err != nil && !errors.Is(err, http.ErrServerClosed) {
+	if err := server.Run(ctx, transport); err != nil {
 		return fmt.Errorf("server error: %w", err)
 	}
 	return nil

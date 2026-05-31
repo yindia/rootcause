@@ -116,6 +116,12 @@ func (i *ToolInvoker) Call(ctx context.Context, user policy.User, toolName strin
 		outcome = "error"
 		result.Data = canonicalErrorPayload(toolErr, result.Data)
 	}
+	// Redact tokens/secrets from the result before it leaves the server.
+	// This covers k8s.logs payloads, observability.logs.* entries, and any
+	// other handler that surfaces strings sourced from user workloads.
+	if tctx.Redactor != nil {
+		result.Data = tctx.Redactor.RedactValue(result.Data)
+	}
 	cache := i.skillCache.Load()
 	guidance, guidanceErr := customSkillGuidanceForTool(tctx.Config, spec, args, cache)
 	result = attachCustomSkillGuidance(result, guidance, guidanceErr)

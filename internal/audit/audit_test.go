@@ -41,7 +41,14 @@ func TestLoggerMarshalError(t *testing.T) {
 	var buf bytes.Buffer
 	logger := NewLogger(&buf)
 	logger.Log(Event{Tool: "k8s.get", Toolset: "k8s", Outcome: "success"})
-	if buf.Len() != 0 {
-		t.Fatalf("expected no output on marshal error")
+	output := buf.String()
+	if !strings.Contains(output, `"audit_error":"fail"`) {
+		t.Fatalf("expected audit_error fallback in output: %s", output)
+	}
+	if !strings.Contains(output, `"tool":"k8s.get"`) {
+		t.Fatalf("expected tool in fallback output: %s", output)
+	}
+	if !strings.HasSuffix(output, "\n") {
+		t.Fatalf("expected trailing newline in fallback: %s", output)
 	}
 }

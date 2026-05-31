@@ -49,15 +49,22 @@ func (t *Toolset) handleLogsWorkload(ctx context.Context, req mcp.ToolRequest) (
 		return errorResult(err), err
 	}
 	severity := strings.ToUpper(strings.TrimSpace(argString(req.Arguments, "severity")))
+	if severity == "" {
+		severity = "WARNING"
+	}
+	// Reject arbitrary severity values — only the Cloud Logging severity set
+	// is allowed. Without this, the value flows into a "severity>=%s" clause
+	// in the backend filter and a malicious caller could splice in arbitrary
+	// AND/OR predicates.
+	if _, err := severitiesAtOrAbove(severity); err != nil {
+		return errorResult(err), err
+	}
 	resourceType := strings.TrimSpace(argString(req.Arguments, "resourceType"))
 	window := parseDuration(argString(req.Arguments, "duration"), 30*time.Minute)
 	limit := argInt(req.Arguments, "limit", 100)
 	res, err := backend.Logs().WorkloadEntries(ctx, project, resourceType, namespace, workload, severity, window, limit)
 	if err != nil {
 		return errorResult(err), err
-	}
-	if severity == "" {
-		severity = "WARNING"
 	}
 	resources := []string{fmt.Sprintf("%s/%s", namespace, workload)}
 	return mcp.ToolResult{
@@ -171,6 +178,14 @@ func (t *Toolset) handleCorrelatedWithBundle(ctx context.Context, req mcp.ToolRe
 	}
 
 	severity := strings.ToUpper(strings.TrimSpace(argString(req.Arguments, "severity")))
+	if severity == "" {
+		severity = "WARNING"
+	}
+	// Same allowlist rationale as handleLogsWorkload — severity flows into
+	// the backend filter, so an unvalidated value would allow filter splicing.
+	if _, err := severitiesAtOrAbove(severity); err != nil {
+		return errorResult(err), err
+	}
 	resourceType := strings.TrimSpace(argString(req.Arguments, "resourceType"))
 	limit := argInt(req.Arguments, "limit", 200)
 	fallback := parseDuration(argString(req.Arguments, "duration"), 30*time.Minute)
@@ -185,9 +200,6 @@ func (t *Toolset) handleCorrelatedWithBundle(ctx context.Context, req mcp.ToolRe
 	res, err := backend.Logs().EntriesInWindow(ctx, project, resourceType, namespace, workload, severity, startT, endT, limit)
 	if err != nil {
 		return errorResult(err), err
-	}
-	if severity == "" {
-		severity = "WARNING"
 	}
 	resources := []string{}
 	if workload != "" {

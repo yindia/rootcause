@@ -2,6 +2,7 @@ package audit
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"sync"
 	"time"
@@ -40,6 +41,17 @@ func (l *Logger) Log(event Event) {
 	defer l.mu.Unlock()
 	data, err := jsonMarshal(event)
 	if err != nil {
+		// Don't go silent: a missing audit line is worse than an ugly one.
+		// Emit a minimal JSON record so the operator sees that audit is
+		// broken (and which tool was running at the time).
+		fallback := fmt.Sprintf(
+			`{"timestamp":%q,"audit_error":%q,"tool":%q,"toolset":%q,"outcome":"audit_error"}`+"\n",
+			event.Timestamp.UTC().Format(time.RFC3339Nano),
+			err.Error(),
+			event.Tool,
+			event.Toolset,
+		)
+		_, _ = l.out.Write([]byte(fallback))
 		return
 	}
 	_, _ = l.out.Write(append(data, '\n'))

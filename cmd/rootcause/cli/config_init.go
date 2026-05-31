@@ -69,7 +69,10 @@ func initHomeConfig(path string, overwrite bool) (string, error) {
 			return "", fmt.Errorf("check existing config: %w", err)
 		}
 	}
-	err := os.MkdirAll(filepath.Dir(path), 0o755)
+	// 0o700 because config.yaml inside is 0o600 and may carry paths to
+	// service-account keys / credentials. Keep the parent private to the
+	// user, matching standard ~/.ssh, ~/.aws layout.
+	err := os.MkdirAll(filepath.Dir(path), 0o700)
 	if err != nil {
 		return "", fmt.Errorf("create config directory: %w", err)
 	}
@@ -86,11 +89,11 @@ func initHomeConfig(path string, overwrite bool) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("write config: %w", err)
 	}
-	err = os.MkdirAll(filepath.Join(filepath.Dir(path), "skills"), 0o755)
+	err = os.MkdirAll(filepath.Join(filepath.Dir(path), "skills"), 0o700)
 	if err != nil {
 		return "", fmt.Errorf("create custom skills directory: %w", err)
 	}
-	err = os.MkdirAll(filepath.Join(filepath.Dir(path), "prompts"), 0o755)
+	err = os.MkdirAll(filepath.Join(filepath.Dir(path), "prompts"), 0o700)
 	if err != nil {
 		return "", fmt.Errorf("create custom prompts directory: %w", err)
 	}
